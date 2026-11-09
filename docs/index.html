@@ -1896,6 +1896,37 @@ body[data-tema="fin"] .tabela-topo .acoes .btn:not(.btn-pdf){background:#1f6b3a}
 .lg-an.ok{border-top-color:#2f8a4c}.lg-an.aten{border-top-color:#d4881a}.lg-an.urg{border-top-color:#c0392b}
 .lg-an small{display:block;font-size:11px;color:#5f6f66;font-weight:700}.lg-an b{font-size:15px}.lg-an em{display:block;font-style:normal;font-size:11px;color:#5f6f66;margin-top:2px;line-height:1.3}
 @media (max-width:700px){.lg-analise{grid-template-columns:1fr 1fr}}
+
+/* ---- cronograma orçamentário (fim de Orçamento por ações) ---- */
+#calOrc{margin:18px 0 8px;font-size:13px;color:#1d2b24}
+#calOrc .co-faixa{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,#155a30,#2f8a4c);color:#fff;border-radius:12px;padding:14px 18px;flex-wrap:wrap}
+#calOrc .co-dias{text-align:center;line-height:1}#calOrc .co-dias b{font-size:34px;display:block}#calOrc .co-dias small{font-size:11px}
+#calOrc .co-prox{flex:1;min-width:240px}#calOrc .co-prox b{font-size:15px}#calOrc .co-prox small{display:block;opacity:.9;margin-top:3px}
+#calOrc .co-prox a{color:#fff}
+#calOrc .co-cont{display:flex;gap:8px}#calOrc .co-cont div{background:rgba(255,255,255,.16);border-radius:8px;padding:6px 12px;font-size:11px}#calOrc .co-cont b{display:block;font-size:17px}
+#calOrc .co-cab{display:flex;align-items:center;gap:10px;margin:16px 0 6px;flex-wrap:wrap}
+#calOrc .co-cab h3{margin:0;font-size:12px;letter-spacing:.14em;color:#1f6b3a;text-transform:uppercase}
+#calOrc .co-cab small{color:#5f6f66;flex:1}
+#calOrc .co-cab select{border:1px solid #1f6b3a;border-radius:6px;padding:5px 8px;font:inherit;background:#fff;min-width:160px}
+#calOrc .co-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#5f6f66;margin-bottom:8px}
+#calOrc .co-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+#calOrc .co-grade{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:1000px){#calOrc .co-grade{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){#calOrc .co-grade{grid-template-columns:1fr}}
+#calOrc .co-mes{background:#fff;border:1px solid #dfe7e1;border-radius:10px;padding:10px 12px;min-height:120px}
+#calOrc .co-mes.passou{opacity:.62}
+#calOrc .co-mes.atual{border:2px solid #1f6b3a;box-shadow:0 2px 10px rgba(31,107,58,.18)}
+#calOrc .co-mes h4{margin:0 0 8px;display:flex;justify-content:space-between;font-size:13px;color:#1f6b3a}
+#calOrc .co-mes h4 small{font-weight:400;color:#5f6f66;font-size:11px}
+#calOrc .co-mes h4 .co-tag{background:#c0392b;color:#fff;border-radius:9px;padding:1px 8px;font-size:10px;font-weight:700}
+#calOrc .co-ev{display:flex;gap:8px;margin:0 0 8px;align-items:flex-start}
+#calOrc .co-d{min-width:30px;text-align:center;font-weight:700;font-size:11px;border-radius:5px;padding:3px 2px;border:1px solid #dfe7e1;background:#f4f7f5}
+#calOrc .co-d.prev{border:1.5px dashed #d4a017;background:#fff8dc}
+#calOrc .co-t{flex:1;line-height:1.3}#calOrc .co-t a{display:inline-block;color:#1f4e79;font-size:11px;font-weight:600;text-decoration:none}#calOrc .co-t a:hover{text-decoration:underline}
+#calOrc .co-t .ok{color:#2f8a4c}#calOrc .co-t .pv{color:#8a5a00;font-size:11px}#calOrc .co-t .fal{color:#c0392b;font-size:11px}
+#calOrc .co-t small.faz{display:block;color:#5f6f66;font-size:11px}
+#calOrc .co-vazio{color:#9aa69f;font-size:12px}
+#calOrc .co-rod{font-size:11px;color:#5f6f66;margin-top:8px}
 </style>
 </head>
 <body data-tema="verde">
@@ -2211,7 +2242,8 @@ const GIDS = {
   tedOk:'1791002980',      // Ted Aprovado Concluido
   conv:'1956761686',       // BASE CONV. E TERMO
   parc:'964146132',        // BASE GERAL Convenio e Termo
-  prop:'1382020454'        // BASE PROPOSTAS
+  prop:'1382020454',       // BASE PROPOSTAS
+  calend:''                // CALENDÁRIO ORÇAMENTÁRIO SDR (cronograma no fim de Orçamento por ações; vazio = lista padrão do painel)
 };
 // enquanto um gid estiver vazio, a aba é lida da planilha antiga pelo nome (provisório)
 const SHEET_ID = "1mVj_eVZVtdEB8ZOTMgZrjeZOLMidHY4lU71Q1GztpIA";
@@ -5683,6 +5715,75 @@ function navTedAPI(){
   const abas = [['geral','Visão geral'],['vig','Vigentes'],['pc','Prestação de contas'],['disp','Dispensa de TED'],['ok','Aprovados / concluídos']];
   return `<nav class="ted-abas">${abas.map(([k,n]) => `<button type="button" data-tedaba="${k}" class="${TED_ABA===k?'on':''}">${n}</button>`).join('')}</nav>`;
 }
+// ---- Cronograma orçamentário (fim da tela Orçamento por ações) ----
+// Fonte: aba "CALENDÁRIO ORÇAMENTÁRIO SDR" da planilha publicada (GIDS.calend). Enquanto a aba não estiver ligada, usa a lista padrão abaixo.
+// Colunas: Data | Data é | Mês | Tema | Evento | O que a SDR faz | Responsável | Norma | Link | Situação
+const CAL_PADRAO = [["15/01/2026", "confirmada", "Janeiro", "LOA · LDO · PLOA", "LOA 2026 sancionada", "Conferir a dotação das ações da SDR", "Orçamento SDR", "Lei 15.346/2026 (LOA 2026)", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/lei/L15346.htm", ""], ["12/02/2026", "confirmada", "Fevereiro", "Decretos e bimestres", "Decreto de programação 2026", "Conferir os limites de empenho e pagamento", "Orçamento SDR", "Decreto 12.846/2026", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/D12846.htm", ""], ["22/03/2026", "legal", "Março", "Decretos e bimestres", "Relatório 1º bimestre", "Acompanhar bloqueio ou desbloqueio de limites", "Orçamento SDR", "LDO 2026 · Lei 15.321/2025", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/L15321.htm", ""], ["30/03/2026", "confirmada", "Março", "Decretos e bimestres", "Decreto 1º bimestre", "Conferir os limites", "Orçamento SDR", "Decreto 12.914/2026", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/D12914.htm", ""], ["15/04/2026", "legal", "Abril", "LOA · LDO · PLOA", "PLDO 2027 enviado", "Acompanhar as regras do próximo ano", "Orçamento SDR", "Constituição, art. 35 (ADCT)", "https://www.congressonacional.leg.br/web/orcamento", ""], ["04/2026", "confirmada", "Abril", "LOA · LDO · PLOA", "PLOA 2027 · fase qualitativa (SIOP)", "Revisar programas, ações e POs no SIOP", "Orçamento SDR", "SIOP", "https://www.siop.planejamento.gov.br/", ""], ["12/05/2026", "confirmada", "Maio", "LOA · LDO · PLOA", "Portaria de prazos do PLOA 2027", "Seguir o calendário de captação", "Orçamento SDR", "Portaria SOF/MPO 176/2026", "https://www.siop.planejamento.gov.br/", ""], ["05/2026", "confirmada", "Maio", "LOA · LDO · PLOA", "PLOA 2027 · fase quantitativa", "Lançar a proposta de valores no SIOP", "Orçamento SDR", "SIOP", "https://www.siop.planejamento.gov.br/", ""], ["22/05/2026", "legal", "Maio", "Decretos e bimestres", "Relatório 2º bimestre", "Acompanhar bloqueio ou desbloqueio de limites", "Orçamento SDR", "LDO 2026 · Lei 15.321/2025", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/L15321.htm", ""], ["29/05/2026", "confirmada", "Maio", "Decretos e bimestres", "Decreto 2º bimestre", "Conferir os limites", "Orçamento SDR", "Decreto 12.990/2026", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/D12990.htm", ""], ["06/2026", "previsão", "Junho", "PPA", "Monitoramento e avaliação do PPA 2024–2027 (ano-base 2025) no SIOP", "Registrar metas e entregas no SIOP", "Orçamento SDR", "PPA 2024–2027 · Lei 14.802/2024", "https://www.siop.planejamento.gov.br/", "a confirmar"], ["30/06/2026", "legal", "Junho", "Restos a pagar", "Bloqueio de RAP não processado", "Liquidar ou justificar os RAP", "UGs", "Decreto 93.872/1986, art. 68", "https://www.planalto.gov.br/ccivil_03/decreto/d93872.htm", ""], ["17/07/2026", "legal", "Julho", "LOA · LDO · PLOA", "LDO 2027 votada (antes do recesso)", "Conferir as regras de 2027", "Orçamento SDR", "Constituição, art. 57", "https://www.congressonacional.leg.br/web/orcamento", ""], ["22/07/2026", "legal", "Julho", "Decretos e bimestres", "Relatório 3º bimestre", "Acompanhar bloqueio ou desbloqueio de limites", "Orçamento SDR", "LDO 2026 · Lei 15.321/2025", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/L15321.htm", ""], ["30/07/2026", "confirmada", "Julho", "Decretos e bimestres", "Decreto 3º bimestre", "Conferir os limites", "Orçamento SDR", "Decreto 13.085/2026", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/D13085.htm", ""], ["31/07/2026", "legal", "Julho", "Emendas", "65% das emendas obrigatórias pagas", "Conferir o pagamento das emendas individuais e de bancada", "Orçamento SDR", "LDO 2026 · Lei 15.321/2025", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/L15321.htm", ""], ["31/08/2026", "legal", "Agosto", "LOA · LDO · PLOA", "PLOA 2027 enviado ao Congresso", "Conferir os valores das ações da SDR", "Orçamento SDR", "Constituição, art. 35 (ADCT)", "https://www.congressonacional.leg.br/web/orcamento", ""], ["31/08/2026", "previsão", "Agosto", "PPA", "Revisão do PPA 2024–2027 junto com o PLOA 2027", "Revisar atributos dos programas", "Orçamento SDR", "Lei 14.802/2024 (PPA)", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2024/lei/L14802.htm", "a confirmar"], ["22/09/2026", "legal", "Setembro", "Decretos e bimestres", "Relatório 4º bimestre", "Acompanhar bloqueio ou desbloqueio de limites", "Orçamento SDR", "LDO 2026 · Lei 15.321/2025", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/L15321.htm", ""], ["30/09/2026", "confirmada", "Setembro", "Decretos e bimestres", "Decreto 4º bimestre", "Conferir os limites", "Orçamento SDR", "Decreto 13.130/2026", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2026/decreto/D13130.htm", ""], ["22/11/2026", "legal", "Novembro", "Decretos e bimestres", "Relatório 5º bimestre", "Acompanhar bloqueio ou desbloqueio de limites", "Orçamento SDR", "LDO 2026 · Lei 15.321/2025", "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/L15321.htm", ""], ["30/11/2026", "previsão", "Novembro", "Decretos e bimestres", "Decreto 5º bimestre", "Conferir os limites", "Orçamento SDR", "(a publicar)", "https://www4.planalto.gov.br/legislacao", ""], ["15/12/2026", "previsão", "Dezembro", "Encerramento", "Último dia para empenho", "Empenhar ou devolver o crédito", "UGs", "(norma de encerramento do Tesouro)", "https://www.gov.br/tesouronacional", ""], ["22/12/2026", "previsão", "Dezembro", "LOA · LDO · PLOA", "LOA 2027 votada", "Conferir a dotação de 2027", "Orçamento SDR", "Congresso Nacional", "https://www.congressonacional.leg.br/web/orcamento", ""], ["31/12/2026", "legal", "Dezembro", "Encerramento", "Encerramento do exercício · cancela RAP bloqueado", "Conferir inscrição e cancelamento de RAP", "UGs", "Decreto 93.872/1986, art. 68", "https://www.planalto.gov.br/ccivil_03/decreto/d93872.htm", ""]];
+const CAL_TEMAS = [['LOA · LDO · PLOA','#1f4e79'],['Decretos e bimestres','#2f8a4c'],['Emendas','#8e44ad'],['Restos a pagar','#d4881a'],['Encerramento','#c0392b'],['PPA','#1a9c8c']];
+const CAL_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let CAL = null, CAL_F = {mes:'', tema:''};
+function calTema(t){ const n = String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const k = /ppa/.test(n) ? 5 : /encerr/.test(n) ? 4 : /restos|rap/.test(n) ? 3 : /emenda/.test(n) ? 2 : /decret|bimest/.test(n) ? 1 : 0; return CAL_TEMAS[k]; }
+function calLinhas(rows, fonte){
+  const L = [];
+  rows.forEach(r => {
+    const d = String(r[0]||'').trim(); let m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/), dt, dia;
+    if(m){ dt = new Date(+m[3], +m[2]-1, +m[1]); dia = m[1].padStart(2,'0'); }
+    else if((m = d.match(/^(\d{1,2})\/(\d{4})$/))){ dt = new Date(+m[2], +m[1], 0); dia = CAL_MESES[+m[1]-1].slice(0,3).toLowerCase(); }
+    else return;
+    const ev = String(r[4]||'').trim(); if(!ev) return;
+    L.push({dt, dia, tipo:String(r[1]||'').trim().toLowerCase(), tema:calTema(r[3]), ev, faz:String(r[5]||'').trim(), resp:String(r[6]||'').trim(), norma:String(r[7]||'').trim(), link:String(r[8]||'').trim(), sit:String(r[9]||'').trim().toLowerCase()});
+  });
+  L.sort((a,b) => a.dt - b.dt); return {L, fonte};
+}
+async function calCarregar(){
+  if(typeof GIDS !== 'undefined' && GIDS.calend){
+    try{
+      const r = await fetch(`https://docs.google.com/spreadsheets/d/e/${PUB_ID}/pub?gid=${GIDS.calend}&single=true&output=csv`, {cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const rows = parseCSV(await r.text()), h = rows.findIndex(x => /^data$/i.test(String(x[0]||'').trim()));
+      const c = calLinhas(rows.slice(h+1), 'planilha'); if(c.L.length) return c;
+    }catch(e){ console.warn('calendário orçamentário: usando a lista padrão', e); }
+  }
+  return calLinhas(CAL_PADRAO, 'padrão');
+}
+async function calOrcMontar(){ if(!CAL) CAL = await calCarregar(); calOrcDesenhar(); }
+function calOrcDesenhar(){
+  const el = document.getElementById('calOrc'); if(!el || !CAL) return;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const dias = d => Math.round((d.dt - hoje)/864e5);
+  const feito = d => /conclu/.test(d.sit) || (!/vencer|confirmar|pendente/.test(d.sit) && d.dt < hoje && d.tipo !== 'previsão' && d.tipo !== 'previsao');
+  const prev = d => /previs/.test(d.tipo);
+  const fut = CAL.L.filter(d => d.dt >= hoje && !/cancel/.test(d.sit));
+  const prox = fut[0], ate = n => fut.filter(d => dias(d) <= n).length;
+  const lk = d => d.link ? `<a href="${esc(d.link)}" target="_blank" rel="noopener" title="${esc(d.norma||'abrir')}">${esc(d.norma||'abrir')} ↗</a>` : (d.norma ? `<small class="faz">${esc(d.norma)}</small>` : '');
+  const faixa = prox ? `<div class="co-faixa"><div class="co-dias"><b>${dias(prox)}</b><small>${dias(prox)===1?'dia':'dias'}</small></div>
+    <div class="co-prox"><b>Próximo prazo: ${esc(prox.ev)}</b><small>${prox.dt.toLocaleDateString('pt-BR')}${prev(prox)?' (previsão)':''}${prox.faz?' · '+esc(prox.faz.toLowerCase()):''}${prox.link?` · <a href="${esc(prox.link)}" target="_blank" rel="noopener">${esc(prox.norma||'norma')} ↗</a>`:''}</small></div>
+    <div class="co-cont"><div>até 30 dias<b>${ate(30)}</b></div><div>até 60 dias<b>${ate(60)}</b></div><div>previsões<b>${fut.filter(prev).length}</b></div></div></div>`
+    : `<div class="co-faixa"><div class="co-prox"><b>Nenhum prazo futuro cadastrado</b><small>acrescente os prazos na planilha CALENDÁRIO ORÇAMENTÁRIO SDR</small></div></div>`;
+  const ano = (prox || CAL.L[CAL.L.length-1] || {dt:hoje}).dt.getFullYear();
+  const optM = '<option value="">Mês: todos</option>' + CAL_MESES.map((m,i) => `<option value="${i}" ${CAL_F.mes===String(i)?'selected':''}>${m}</option>`).join('');
+  const optT = '<option value="">Tema: todos</option>' + CAL_TEMAS.map(t => `<option ${CAL_F.tema===t[0]?'selected':''}>${esc(t[0])}</option>`).join('');
+  const L = CAL.L.filter(d => d.dt.getFullYear() === ano && (!CAL_F.tema || d.tema[0] === CAL_F.tema));
+  const mesH = hoje.getFullYear() === ano ? hoje.getMonth() : (hoje.getFullYear() > ano ? 12 : -1);
+  const quadros = CAL_MESES.map((nome, i) => {
+    if(CAL_F.mes !== '' && CAL_F.mes !== String(i)) return '';
+    const E = L.filter(d => d.dt.getMonth() === i), ok = E.filter(feito).length;
+    const tag = i === mesH ? '<span class="co-tag">mês atual</span>' : `<small>${ok && ok===E.length ? '✓ ' : ''}${E.length}</small>`;
+    const ev = E.map(d => { const f = feito(d), n = dias(d);
+      const est = f ? ' <span class="ok">✓</span>' : prev(d) ? ` <span class="pv">· previsão${/confirmar/.test(d.sit)?' · confirmar':''}</span>` : (n >= 0 && n <= 60 ? ` <span class="fal">· faltam ${n} dia${n===1?'':'s'}</span>` : '');
+      return `<div class="co-ev" title="${esc([d.faz && 'O que a SDR faz: '+d.faz, d.resp && 'Responsável: '+d.resp, d.dt.toLocaleDateString('pt-BR')+(prev(d)?' (previsão)':'')].filter(Boolean).join(' · '))}"><span class="co-d ${prev(d)&&!f?'prev':''}" style="color:${d.tema[1]}">${esc(d.dia)}</span><div class="co-t">${i===mesH&&!f?'<b>':''}${esc(d.ev)}${i===mesH&&!f?'</b>':''}${est}<br>${lk(d)}</div></div>`; }).join('');
+    return `<div class="co-mes ${i<mesH?'passou':''} ${i===mesH?'atual':''}"><h4>${nome}${tag}</h4>${ev || '<div class="co-vazio">Sem prazo cadastrado</div>'}</div>`;
+  }).join('');
+  const link = typeof GIDS !== 'undefined' && GIDS.calend ? `https://docs.google.com/spreadsheets/d/e/${PUB_ID}/pubhtml?gid=${GIDS.calend}&single=true` : '';
+  el.innerHTML = `${faixa}
+    <div class="co-cab"><h3>Cronograma orçamentário ${ano}</h3><small>clique num prazo para abrir a norma</small><select data-calf="mes">${optM}</select><select data-calf="tema">${optT}</select></div>
+    <div class="co-leg">${CAL_TEMAS.map(t => `<span><i style="background:${t[1]}"></i>${esc(t[0])}</span>`).join('')}<span><i style="background:#fff8dc;border:1.5px dashed #d4a017;border-radius:3px"></i>data prevista</span></div>
+    <div class="co-grade">${quadros}</div>
+    <p class="co-rod">${CAL.fonte === 'planilha' ? `Prazos da planilha <b>CALENDÁRIO ORÇAMENTÁRIO SDR</b> (a equipe atualiza datas, previsões e links)${link?` · <a href="${link}" target="_blank" rel="noopener">abrir ↗</a>`:''}` : 'Prazos da lista padrão do painel · quando a aba <b>CALENDÁRIO ORÇAMENTÁRIO SDR</b> for ligada, a equipe passa a atualizar datas, previsões e links pela planilha'}. Data em tracejado amarelo = previsão (a norma ainda não saiu). Contagem de dias pela data de hoje.</p>`;
+  el.querySelectorAll('[data-calf]').forEach(s => s.addEventListener('change', () => { CAL_F[s.dataset.calf] = s.value; calOrcDesenhar(); }));
+}
+
 async function montarPaginaTG(aba){
   const alvo = document.getElementById('tgPag'); if(!alvo) return;
   try{
@@ -5691,7 +5792,7 @@ async function montarPaginaTG(aba){
     if(!html){ const r = await fetch(TG_EMP_URL.replace('painel_empenhos.csv', TG_PAGINAS[aba]), {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); html = await r.text(); IDB2.set(chave, html); }
     if((aba==='ted' ? !(VIEW && (VIEW.id==='tedapi' || TED_ABA==='api')) : aba==='orc' ? !(VIEW && VIEW.id==='orcacao') : aba==='repasse' ? !(VIEW && VIEW.id==='repasse') : PARC_ABA!==aba) || !document.getElementById('tgPag')) return;
     const fr = document.createElement('iframe'); fr.className = 'tg-frame'; fr.title = {obras:'Obras', ted:'TED API', orc:'Orçamento por ação'}[aba] || 'Transferegov';
-    alvo.innerHTML = ''; alvo.appendChild(fr); fr.srcdoc = html;
+    alvo.innerHTML = ''; alvo.appendChild(fr); fr.srcdoc = html; if(aba==='orc'){ const c = document.createElement('div'); c.id = 'calOrc'; alvo.appendChild(c); calOrcMontar(); }
     const ajustar = () => { try{ const h = fr.contentDocument && fr.contentDocument.documentElement.scrollHeight; if(h && Math.abs(fr.offsetHeight-h) > 4) fr.style.height = h+'px'; }catch(e){} };
     fr.addEventListener('load', () => { ajustar(); try{ new ResizeObserver(() => requestAnimationFrame(ajustar)).observe(fr.contentDocument.body); }catch(e){ setInterval(ajustar, 800); } });
   }catch(e){ alvo.innerHTML = `<p class="dica" style="padding:20px">Não foi possível abrir a página do Transferegov agora (${esc(e.message)}).</p>`; }
