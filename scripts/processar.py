@@ -19,7 +19,8 @@ ARQUIVOS = ['siconv_convenio', 'siconv_programa_proposta', 'siconv_programa', 's
             'siconv_empenho', 'siconv_desembolso', 'siconv_termo_aditivo', 'siconv_prorroga_oficio', 'data_carga_siconv',
             'siconv_dados_obrasgov_geral', 'siconv_acomp_obras_contratos_medicoes_modulo_empresas', 'siconv_acomp_obras_valores_itens_medicao_modulo_empresas', 'siconv_resumo_fisico_financeiro', 'siconv_historico_situacao', 'siconv_pagamento', 'siconv_cronograma_desembolso', 'siconv_solicitacao_ajuste_pt',
             'siconv_plano_aplicacao_detalhado', 'siconv_meta_crono_fisico', 'siconv_etapa_crono_fisico',
-            'siconv_licitacao', 'siconv_contrato']   # execução do convenente (processos de execução e contratos)
+            'siconv_licitacao', 'siconv_contrato',
+            'siconv_empenho_desembolso']   # qual empenho pagou cada desembolso (se o arquivo não vier, a coluna fica em branco)   # execução do convenente (processos de execução e contratos)
 TMP = os.environ.get('FONTE_LOCAL') or '/tmp/transferegov'
 csv.field_size_limit(10**9)
 LOG = []
@@ -558,6 +559,27 @@ def main(saida):
     gravar(saida, 'painel_desembolsos.csv', ['nr_instrumento', 'data', 'ob', 'ug', 'obs', 'valor'],
            [{'nr_instrumento': x.get('NR_CONVENIO', ''), 'data': x.get('DATA_DESEMBOLSO', ''), 'ob': x.get('NR_SIAFI', ''), 'ug': x.get('UG_EMITENTE_DH', ''),
              'obs': (x.get('OBSERVACAO_DH') or '')[:300], 'valor': v2(num(x.get('VL_DESEMBOLSADO')))} for x in desembolsos])
+    # empenho usado em cada desembolso (siconv_empenho_desembolso: liga ID_DESEMBOLSO a ID_EMPENHO)
+    try:
+        des_id = {x.get('ID_DESEMBOLSO'): x for x in desembolsos if x.get('ID_DESEMBOLSO')}
+        emp_id = {e.get('ID_EMPENHO'): e for e in empenhos if e.get('ID_EMPENHO')}
+        cab_ed, it_ed = linhas('siconv_empenho_desembolso')
+        ligas = []
+        if cab_ed:
+            k_des = next((c for c in cab_ed if 'DESEMBOLSO' in c and c.startswith('ID')), 'ID_DESEMBOLSO')
+            k_emp = next((c for c in cab_ed if 'EMPENHO' in c and c.startswith('ID')), 'ID_EMPENHO')
+            k_val = next((c for c in cab_ed if c.startswith('VALOR') or c.startswith('VL')), None)
+            log(f'siconv_empenho_desembolso · colunas: {cab_ed}')
+            for r in it_ed:
+                d = des_id.get(r.get(k_des))
+                if not d:
+                    continue
+                e = emp_id.get(r.get(k_emp), {})
+                ligas.append({'nr_instrumento': d.get('NR_CONVENIO', ''), 'id_desembolso': r.get(k_des), 'ob': d.get('NR_SIAFI', ''),
+                              'ne': e.get('NR_EMPENHO', '') or ('id ' + str(r.get(k_emp))), 'valor': v2(num(r.get(k_val))) if k_val else ''})
+        gravar(saida, 'empenho_desembolso.csv', ['nr_instrumento', 'id_desembolso', 'ob', 'ne', 'valor'], ligas)
+    except Exception as ex:
+        log(f'empenho_desembolso não gerado: {ex}')
     gravar(saida, 'aditivos.csv', cab_ta or ['NR_CONVENIO'], aditivos)
     gravar(saida, 'prorrogacoes.csv', cab_pr or ['NR_CONVENIO'], prorrogas)
     gravar(saida, 'historico_situacao.csv', cab_hs or ['NR_CONVENIO'], historico)

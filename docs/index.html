@@ -12125,6 +12125,19 @@ function riCalc(d){
   return {i, glob, rep, des, ades, saldo, contra, pag, receb, ini, fim, lim, fimOr, diasFim, prazoPct, ultDes, diasSemDes, sit, emExec, al, prox, ajAberto, hoje, conv};
 }
 // ---------- páginas ----------
+// rodapé de "Orçamento e empenho": total empenhado, repasse e quanto falta empenhar
+function riEmpRodape(d, i){
+  const emp = (d.ne||[]).reduce((a,x) => a+(x[5] ? 0 : riNum(x[4])), 0), rep = riNum(i.valor_repasse), des = (d.des||[]).reduce((a,x) => a+riNum(x[2]), 0), falta = rep - emp;
+  const L = [`<tr><td><b>Total empenhado</b></td><td></td><td></td><td class="n"><b>${riR(emp)}</b></td></tr>`];
+  if(rep > 0){
+    L.push(`<tr><td>Repasse (valor da União)</td><td></td><td></td><td class="n">${riR(rep)}</td></tr>`);
+    L.push(falta > 0.5
+      ? `<tr style="background:#fdf3df"><td><b style="color:#8a5a00">Falta empenhar</b><br><small>repasse − total empenhado · ${(falta/rep*100).toFixed(1).replace('.',',')}% do repasse</small></td><td></td><td></td><td class="n"><b style="color:#8a5a00">${riR(falta)}</b></td></tr>`
+      : `<tr style="background:#eaf6eb"><td><b style="color:#1e7a3c">✓ Repasse todo empenhado</b></td><td></td><td></td><td class="n"><b style="color:#1e7a3c">${riR(0)}</b></td></tr>`);
+    if(des > emp + 0.5) L.push(`<tr><td colspan="4"><small style="color:#8a5a00">⚠ Já foi desembolsado ${riR(des)}, mais do que o empenhado registrado no Transferegov (${riR(emp)}): há nota sem valor informado. Conferir no SIAFI o valor real das notas antes de concluir quanto falta empenhar.</small></td></tr>`);
+  }
+  return L;
+}
 const riSec = (t, extra) => `<div class="ri-sec">${t}${extra ? ' '+extra : ''}</div>`;
 const riTab = (cab, linhas, cls) => `<table class="ri-t ${cls||''}"><tr>${cab.map(c => `<th class="${c[1]||''}">${c[0]}</th>`).join('')}</tr>${linhas.join('')}</table>`;
 function riCabecalho(C, sub){
@@ -12176,10 +12189,10 @@ function riPagResumo(d, C){
     <tr><td>CNPJ do proponente</td><td>${esc(riCNPJ(i.cnpj_proponente))}</td></tr>
     <tr><td>Departamento</td><td>${esc(deps || '—')}</td></tr>
     <tr><td>Links</td><td>${i.id_proposta ? `<a href="https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDePropostaDetalharProposta.do?idProposta=${esc(i.id_proposta)}&Usr=guest&Pwd=guest" target="_blank" rel="noopener">Transferegov ↗</a>` : '—'}</td></tr></table>
-    ${riSec('2 · Orçamento e empenho')}${(d.ne||[]).length ? riTab([['Nota de empenho'],['UG'],['Data'],['Valor','n']], (d.ne||[]).map(x => x[5] ? `<tr style="color:#7a8a80"><td>${esc(x[0])}<br><small>cópia da transferência de saldo (NS SALDO) · não soma</small></td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n"><s>${riR(x[4])}</s></td></tr>` : `<tr><td>${esc(x[0])}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n">${riR(x[4])}</td></tr>`).concat([`<tr><td><b>Total empenhado</b></td><td></td><td></td><td class="n"><b>${riR((d.ne||[]).reduce((a,x) => a+(x[5] ? 0 : riNum(x[4])), 0))}</b></td></tr>`]), 'ri-l') : `<p class="ri-nota">Notas de empenho: ${esc(i.notas_empenho||'nenhuma registrada')} · empenhado ${riR(riNum(i.valor_empenhado))}</p>`}</div>
+    ${riSec('2 · Orçamento e empenho')}${(d.ne||[]).length ? riTab([['Nota de empenho'],['UG'],['Data'],['Valor','n']], (d.ne||[]).map(x => x[5] ? `<tr style="color:#7a8a80"><td>${esc(x[0])}<br><small>cópia da transferência de saldo (NS SALDO) · não soma</small></td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n"><s>${riR(x[4])}</s></td></tr>` : `<tr><td>${esc(x[0])}${!riNum(x[4]) ? '<br><small style="color:#8a5a00">valor não informado no Transferegov</small>' : ''}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n">${riR(x[4])}</td></tr>`).concat(riEmpRodape(d, i)), 'ri-l') : `<p class="ri-nota">Notas de empenho: ${esc(i.notas_empenho||'nenhuma registrada')} · empenhado ${riR(riNum(i.valor_empenhado))}</p>`}</div>
   <div>${riSec('3 · Situação e alertas')}${C.al.map(a => `<div class="ri-al ${a[0]}"><b>${esc(a[1])}</b>${esc(a[2])}</div>`).join('') || '<div class="ri-al ok"><b>Nenhum alerta automático</b>Isso não garante ausência de pendência no processo.</div>'}
     ${C.prox ? `<div class="ri-al i"><b>Próxima providência sugerida</b>${esc(C.prox)}</div>` : ''}
-    ${riSec('4 · Desembolsos')}${(d.des||[]).length ? riTab([['Data'],['Ordem bancária'],['Valor','n']], (d.des||[]).slice().sort((a,b) => riData(a[0])-riData(b[0])).map(x => `<tr><td>${esc(x[0])}</td><td>${esc(x[1])}</td><td class="n">${riR(x[2])}</td></tr>`).concat([`<tr><td><b>Total</b></td><td></td><td class="n"><b>${riR((d.des||[]).reduce((a,x) => a+riNum(x[2]), 0))}</b></td></tr>`]), 'ri-l') : '<p class="ri-nota">Nenhum desembolso registrado.</p>'}
+    ${riSec('4 · Desembolsos')}${(d.des||[]).length ? riTab([['Data'],['Ordem bancária'],['Empenho utilizado'],['Valor','n']], (d.des||[]).slice().sort((a,b) => riData(a[0])-riData(b[0])).map(x => `<tr><td>${esc(x[0])}</td><td>${esc(x[1])}</td><td>${x[3] ? esc(x[3]) : '<span style="color:#7a8a80">—</span>'}</td><td class="n">${riR(x[2])}</td></tr>`).concat([`<tr><td><b>Total</b></td><td></td><td></td><td class="n"><b>${riR((d.des||[]).reduce((a,x) => a+riNum(x[2]), 0))}</b></td></tr>`]), 'ri-l') : '<p class="ri-nota">Nenhum desembolso registrado.</p>'}
     ${riSec('5 · Alterações')}<table class="ri-t ri-kv">
       <tr><td>Termos aditivos</td><td><b>${ta.length || riNum(i.qtd_aditivos) || 0}</b>${C.fimOr && C.fim && C.fimOr.getTime() !== C.fim.getTime() ? ` · vigência de ${riDt(C.fimOr)} → <b>${riDt(C.fim)}</b>` : ''}${glOr && Math.abs(glOr - C.glob) > 0.01 ? ` · valor global de ${riR(glOr)} → ${riR(C.glob)}` : ''}${ta.length ? '<br><small>'+ta.map(t => esc((t[0]||'')+' '+(t[1]||'')+' ('+(t[2]||'')+')')).join(' · ')+'</small>' : ''}</td></tr>
       <tr><td>Prorrogações de ofício</td><td>${pr.length ? pr.map(p => `${esc(p[0])}: até ${esc(p[2])} (${esc(p[3])} dias)`).join(' · ') : 'nenhuma'}</td></tr>

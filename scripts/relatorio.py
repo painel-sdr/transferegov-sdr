@@ -70,10 +70,16 @@ CAMPOS_I = ['nr_instrumento', 'ug_emitente', 'situacao', 'subsituacao', 'ano', '
 for i in inst:
     R[i['nr_instrumento']]['i'] = {k: i[k] for k in CAMPOS_I if i.get(k) not in (None, '', '0.00', '0')}
 
+# empenho usado em cada desembolso (empenho_desembolso.csv · se não existir, fica em branco)
+NE_DES = collections.defaultdict(list)
+for r in ler('empenho_desembolso.csv'):
+    if r.get('id_desembolso'):
+        NE_DES[r['id_desembolso']].append(r.get('ne', ''))
+
 for r in ler('desembolsos.csv'):
     n = nr_de(r)
     if n:
-        R[n]['des'].append([r.get('DATA_DESEMBOLSO', ''), r.get('NR_SIAFI', ''), num(r.get('VL_DESEMBOLSADO'))])
+        R[n]['des'].append([r.get('DATA_DESEMBOLSO', ''), r.get('NR_SIAFI', ''), num(r.get('VL_DESEMBOLSADO')), ' · '.join(NE_DES.get(r.get('ID_DESEMBOLSO', ''), []))])
 
 FORN = {}
 for r in ler('pagamentos.csv'):
