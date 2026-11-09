@@ -67,6 +67,10 @@ jobs:
         env:
           CONTRATOS_ANTERIOR: /tmp/ctr_ant
 
+      - name: Painel de Execução · cadastro automático dos vigentes (contratos, parcerias, TED)
+        continue-on-error: true
+        run: python scripts/execucao_cadastro.py saida
+
       - name: Indicadores do IDTRU-DL (visão do repassador · 5 UGs da SDR)
         continue-on-error: true
         run: python scripts/indicadores.py saida
