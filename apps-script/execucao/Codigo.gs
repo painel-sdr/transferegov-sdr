@@ -8,7 +8,13 @@
  *  3. Escolha  carregarTesouro  e Executar: lê os CSVs da aba FONTES (EXE e, quando tiver, RAP).
  *  4. Implantar › Gerenciar implantações › lápis (editar) › Versão: "Nova versão" › Implantar.
  *     (Assim o link /exec continua o mesmo.)
- *  5. Opcional: Acionadores › Adicionar › rotinaDiaria › baseado no tempo › diário (6h–7h).
+ *  5. Opcional: Acionadores › Adicionar › rotinaDiaria › baseado no tempo › diário (8h–9h, depois do robô do GitHub).
+ *
+ * CADASTRO AUTOMÁTICO (importarCadastro): o robô do GitHub gera todo dia, na branch "dados",
+ *  execucao_instrumentos.csv (contratos vigentes da API Contratos, parcerias com parcela prevista no ano, TED enviados
+ *  em execução) e execucao_previsao.csv. A importação atualiza só os campos que vêm das bases; o que foi ajustado no
+ *  painel (orçamento, sigla, atividade, natureza, previsão, anos anteriores, NEs acrescentadas) fica. Quem sai da
+ *  lista vira ENCERRADO (não é apagado: pode ter pagamentos). Contrato vencido só entra se a NE tiver saldo no Tesouro.
  *
  * ABAS
  *  CONFIG        ano do exercício
@@ -28,7 +34,8 @@ const ABAS = {
   USUARIOS: ['email', 'nome', 'perfil', 'ativo'],
   INSTRUMENTOS: ['id', 'formalizacao', 'orcamento', 'ug', 'sigla', 'atividade', 'natureza', 'numero', 'instrumento', 'proposta',
     'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'prorrogacao_prevista',
-    'valor_global', 'valor_parcela', 'executado_anteriores', 'nes', 'regiao', 'uf', 'origem', 'criado_em', 'criado_por', 'alterado_em', 'alterado_por', 'justificativa'],
+    'valor_global', 'valor_parcela', 'executado_anteriores', 'nes', 'regiao', 'uf', 'origem', 'criado_em', 'criado_por', 'alterado_em', 'alterado_por', 'justificativa',
+    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao'],
   PREVISAO: ['instrumento_id', 'competencia', 'valor', 'alterado_por', 'alterado_em'],
   PAGAMENTOS: ['id', 'instrumento_id', 'competencia', 'processo_pagamento', 'area_demandante', 'valor', 'ne', 'recurso', 'fonte',
     'obs_orcamento', 'orcamento_por', 'orcamento_em', 'situacao', 'executor', 'distribuido_por', 'distribuido_em',
@@ -53,6 +60,7 @@ function instalar() {
     sh.setFrozenRows(1);
   });
   ['COMPETENCIAS', 'NES', 'TESOURO_OB', 'Página1', 'Sheet1'].forEach(n => { const s = ss.getSheetByName(n); if (s && ss.getSheets().length > 1) ss.deleteSheet(s); });
+  garantirCabecalhos();
   if (!lerTudo('CONFIG').length) anexar('CONFIG', { chave: 'ANO', valor: 2027, nota: 'exercício: competências dez/(ANO-1) a dez/ANO' });
   if (!lerTudo('FONTES').length) {
     anexar('FONTES', { nome: 'EXE Padrão', tipo: 'EXE', ativo: 'SIM', url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRFcFQpuXUjut17Ftj89ugQvu-eK-ZPI7a90FoPOnhcvXFSL2ymU-WOPiYwBT8qa8tzCeyo05q_YanW/pub?gid=1204904051&single=true&output=csv' });
@@ -235,7 +243,79 @@ function conferir(u) {
   setConfig('ULTIMA_CONFERENCIA', agora());
   return { ok: true, confirmados: conf, ajustar: aj };
 }
-function rotinaDiaria() { carregarTesouro(); conferir(null); }
+function rotinaDiaria() { carregarTesouro(); try { importarCadastro(null); } catch (e) { setConfig('ULTIMA_IMPORTACAO', agora() + ' · ERRO ' + e.message); } conferir(null); }
+
+/* ====================== CADASTRO AUTOMÁTICO (robô do GitHub) ====================== */
+const BASE_DADOS = 'https://raw.githubusercontent.com/painel-sdr/transferegov-sdr/dados/';
+function baixarCsv(nome) {
+  const r = UrlFetchApp.fetch(BASE_DADOS + nome + '?t=' + Date.now(), { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error(nome + ': HTTP ' + r.getResponseCode());
+  const l = Utilities.parseCsv(r.getContentText('UTF-8')), cab = l.shift();
+  return l.filter(x => x.join('') !== '').map(x => { const o = {}; cab.forEach((c, i) => o[c] = x[i]); return o; });
+}
+/** Acrescenta no fim do cabeçalho as colunas novas (versões novas do código), sem mexer nas que já existem. */
+function garantirCabecalhos() {
+  Object.keys(ABAS).forEach(n => {
+    const s = sh(n); if (!s) return;
+    const atual = s.getRange(1, 1, 1, Math.max(1, s.getLastColumn())).getValues()[0].filter(String);
+    const falta = ABAS[n].filter(c => atual.indexOf(c) < 0);
+    if (falta.length) s.getRange(1, atual.length + 1, 1, falta.length).setValues([falta]).setFontWeight('bold').setBackground('#155a30').setFontColor('#ffffff');
+  });
+}
+function importarCadastro(u) {
+  if (u && u.perfil !== 'ADMIN') return { ok: false, msg: 'Só o coordenador importa.' };
+  garantirCabecalhos();
+  const novos = baixarCsv('execucao_instrumentos.csv'), prevs = baixarCsv('execucao_previsao.csv');
+  const saldoNe = {}; tesouroEmCache().forEach(t => saldoNe[t.ne + '|' + t.ug] = (saldoNe[t.ne + '|' + t.ug] || 0) + num(t.saldo));
+  const s = sh('INSTRUMENTOS'), v = s.getDataRange().getValues(), cab = v[0], ix = {};
+  cab.forEach((c, i) => ix[c] = i);
+  const linhas = v.slice(1).filter(r => r.join('') !== '').map(r => { while (r.length < cab.length) r.push(''); return r; });
+  const g = (r, c) => r[ix[c]], put = (r, c, x) => { if (ix[c] !== undefined) r[ix[c]] = x; };
+  const dig = x => String(x || '').replace(/\D/g, '');
+  const porChave = {}, porProc = {};
+  linhas.forEach(r => { if (g(r, 'chave')) porChave[g(r, 'chave')] = r; porProc[dig(g(r, 'processo_raiz')) + '|' + g(r, 'ug') + '|' + String(g(r, 'numero') || g(r, 'instrumento'))] = r; });
+  const AUTO = ['formalizacao', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'uf', 'regiao', 'acao'];
+  const agora_ = agora(), vistos = {}, tocados = [];
+  let criados = 0, atualizados = 0, encerrados = 0, semSaldo = 0;
+  novos.forEach(n => {
+    const nes = String(n.nes || '').split(',').filter(Boolean);
+    if (n.condicao === 'VENCIDO_COM_NE' && !nes.some(ne => (saldoNe[ne + '|' + n.ug] || 0) > 0.01)) { semSaldo++; return; }
+    ['valor_global', 'valor_parcela'].forEach(c => n[c] = num(n[c]));
+    let r = porChave[n.chave] || porProc[dig(n.processo_raiz) + '|' + n.ug + '|' + String(n.numero || n.instrumento)];
+    if (r) {
+      AUTO.forEach(c => { if (n[c] !== '' && n[c] !== undefined) put(r, c, n[c]); });
+      if (!g(r, 'orcamento') && n.orcamento) put(r, 'orcamento', n.orcamento);
+      const juntas = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean); nes.forEach(x => { if (juntas.indexOf(x) < 0) juntas.push(x); });
+      put(r, 'nes', juntas.join(',')); put(r, 'chave', n.chave); put(r, 'situacao_cadastro', n.condicao); put(r, 'sincronizado_em', agora_);
+      atualizados++;
+    } else {
+      r = cab.map(() => '');
+      AUTO.concat(['orcamento']).forEach(c => put(r, c, n[c] === undefined ? '' : n[c]));
+      put(r, 'id', n.chave); put(r, 'nes', nes.join(',')); put(r, 'chave', n.chave); put(r, 'situacao_cadastro', n.condicao); put(r, 'sincronizado_em', agora_);
+      put(r, 'prorrogacao_prevista', 'NÃO'); put(r, 'origem', 'ROBÔ'); put(r, 'criado_em', agora_); put(r, 'criado_por', 'robô');
+      linhas.push(r); porChave[n.chave] = r; criados++;
+    }
+    vistos[n.chave] = 1; tocados.push(r);
+  });
+  linhas.forEach(r => { const k = g(r, 'chave'); if (k && !vistos[k] && g(r, 'situacao_cadastro') !== 'ENCERRADO') { put(r, 'situacao_cadastro', 'ENCERRADO'); put(r, 'sincronizado_em', agora_); encerrados++; } });
+  if (linhas.length) s.getRange(2, 1, linhas.length, cab.length).setValues(linhas);
+  // previsão: parcerias/TED pelo cronograma; contratos pela parcela e vigência. Só preenche competência que ainda não existe.
+  const ps = sh('PREVISAO'), ja = {}; lerTudo('PREVISAO').forEach(p => ja[p.instrumento_id + '|' + p.competencia] = 1);
+  const idPorChave = {}; linhas.forEach(r => { if (g(r, 'chave')) idPorChave[g(r, 'chave')] = g(r, 'id'); });
+  const novasPrev = [], add = (id, c, val) => { if (!ja[id + '|' + c] && val) { ja[id + '|' + c] = 1; novasPrev.push([id, c, val, 'robô', agora_]); } };
+  prevs.forEach(p => { const id = idPorChave[p.chave]; if (id) add(id, p.competencia, num(p.valor)); });
+  tocados.forEach(r => {
+    const parcela = num(g(r, 'valor_parcela')); if (!parcela) return;
+    const ini = String(g(r, 'vigencia_ini')).slice(0, 7), fim = String(g(r, 'prorrogacao_prevista')).toUpperCase() === 'SIM' ? '9999-12' : String(g(r, 'vigencia_fim')).slice(0, 7);
+    competenciasDoAno().forEach(c => { if (c >= ini && c <= fim) add(g(r, 'id'), c, parcela); });
+  });
+  if (novasPrev.length) ps.getRange(ps.getLastRow() + 1, 1, novasPrev.length, 5).setValues(novasPrev);
+  const msg = criados + ' novo(s), ' + atualizados + ' atualizado(s), ' + encerrados + ' encerrado(s), ' + semSaldo + ' contrato(s) vencido(s) sem saldo de NE ficaram de fora · ' + novasPrev.length + ' competência(s) de previsão';
+  setConfig('ULTIMA_IMPORTACAO', agora_ + ' · ' + msg);
+  if (u) hist(u, 'cadastro importado', '', msg);
+  toast('Cadastro: ' + msg);
+  return { ok: true, msg: msg };
+}
 
 /** Só para TESTE: soma no liquidado das NEs de teste o que foi informado e ainda não confirmado (simula a carga do Tesouro do dia seguinte). */
 function simularLiquidacao(u) {
@@ -267,7 +347,7 @@ function doPost(e) {
     if (!u) return json({ ok: false, sessao: false, msg: 'Sessão expirada. Entre de novo.' });
     if (p.acao === 'dados') return json(dados(u));
     lock.waitLock(25000);
-    const acoes = { buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, distribuir: distribuir, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
+    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, distribuir: distribuir, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
     const f = acoes[p.acao];
     const r = f ? f(u, p) : { ok: false, msg: 'Ação desconhecida.' };
     SpreadsheetApp.flush();
@@ -330,7 +410,7 @@ function dados(u) {
     ok: true, eu: u, ano: ano(), competencias: competenciasDoAno(), nomeUg: NOME_UG,
     instrumentos: inst, previsao: lerTudo('PREVISAO'), pagamentos: pags, ddo: u.perfil === 'EXECUTOR' ? [] : lerTudo('DDO'),
     tesouro: tes.filter(t => usadas[t.ne]), totalTesouro: tes.length,
-    equipe: equipe, carga: getConfig('ULTIMA_CARGA'), conferencia: getConfig('ULTIMA_CONFERENCIA'), agora: agora()
+    equipe: equipe, importacao: getConfig('ULTIMA_IMPORTACAO'), carga: getConfig('ULTIMA_CARGA'), conferencia: getConfig('ULTIMA_CONFERENCIA'), agora: agora()
   };
 }
 

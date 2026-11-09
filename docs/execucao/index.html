@@ -184,7 +184,7 @@ var API_PADRAO = 'https://script.google.com/macros/s/AKfycbxrspYIO3IfFxP_Rnt7pPP
 var K_API = 'exec27Api', K_SES = 'exec27Sessao', K_DADOS = 'exec27Dados';
 var $ = function(id){ return document.getElementById(id); };
 var D = null, VIEW = null, FICHA = null, EDITAR = null, ABERTO = null, FILA_TODAS = false, EMAIL = '';
-var F = {orc: '', ug: '', form: '', corrigir: 'TODOS', rec: '', busca: '', dem: ''};
+var F = {orc: '', ug: '', form: '', corrigir: 'TODOS', rec: '', busca: '', dem: '', mostrar: 'ATIVOS', lim: 60};
 var LISTAS = {
   formalizacao: ['Contrato','Ata','Compartilhamento','Não contratual','Suprimento de fundos','TED','Convênio','Contrato de Repasse','Termo de fomento','Termo de colaboração'],
   orcamento: ['CEPLAC','DECAP','DEPROS','DIAGRO','ORGÂNICO','GABINETE','CGPI','PROMAQ','CONTRATO REPASSE','DEFLO'],
@@ -221,12 +221,19 @@ function nomeDe(email){ var p = D.equipe.filter(function(x){ return x.email === 
 function titulo(i){ return (i.formalizacao || '') + ' ' + (i.numero || i.instrumento || '') ; }
 
 /* ---------- cálculos por instrumento (contrato × ano) ---------- */
-function nesDe(i){ var l = i.nes_vinculadas || []; return D.tesouro.filter(function(t){ return l.indexOf(t.ne) >= 0 && String(t.ug) === String(i.ug); }); }
+var IX = null;
+function indexar(){
+  IX = {prev: {}, pag: {}, ddo: {}, tes: {}};
+  D.previsao.forEach(function(p){ (IX.prev[p.instrumento_id] = IX.prev[p.instrumento_id] || {})[p.competencia] = num(p.valor); });
+  D.pagamentos.forEach(function(p){ (IX.pag[p.instrumento_id] = IX.pag[p.instrumento_id] || []).push(p); });
+  D.ddo.forEach(function(d){ (IX.ddo[d.instrumento_id] = IX.ddo[d.instrumento_id] || []).push(d); });
+  D.tesouro.forEach(function(t){ IX.tes[t.ne + '|' + t.ug] = t; });
+}
+function nesDe(i){ return (i.nes_vinculadas || []).map(function(n){ return IX.tes[n + '|' + i.ug]; }).filter(Boolean); }
 function calc(i){
   if(i._c) return i._c;
-  var nes = nesDe(i), prev = {}, porMes = {};
-  D.previsao.forEach(function(p){ if(p.instrumento_id === i.id) prev[p.competencia] = num(p.valor); });
-  var pags = D.pagamentos.filter(function(p){ return p.instrumento_id === i.id; });
+  var nes = nesDe(i), prev = IX.prev[i.id] || {}, porMes = {};
+  var pags = IX.pag[i.id] || [];
   var informado = 0, aberto = 0, ajustar = 0;
   pags.forEach(function(p){
     var m = porMes[p.competencia] || (porMes[p.competencia] = {v: 0, st: ''});
@@ -241,15 +248,15 @@ function calc(i){
   var faltaAno = Math.max(0, previsaoAno - liqAno);
   var saldo = s('saldo');
   var global = num(i.valor_global), ant = num(i.executado_anteriores);
-  var ddo = D.ddo.filter(function(d){ return d.instrumento_id === i.id; }).reduce(function(a, d){ return a + num(d.valor); }, 0);
+  var ddo = (IX.ddo[i.id] || []).reduce(function(a, d){ return a + num(d.valor); }, 0);
   return (i._c = {nes: nes, prev: prev, porMes: porMes, pags: pags, previsaoAno: previsaoAno, liqAno: liqAno, faltaAno: faltaAno, saldo: saldo,
     empenhado: s('empenhado'), pago: s('pago'), deficit: saldo - faltaAno, informado: informado, aberto: aberto,
     ajustar: liqAno - informado, global: global, anteriores: ant, saldoContrato: global ? global - ant - liqAno : 0, ddo: ddo});
 }
 function chaves(i){
   if(i._k) return i._k;
-  var p = D.pagamentos.filter(function(x){ return x.instrumento_id === i.id; }).map(function(x){ return x.processo_pagamento; });
-  var d = D.ddo.filter(function(x){ return x.instrumento_id === i.id; }).map(function(x){ return x.processo; });
+  var p = (IX.pag[i.id] || []).map(function(x){ return x.processo_pagamento; });
+  var d = (IX.ddo[i.id] || []).map(function(x){ return x.processo; });
   var txt = [i.numero, i.instrumento, i.proposta, i.processo_raiz, i.favorecido, i.cnpj, i.sigla, i.objeto, i.ug, i.orcamento, i.formalizacao].concat(i.nes_vinculadas || [], p, d).join(' ');
   return (i._k = {t: norm(txt), d: txt.replace(/\D/g, ' ').replace(/\s+/g, ' ') + ' ' + txt.replace(/\D/g, '')});
 }
@@ -290,7 +297,7 @@ $('f-codigo').addEventListener('submit', function(e){ e.preventDefault(); entrar
 $('in-cod').addEventListener('input', function(){ this.value = this.value.replace(/\D/g, '').slice(0, 6); if(this.value.length === 6) entrar(); });
 $('bt-sair').onclick = function(){ ls(K_SES, null); ls(K_DADOS, null); location.reload(); };
 $('bt-atualizar').onclick = function(){ carregar(false); };
-$('busca-g').addEventListener('input', function(){ F.busca = this.value; VIEW = 'instrumentos'; FICHA = null; EDITAR = null; clearTimeout(window._bg); window._bg = setTimeout(desenhar, 200); });
+$('busca-g').addEventListener('input', function(){ F.busca = this.value; F.lim = 60; VIEW = 'instrumentos'; FICHA = null; EDITAR = null; clearTimeout(window._bg); window._bg = setTimeout(desenhar, 200); });
 
 /* ---------- dados ---------- */
 function carregar(primeira){
@@ -332,11 +339,12 @@ var TELAS = [
 function permitido(v){ return TELAS.some(function(t){ return t.id === v && t.perfis.indexOf(D.eu.perfil) >= 0; }); }
 function desenharMenu(){
   $('menu').innerHTML = TELAS.filter(function(t){ return t.perfis.indexOf(D.eu.perfil) >= 0; }).map(function(t){ var n = t.n ? t.n() : 0; return '<button type="button" data-view="' + t.id + '" class="' + (VIEW === t.id ? 'on' : '') + '">' + t.nome + (n ? '<span class="n">' + n + '</span>' : '') + '</button>'; }).join('') +
-    '<div class="grp">Tesouro</div><div class="rodape" style="padding:0 12px;line-height:1.5">Carga: ' + esc(D.carga ? String(D.carga).split(' · ')[0].replace('T', ' ') : 'ainda não feita') + '<br>Conferência: ' + esc(D.conferencia ? String(D.conferencia).replace('T', ' ') : '—') + '</div>';
+    '<div class="grp">Bases</div><div class="rodape" style="padding:0 12px;line-height:1.5">Cadastro: ' + esc(D.importacao ? String(D.importacao).split(' · ')[0].replace('T', ' ') : 'ainda não importado') + '<br>Tesouro: ' + esc(D.carga ? String(D.carga).split(' · ')[0].replace('T', ' ') : 'ainda não feita') + '<br>Conferência: ' + esc(D.conferencia ? String(D.conferencia).replace('T', ' ') : '—') + '</div>';
 }
 $('menu').addEventListener('click', function(e){ var b = e.target.closest('[data-view]'); if(!b) return; VIEW = b.dataset.view; FICHA = null; EDITAR = null; ABERTO = null; if(VIEW !== 'instrumentos'){ F.busca = ''; $('busca-g').value = ''; } desenhar(); });
 function desenhar(){
   D.instrumentos.forEach(function(i){ delete i._c; delete i._k; });
+  indexar();
   desenharMenu();
   var h = {geral: telaGeral, orcamento: telaOrcamento, ddo: telaDdo, distribuir: telaDistribuir, fila: telaFila, instrumentos: telaInstrumentos}[VIEW]();
   $('tela').innerHTML = h + '<p class="rodape">Site não oficial — controle interno. Dados de TESTE misturados com a carga real do Tesouro.</p>';
@@ -348,7 +356,13 @@ function autoAltura(t){ t.style.height = 'auto'; t.style.height = Math.max(64, t
 
 /* ---------- Visão geral do ano: grade dez → dez ---------- */
 function telaGeral(){
-  var lst = D.instrumentos.filter(function(i){ return (!F.orc || i.orcamento === F.orc) && (!F.ug || String(i.ug) === F.ug) && (!F.form || i.formalizacao === F.form); });
+  var lst = D.instrumentos.filter(function(i){
+    if(F.orc && i.orcamento !== F.orc || F.ug && String(i.ug) !== F.ug || F.form && i.formalizacao !== F.form) return false;
+    var temPag = (IX.pag[i.id] || []).length, temPrev = Object.keys(IX.prev[i.id] || {}).length;
+    if(F.mostrar === 'ENCERRADOS') return i.situacao_cadastro === 'ENCERRADO';
+    if(F.mostrar === 'ATIVOS') return (i.situacao_cadastro !== 'ENCERRADO' || temPag) && (temPrev || temPag || (i.nes_vinculadas || []).length);
+    return true;
+  });
   var tot = {prev: 0, liq: 0, inf: 0, aj: 0, def: 0, saldo: 0};
   var linhas = lst.map(function(i){
     var c = calc(i);
@@ -367,14 +381,15 @@ function telaGeral(){
       '<td class="m' + (Math.abs(c.ajustar) > 1 ? ' c-AJUSTAR' : '') + '">' + (Math.abs(c.ajustar) > 1 ? brlc(c.ajustar) : '—') + '</td>' + meses + '<td class="def' + (c.deficit >= 0 ? ' ok' : '') + '">' + brlc(c.deficit) + '</td></tr>';
   }).join('');
   var k = function(l, v, sub, cls){ return '<div class="kpi ' + (cls || '') + '"><span>' + l + '</span><b>' + v + '</b><small>' + sub + '</small></div>'; };
-  var dir = admin() ? '<div class="acoes"><button class="bt" type="button" data-tesouro>Ler Tesouro e conferir</button><button class="bt sec" type="button" data-simular>Simular liquidação (teste)</button></div>' : '';
+  var dir = admin() ? '<div class="acoes"><button class="bt sec" type="button" data-importar title="Contratos, parcerias e TED vigentes gerados pelo robô">Importar vigentes</button><button class="bt" type="button" data-tesouro>Ler Tesouro e conferir</button><button class="bt sec" type="button" data-simular>Simular liquidação (teste)</button></div>' : '';
   var orcs = uniq(D.instrumentos.map(function(i){ return i.orcamento; })), forms = uniq(D.instrumentos.map(function(i){ return i.formalizacao; }));
-  return cab('Visão geral do ano ' + D.ano, 'Grade de dez/' + String(D.ano - 1).slice(2) + ' a dez/' + String(D.ano).slice(2) + ': o valor informado em cada competência, colorido pela situação. Em cinza, a previsão. Clique na linha para abrir a ficha.', dir) +
+  return cab('Visão geral do ano ' + D.ano + ' <small style="font-size:16px;color:var(--mudo)">' + lst.length + ' instrumentos</small>', 'Grade de dez/' + String(D.ano - 1).slice(2) + ' a dez/' + String(D.ano).slice(2) + ': o valor informado em cada competência, colorido pela situação. Em cinza, a previsão. Clique na linha para abrir a ficha.', dir) +
     '<div class="kpis">' + k('Previsão do ano', brlc(tot.prev), 'soma das competências') + k('Liquidado no ano', brlc(tot.liq), 'Tesouro, desde a entrada da NE', 'pos') + k('Informado pelos executores', brlc(tot.inf), 'pagamentos lançados') + k('Ajustar', brlc(tot.aj), 'liquidado − informado', Math.abs(tot.aj) > 1 ? 'neg' : '') + k('Saldo de empenho', brlc(tot.saldo), 'EXE + RAP vinculados') + k('Déficit do ano', brlc(tot.def), 'soma dos instrumentos com déficit', tot.def < 0 ? 'neg' : 'pos') + '</div>' +
     '<div class="card"><div class="filtros">' +
       '<label>Orçamento<select class="mini" data-f="orc">' + opts(orcs, F.orc, 'Todos') + '</select></label>' +
       '<label>UG<select class="mini" data-f="ug">' + opts(LISTAS.ug, F.ug, 'Todas') + '</select></label>' +
       '<label>Formalização<select class="mini" data-f="form">' + opts(forms, F.form, 'Todas') + '</select></label>' +
+      '<label>Mostrar<select class="mini" data-f="mostrar"><option value="ATIVOS"' + (F.mostrar === 'ATIVOS' ? ' selected' : '') + '>Com previsão, NE ou pagamento</option><option value="TODOS"' + (F.mostrar === 'TODOS' ? ' selected' : '') + '>Todos</option><option value="ENCERRADOS"' + (F.mostrar === 'ENCERRADOS' ? ' selected' : '') + '>Encerrados</option></select></label>' +
       '<label>Corrigir<select class="mini" data-f="corrigir"><option value="TODOS"' + (F.corrigir === 'TODOS' ? ' selected' : '') + '>Mostrar todos</option><option value="AJUSTAR"' + (F.corrigir === 'AJUSTAR' ? ' selected' : '') + '>Com valor a ajustar</option><option value="DEFICIT"' + (F.corrigir === 'DEFICIT' ? ' selected' : '') + '>Só com déficit</option></select></label>' +
       '<div style="display:flex;gap:6px"><button type="button" class="chip' + (!F.rec ? ' on' : '') + '" data-rec="">Todos</button><button type="button" class="chip' + (F.rec === 'EXE001' ? ' on' : '') + '" data-rec="EXE001">EXE</button><button type="button" class="chip' + (F.rec === 'RAP001' ? ' on' : '') + '" data-rec="RAP001">RAP</button></div>' +
     '</div></div>' +
@@ -470,10 +485,10 @@ function telaFila(){
 function telaInstrumentos(){
   if(EDITAR) return formInstrumento(EDITAR === 'novo' ? {} : inst(EDITAR));
   if(FICHA) return fichaInst(inst(FICHA));
-  var lst = D.instrumentos.filter(function(i){ return bate(i, F.busca); });
+  var todos = D.instrumentos.filter(function(i){ return bate(i, F.busca); }), lst = todos.slice(0, F.lim);
   var dir = cadastra() ? '<button class="bt" type="button" data-editar="novo">+ Novo instrumento</button>' : '';
   return cab('Instrumentos', F.busca ? 'Resultado para “' + esc(F.busca) + '” — busca por contrato, nº do instrumento, proposta, processo raiz ou de pagamento, CNPJ, favorecido, sigla ou NE.' : 'Use a busca no topo: contrato, nº do instrumento, proposta, processo raiz ou de pagamento, CNPJ, favorecido, sigla ou NE.', dir) +
-    '<div class="lista-inst">' + lst.map(function(i){ var c = calc(i); return '<button class="inst" type="button" data-ficha="' + esc(i.id) + '"><b>' + esc(i.favorecido || '—') + '</b><span>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · ' + esc(i.orcamento || '') + '</span><span>Raiz ' + esc(i.processo_raiz) + '</span><span class="tags"><span class="tag">' + c.nes.length + ' NE</span><span class="tag">prev. ' + brlc(c.previsaoAno) + '</span>' + (Math.abs(c.ajustar) > 1 ? '<span class="tag aj">ajustar ' + brlc(c.ajustar) + '</span>' : '') + (c.deficit < 0 ? '<span class="tag neg">déficit ' + brlc(c.deficit) + '</span>' : '') + (i.origem === 'TESTE' ? '<span class="tag">TESTE</span>' : '') + '</span></button>'; }).join('') + '</div>' + (lst.length ? '' : '<div class="vazio">Nada encontrado.</div>');
+    '<div class="lista-inst">' + lst.map(function(i){ var c = calc(i); return '<button class="inst" type="button" data-ficha="' + esc(i.id) + '"><b>' + esc(i.favorecido || '—') + '</b><span>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · ' + esc(i.orcamento || '') + '</span><span>Raiz ' + esc(i.processo_raiz) + '</span><span class="tags"><span class="tag">' + c.nes.length + ' NE</span><span class="tag">prev. ' + brlc(c.previsaoAno) + '</span>' + (Math.abs(c.ajustar) > 1 ? '<span class="tag aj">ajustar ' + brlc(c.ajustar) + '</span>' : '') + (c.deficit < 0 ? '<span class="tag neg">déficit ' + brlc(c.deficit) + '</span>' : '') + (i.origem === 'TESTE' ? '<span class="tag">TESTE</span>' : '') + (i.origem === 'ROBÔ' ? '<span class="tag">automático</span>' : '') + (i.situacao_cadastro === 'ENCERRADO' ? '<span class="tag neg">encerrado</span>' : '') + (i.situacao_cadastro === 'VENCIDO_COM_NE' ? '<span class="tag aj">vencido · RAP</span>' : '') + '</span></button>'; }).join('') + '</div>' + (todos.length ? (todos.length > lst.length ? '<div class="acoes" style="justify-content:center"><button class="bt sec" type="button" data-mais>Mostrar mais (' + (todos.length - lst.length) + ')</button></div>' : '') : '<div class="vazio">Nada encontrado.</div>');
 }
 function fichaInst(i){
   var c = calc(i), lv = function(l, v, cls){ return '<div class="' + (cls || '') + '"><span>' + l + '</span><b>' + v + '</b></div>'; };
@@ -485,7 +500,7 @@ function fichaInst(i){
       '<div class="card"><h3>Ano ' + D.ano + ' <small>o que importa para o déficit</small></h3><div class="linhas-val">' + lv('Previsão do ano', brl(c.previsaoAno)) + lv('Liquidado no ano (Tesouro)', brl(c.liqAno)) + lv('Falta pagar no ano', brl(c.faltaAno)) + lv('Saldo de empenho (EXE + RAP)', brl(c.saldo)) + lv(c.deficit < 0 ? 'Déficit do ano' : 'Sobra de empenho', brl(c.deficit), 'total ' + (c.deficit < 0 ? 'neg' : 'pos')) + '</div></div>' +
       '<div class="card"><h3>Conferência <small>informado × Tesouro</small></h3><div class="linhas-val">' + lv('Informado pelos executores', brl(c.informado)) + lv('Liquidado no Tesouro', brl(c.liqAno)) + lv('Em andamento (orçamento / fila)', brl(c.aberto)) + lv('Autorizado no ano (DDO)', brl(c.ddo)) + lv('Ajustar', Math.abs(c.ajustar) > 1 ? brl(c.ajustar) : 'nada a ajustar', 'total ' + (Math.abs(c.ajustar) > 1 ? 'neg' : 'pos')) + '</div><p class="rodape" style="margin:8px 0 0">Ajustar positivo: liquidado sem lançamento no painel. Negativo: informado a mais que o Tesouro.</p></div>' +
     '</div>' +
-    '<div class="card"><h3>Dados do cadastro</h3><dl class="dados">' + [['Formalização', i.formalizacao], ['Orçamento', i.orcamento], ['Sigla (serv/aqs)', i.sigla], ['Atividade', i.atividade], ['Natureza da despesa', i.natureza], ['Modalidade', i.modalidade], ['CNPJ/CPF', i.cnpj], ['Vigência', (dt(i.vigencia_ini).slice(0, 10) || '—') + ' a ' + (dt(i.vigencia_fim).slice(0, 10) || '—') + (dias != null ? ' · ' + (dias >= 0 ? dias + ' dias a vencer' : 'vencido') : '')], ['Prorrogação prevista', i.prorrogacao_prevista], ['Valor da parcela', brl(i.valor_parcela)], ['Região / UF', (i.regiao || '—') + ' / ' + (i.uf || '—')], ['Origem', i.origem], ['Cadastro', dt(i.criado_em) + ' · ' + (i.criado_por || '')], ['Última alteração', i.alterado_em ? dt(i.alterado_em) + ' · ' + i.alterado_por + ' · ' + i.justificativa : '—']].map(function(x){ return '<div><dt>' + x[0] + '</dt><dd>' + esc(x[1] || '—') + '</dd></div>'; }).join('') + '<div style="grid-column:1/-1"><dt>Objeto</dt><dd style="font-weight:500">' + esc(i.objeto || '—') + '</dd></div></dl></div>' +
+    '<div class="card"><h3>Dados do cadastro</h3><dl class="dados">' + [['Formalização', i.formalizacao], ['Orçamento', i.orcamento], ['Sigla (serv/aqs)', i.sigla], ['Atividade', i.atividade], ['Natureza da despesa', i.natureza], ['Modalidade', i.modalidade], ['CNPJ/CPF', i.cnpj], ['Vigência', (dt(i.vigencia_ini).slice(0, 10) || '—') + ' a ' + (dt(i.vigencia_fim).slice(0, 10) || '—') + (dias != null ? ' · ' + (dias >= 0 ? dias + ' dias a vencer' : 'vencido') : '')], ['Prorrogação prevista', i.prorrogacao_prevista], ['Valor da parcela', (num(i.valor_parcela) ? brl(i.valor_parcela) : '—') + (i.base_previsao ? ' · ' + i.base_previsao : '')], ['Região / UF', (i.regiao || '—') + ' / ' + (i.uf || '—')], ['Origem', (i.origem || '') + (i.chave ? ' · ' + i.chave : '') + (i.situacao_cadastro ? ' · ' + i.situacao_cadastro : '') + (i.sincronizado_em ? ' · sincronizado ' + dt(i.sincronizado_em) : '')], ['Cadastro', dt(i.criado_em) + ' · ' + (i.criado_por || '')], ['Última alteração', i.alterado_em ? dt(i.alterado_em) + ' · ' + i.alterado_por + ' · ' + i.justificativa : '—']].map(function(x){ return '<div><dt>' + x[0] + '</dt><dd>' + esc(x[1] || '—') + '</dd></div>'; }).join('') + '<div style="grid-column:1/-1"><dt>Objeto</dt><dd style="font-weight:500">' + esc(i.objeto || '—') + '</dd></div></dl></div>' +
     '<div class="card rolar"><h3>Notas de empenho <small>Tesouro · ' + c.nes.length + '</small></h3>' + (c.nes.length ? '<table><tr><th>NE</th><th>Recurso</th><th>Ação</th><th>Fonte</th><th>PI</th><th>ND</th><th class="n">Empenhado</th><th class="n">Liquidado</th><th class="n">Pago</th><th class="n">Saldo</th></tr>' + c.nes.map(function(t){ return '<tr><td><b>' + esc(t.ne) + '</b>' + (t.origem === 'TESTE' ? '<span class="s">teste</span>' : '') + '</td><td>' + rec(t.tipo === 'RAP' ? 'RAP001' : 'EXE001') + '</td><td>' + esc(t.acao) + '</td><td>' + esc(t.fonte) + '</td><td>' + esc(t.pi) + '</td><td>' + esc(t.nd) + '<span class="s">' + esc(t.desc_nd) + '</span></td><td class="n">' + brl(t.empenhado) + '</td><td class="n">' + brl(t.liquidado) + '</td><td class="n">' + brl(t.pago) + '</td><td class="n">' + brl(t.saldo) + '</td></tr>'; }).join('') + '</table>' : '<div class="vazio">Nenhuma NE encontrada no Tesouro para este instrumento. Vincule no cadastro (campo NEs) ou confira se o processo raiz é o mesmo do empenho.</div>') + '</div>' +
     '<div class="card"><h3>Previsão do ano por competência <small>editável pelo Orçamento</small></h3><div class="prev-grid" data-prev="' + esc(i.id) + '">' + D.competencias.map(function(m){ return '<label>' + comp(m) + '<input name="' + m + '" value="' + (c.prev[m] ? v2(c.prev[m]) : '') + '"' + (cadastra() ? '' : ' readonly') + '></label>'; }).join('') + '</div>' + (cadastra() ? '<div class="acoes" style="margin-top:10px"><button class="bt sec peq" type="button" data-prev-salvar="' + esc(i.id) + '">Salvar previsão</button></div>' : '') + '</div>' +
     '<div class="card rolar"><h3>Pagamentos <small>' + c.pags.length + '</small></h3>' + (c.pags.length ? '<table><tr><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>NE</th><th>Executor</th><th>Situação</th><th>Observação</th></tr>' + c.pags.slice().sort(function(a, b){ return a.competencia.localeCompare(b.competencia); }).map(function(p){ return '<tr><td><b>' + comp(p.competencia) + '</b></td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + esc(p.ne) + ' ' + rec(p.recurso) + '</td><td>' + esc(p.executor ? nomeDe(p.executor) : '—') + '</td><td>' + st(p.situacao) + '</td><td>' + esc(p.obs || p.obs_orcamento || '—') + '</td></tr>'; }).join('') + '</table>' : '<div class="vazio">Nenhum pagamento ainda.</div>') + '</div>';
@@ -542,7 +557,9 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-repetir]'))){ x.disabled = true; acao({acao: 'repetir', id: x.dataset.repetir}, 'Nova linha no mesmo processo — preencha valor e competência.'); return; }
   if((x = t.closest('[data-desfazer]'))){ x.disabled = true; acao({acao: 'desfazer', id: x.dataset.desfazer}, 'Desfeito — voltou para a fila.'); return; }
   if((x = t.closest('[data-tesouro]'))){ x.disabled = true; x.textContent = 'Lendo o Tesouro…'; acao({acao: 'tesouro'}, function(r){ return (r.log || []).join(' · ') + ' · ' + r.confirmados + ' confirmado(s), ' + r.ajustar + ' a ajustar'; }); return; }
+  if((x = t.closest('[data-importar]'))){ x.disabled = true; x.textContent = 'Importando…'; acao({acao: 'importar'}, function(r){ return r.msg; }); return; }
   if((x = t.closest('[data-simular]'))){ x.disabled = true; acao({acao: 'simular'}, function(r){ return r.msg + ' ' + r.confirmados + ' confirmado(s).'; }); return; }
+  if(t.closest('[data-mais]')){ F.lim += 120; desenhar(); return; }
   if((x = t.closest('[data-rec]'))){ F.rec = x.dataset.rec; desenhar(); return; }
   if((x = t.closest('[data-prev-salvar]'))){ var gr = document.querySelector('[data-prev="' + x.dataset.prevSalvar + '"]'); var its = [].map.call(gr.querySelectorAll('input'), function(inp){ return {competencia: inp.name, valor: num(inp.value)}; }).filter(function(it){ var c = calc(inst(x.dataset.prevSalvar)); return it.valor || c.prev[it.competencia]; }); x.disabled = true; acao({acao: 'previsao', instrumento_id: x.dataset.prevSalvar, itens: its}, 'Previsão salva.'); return; }
   if((x = t.closest('[data-tes-buscar]'))){ buscarTesouro($('tes-busca').value); return; }
