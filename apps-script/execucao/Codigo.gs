@@ -91,6 +91,7 @@ function carregarTeste() {
     { ne: (A - 1) + 'NE900058', tipo: 'RAP', ug: '130010', processo: '21000.000003/2025-00', favorecido: '[TESTE] FORNECEDOR ATA', acao: '2000', fonte: '1000000000', pi: 'ADMCEPLAC', nd: '33903007', desc_nd: 'GÊNEROS DE ALIMENTAÇÃO', empenhado: 23688, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 23688 },
     { ne: (A - 1) + 'NE900071', tipo: 'RAP', ug: '420013', processo: '21000.000004/2026-00', favorecido: '[TESTE] ASSOCIAÇÃO', acao: '215A', fonte: '1000000000', pi: 'SDR', nd: '33504101', desc_nd: 'CONTRIBUIÇÕES', empenhado: 380000, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 380000 }
   ].forEach(t => { t.base_liquidado = 0; t.carga = agora_; t.origem = 'TESTE'; anexar('TESOURO_NE', t); });
+  limparCacheTesouro();
 }
 
 /* ====================== PREVISÃO DO ANO ====================== */
@@ -142,6 +143,7 @@ function carregarTesouro() {
   const s = sh('TESOURO_NE');
   if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, s.getLastColumn()).clearContent();
   if (linhas.length) s.getRange(2, 1, linhas.length, ABAS.TESOURO_NE.length).setValues(linhas.map(o => ABAS.TESOURO_NE.map(c => o[c] === undefined ? '' : o[c])));
+  limparCacheTesouro();
   setConfig('ULTIMA_CARGA', agora_ + ' · ' + log.join(' · '));
   toast('Tesouro: ' + log.join(' · '));
   return { ok: true, log: log, nes: linhas.length };
@@ -214,7 +216,7 @@ function extrairLinha(row, tipo) {
  */
 function conferir(u) {
   if (u && u.perfil !== 'ADMIN') return { ok: false, msg: 'Só o coordenador roda a conferência.' };
-  const tes = {}; lerTudo('TESOURO_NE').forEach(t => { const k = t.ne + '|' + t.ug; tes[k] = (tes[k] || 0) + num(t.liquidado) - num(t.base_liquidado); });
+  const tes = {}; tesouroEmCache().forEach(t => { const k = t.ne + '|' + t.ug; tes[k] = (tes[k] || 0) + num(t.liquidado) - num(t.base_liquidado); });
   const ugDe = {}; lerTudo('INSTRUMENTOS').forEach(i => ugDe[i.id] = String(i.ug));
   const pags = lerTudo('PAGAMENTOS').filter(p => [SIT.INFORMADO, SIT.CONFIRMADO, SIT.AJUSTAR].indexOf(p.situacao) >= 0);
   const porNe = {}; pags.forEach(p => { const k = p.ne + '|' + ugDe[p.instrumento_id]; (porNe[k] = porNe[k] || []).push(p); });
@@ -247,6 +249,7 @@ function simularLiquidacao(u) {
     s.getRange(r + 1, iLiq + 1).setValue(num(v[r][iLiq]) + soma[v[r][iNe]]);
     s.getRange(r + 1, iSaldo + 1).setValue(Math.max(0, num(v[r][iSaldo]) - soma[v[r][iNe]])); n++;
   }
+  limparCacheTesouro();
   const c = conferir(u); c.msg = 'Simulado em ' + n + ' NE(s) de teste.'; return c;
 }
 
@@ -264,7 +267,7 @@ function doPost(e) {
     if (!u) return json({ ok: false, sessao: false, msg: 'Sessão expirada. Entre de novo.' });
     if (p.acao === 'dados') return json(dados(u));
     lock.waitLock(25000);
-    const acoes = { instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, distribuir: distribuir, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
+    const acoes = { buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, distribuir: distribuir, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
     const f = acoes[p.acao];
     const r = f ? f(u, p) : { ok: false, msg: 'Ação desconhecida.' };
     SpreadsheetApp.flush();
@@ -290,15 +293,20 @@ function entrar(p) {
   if (String(p.codigo) !== cod) return { ok: false, msg: 'Código incorreto.' };
   c.remove('cod_' + email);
   const token = Utilities.getUuid(), exp = Date.now() + (p.lembrar ? 30 : 1) * 86400000;
+  limparSessoes();
   anexar('SESSOES', { token: token, email: email, exp: exp });
   return { ok: true, token: token, exp: exp };
 }
 function usuarioDoToken(token) {
   if (!token) return null;
+  const cache = CacheService.getScriptCache(), emCache = cache.get('tk_' + token);
+  if (emCache) return JSON.parse(emCache);
   const s = lerTudo('SESSOES').find(x => x.token === token && num(x.exp) > Date.now());
   if (!s) return null;
   const u = lerTudo('USUARIOS').find(x => igual(x.email, s.email) && String(x.ativo).toUpperCase() !== 'NÃO');
-  return u ? { email: String(u.email).toLowerCase(), nome: u.nome || u.email, perfil: String(u.perfil || 'EXECUTOR').toUpperCase() } : null;
+  const r = u ? { email: String(u.email).toLowerCase(), nome: u.nome || u.email, perfil: String(u.perfil || 'EXECUTOR').toUpperCase() } : null;
+  if (r) cache.put('tk_' + token, JSON.stringify(r), 21600);
+  return r;
 }
 
 /* ---- leitura ---- */
@@ -308,7 +316,7 @@ function nesDoInstrumento(i, tes) {
   return tes.filter(t => (!i.ug || String(t.ug) === String(i.ug)) && (lista.indexOf(String(t.ne).toUpperCase()) >= 0 || (raiz && String(t.processo).replace(/\D/g, '') === raiz))).map(t => t.ne);
 }
 function dados(u) {
-  const tes = lerTudo('TESOURO_NE');
+  const tes = tesouroEmCache();
   let inst = lerTudo('INSTRUMENTOS'), pags = lerTudo('PAGAMENTOS');
   inst.forEach(i => { i.nes_vinculadas = nesDoInstrumento(i, tes); i.cnpj = mascarar(i.cnpj); });
   if (u.perfil === 'EXECUTOR') {
@@ -321,9 +329,18 @@ function dados(u) {
   return {
     ok: true, eu: u, ano: ano(), competencias: competenciasDoAno(), nomeUg: NOME_UG,
     instrumentos: inst, previsao: lerTudo('PREVISAO'), pagamentos: pags, ddo: u.perfil === 'EXECUTOR' ? [] : lerTudo('DDO'),
-    tesouro: u.perfil === 'EXECUTOR' ? tes.filter(t => usadas[t.ne]) : tes,
+    tesouro: tes.filter(t => usadas[t.ne]), totalTesouro: tes.length,
     equipe: equipe, carga: getConfig('ULTIMA_CARGA'), conferencia: getConfig('ULTIMA_CONFERENCIA'), agora: agora()
   };
+}
+
+/** Busca no Tesouro (cadastro de instrumento): NE, processo, CNPJ ou favorecido. Até 60 resultados. */
+function buscaTesouro(u, p) {
+  if (!podeCadastrar(u)) return { ok: false, msg: 'Sem permissão.' };
+  const q = String(p.q || '').trim(), dg = q.replace(/\D/g, ''), nq = normalizar(q);
+  if (q.length < 3) return { ok: true, itens: [] };
+  const itens = tesouroEmCache().filter(t => { const txt = [t.ne, t.processo, t.favorecido].join(' '); return (dg.length >= 4 && txt.replace(/\D/g, '').indexOf(dg) >= 0) || normalizar(txt).indexOf(nq) >= 0; }).slice(0, 60);
+  return { ok: true, itens: itens };
 }
 
 /* ---- ações ---- */
@@ -425,6 +442,21 @@ function salvarDdo(u, p) {
   const o = { id: 'D' + Date.now().toString(36).toUpperCase(), instrumento_id: d.instrumento_id, data: d.data || agora().slice(0, 10), processo: d.processo, valor: num(d.valor), situacao: d.situacao || 'A empenhar', ne: d.ne || '', objeto: d.objeto || '', periodo: d.periodo || '', por: u.email, em: agora() };
   anexar('DDO', o); hist(u, 'DDO registrada', o.id, d.processo);
   return { ok: true };
+}
+
+/* ---- cache (deixa a abertura do painel rápida) ---- */
+function tesouroEmCache() {
+  const c = CacheService.getScriptCache(), n = Number(c.get('tes_n') || 0);
+  if (n) { const partes = c.getAll(Array.from({ length: n }, (_, i) => 'tes_' + i)); if (Object.keys(partes).length === n) { try { return JSON.parse(Array.from({ length: n }, (_, i) => partes['tes_' + i]).join('')); } catch (e) {} } }
+  const tes = lerTudo('TESOURO_NE'), txt = JSON.stringify(tes), o = {}, TAM = 90000;
+  const qt = Math.ceil(txt.length / TAM);
+  if (qt <= 80) { for (let i = 0; i < qt; i++) o['tes_' + i] = txt.slice(i * TAM, (i + 1) * TAM); o.tes_n = String(qt); try { c.putAll(o, 21600); } catch (e) {} }
+  return tes;
+}
+function limparCacheTesouro() { CacheService.getScriptCache().remove('tes_n'); }
+function limparSessoes() {
+  const s = sh('SESSOES'), v = s.getDataRange().getValues(), agora_ = Date.now();
+  for (let r = v.length - 1; r >= 1; r--) if (Number(v[r][2]) < agora_) s.deleteRow(r + 1);
 }
 
 /* =========================== utilitários =========================== */

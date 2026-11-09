@@ -130,6 +130,9 @@ dl.dados dt{font-size:12.5px;color:var(--mudo)}dl.dados dd{margin:0;font-weight:
 .res-tes label{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid #eef2ee;font-size:13.5px;cursor:pointer}
 #aviso{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--escuro);color:#fff;border-radius:12px;padding:12px 18px;font-weight:600;box-shadow:0 10px 30px #0005;z-index:10;max-width:90vw}
 #aviso.erro{background:var(--vermelho)}
+body.atualizando #bt-atualizar{opacity:.6;pointer-events:none}
+body.atualizando #bt-atualizar::after{content:'…'}
+body.atualizando #menu::before{content:'Atualizando com a base…';display:block;font-size:12px;font-weight:700;color:var(--ambar);background:var(--ambarbg);border-radius:8px;padding:6px 10px;margin-bottom:6px}
 .rodape{font-size:12px;color:var(--mudo)}
 @media (max-width:760px){#tela{padding:16px 12px 50px}#menu{border-right:0;border-bottom:1px solid var(--linha)}}
 </style>
@@ -178,7 +181,7 @@ dl.dados dt{font-size:12.5px;color:var(--mudo)}dl.dados dd{margin:0;font-weight:
 (function(){
 'use strict';
 var API_PADRAO = 'https://script.google.com/macros/s/AKfycbxrspYIO3IfFxP_Rnt7pPPA5vw5QDO4jHKEQcfYCgYv_Bs8tBkiLQfAe-05Qny7P6XN/exec';
-var K_API = 'exec27Api', K_SES = 'exec27Sessao';
+var K_API = 'exec27Api', K_SES = 'exec27Sessao', K_DADOS = 'exec27Dados';
 var $ = function(id){ return document.getElementById(id); };
 var D = null, VIEW = null, FICHA = null, EDITAR = null, ABERTO = null, FILA_TODAS = false, EMAIL = '';
 var F = {orc: '', ug: '', form: '', corrigir: 'TODOS', rec: '', busca: '', dem: ''};
@@ -285,20 +288,31 @@ function entrar(){
 }
 $('f-codigo').addEventListener('submit', function(e){ e.preventDefault(); entrar(); });
 $('in-cod').addEventListener('input', function(){ this.value = this.value.replace(/\D/g, '').slice(0, 6); if(this.value.length === 6) entrar(); });
-$('bt-sair').onclick = function(){ ls(K_SES, null); location.reload(); };
+$('bt-sair').onclick = function(){ ls(K_SES, null); ls(K_DADOS, null); location.reload(); };
 $('bt-atualizar').onclick = function(){ carregar(false); };
 $('busca-g').addEventListener('input', function(){ F.busca = this.value; VIEW = 'instrumentos'; FICHA = null; EDITAR = null; clearTimeout(window._bg); window._bg = setTimeout(desenhar, 200); });
 
 /* ---------- dados ---------- */
 function carregar(primeira){
-  if(primeira){ $('login').classList.add('oculto'); $('app').classList.remove('oculto'); $('tela').innerHTML = '<div class="vazio">Carregando a base…</div>'; }
+  var s = ls(K_SES);
+  if(primeira){
+    $('login').classList.add('oculto'); $('app').classList.remove('oculto');
+    var guardado = ls(K_DADOS);   // abre na hora com os dados da última visita e atualiza por trás
+    if(guardado && s && guardado.eu && guardado.eu.email === s.email){ D = guardado; montar(); }
+    else $('tela').innerHTML = '<div class="vazio">Carregando a base… (a primeira abertura do dia pode levar alguns segundos)</div>';
+  }
+  document.body.classList.add('atualizando');
   return chamar({acao: 'dados'}).then(function(r){
+    document.body.classList.remove('atualizando');
     if(!r.ok){ aviso(r.msg || 'Erro ao carregar', true); return; }
-    D = r; $('t-ano').textContent = D.ano;
+    D = r; ls(K_DADOS, r); montar();
+  }).catch(function(e){ document.body.classList.remove('atualizando'); if(e.message !== 'sessão') aviso('Não consegui falar com a base. Tente Atualizar.', true); });
+}
+function montar(){
+    $('t-ano').textContent = D.ano;
     $('eu-nome').textContent = D.eu.nome; $('eu-perfil').textContent = {ADMIN: 'Coordenação · distribui', ORCAMENTO: 'Orçamento', EXECUTOR: 'Executor'}[D.eu.perfil] || D.eu.perfil;
     if(!VIEW || !permitido(VIEW)) VIEW = {ADMIN: 'geral', ORCAMENTO: 'orcamento', EXECUTOR: 'fila'}[D.eu.perfil] || 'fila';
     desenhar();
-  }).catch(function(e){ if(e.message !== 'sessão') aviso('Não consegui falar com a base. Tente Atualizar.', true); });
 }
 function acao(o, ok, depois){
   return chamar(o).then(function(r){ if(!r.ok){ aviso(r.msg || 'Não deu certo.', true); reativar(); return; } aviso(typeof ok === 'function' ? ok(r) : ok); if(depois) depois(r); return carregar(false); })
@@ -496,9 +510,12 @@ function formInstrumento(i){
     '</div></form>';
 }
 function buscarTesouro(q){
-  q = String(q || '').trim(); var dg = q.replace(/\D/g, ''), nq = norm(q);
-  if(q.length < 3) return '<div class="vazio">Digite pelo menos 3 caracteres.</div>';
-  var r = D.tesouro.filter(function(t){ var txt = [t.ne, t.processo, t.favorecido].join(' '); return (dg.length >= 4 && txt.replace(/\D/g, '').indexOf(dg) >= 0) || norm(txt).indexOf(nq) >= 0; }).slice(0, 60);
+  q = String(q || '').trim();
+  if(q.length < 3){ $('tes-res').innerHTML = '<div class="vazio">Digite pelo menos 3 caracteres.</div>'; return; }
+  $('tes-res').innerHTML = '<div class="vazio">Buscando no Tesouro…</div>';
+  chamar({acao: 'buscaTesouro', q: q}).then(function(r){ var el = $('tes-res'); if(el) el.innerHTML = r.ok ? resultadoTesouro(r.itens || []) : '<div class="msg erro">' + esc(r.msg) + '</div>'; }).catch(function(){ var el = $('tes-res'); if(el) el.innerHTML = '<div class="msg erro">Falha de conexão.</div>'; });
+}
+function resultadoTesouro(r){
   if(!r.length) return '<div class="vazio">Nada no Tesouro com isso. Se acabou de colar o link, rode “Ler Tesouro” na Visão geral.</div>';
   return '<div class="res-tes">' + r.map(function(t){ return '<label><input type="checkbox" data-tes-ne="' + esc(t.ne) + '" data-ug="' + esc(t.ug) + '" data-proc="' + esc(t.processo) + '" data-fav="' + esc(t.favorecido) + '" data-nd="' + esc(t.nd) + '"><span><b>' + esc(t.ne) + '</b> · UG ' + esc(t.ug) + ' · ' + esc(t.tipo) + ' · ' + esc(t.processo) + '<span class="s">' + esc(t.favorecido) + ' · ND ' + esc(t.nd) + ' · saldo ' + brl(t.saldo) + '</span></span></label>'; }).join('') + '</div><div class="acoes" style="margin-top:8px"><button class="bt sec peq" type="button" data-tes-usar>Usar as NEs marcadas</button></div>';
 }
@@ -528,7 +545,7 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-simular]'))){ x.disabled = true; acao({acao: 'simular'}, function(r){ return r.msg + ' ' + r.confirmados + ' confirmado(s).'; }); return; }
   if((x = t.closest('[data-rec]'))){ F.rec = x.dataset.rec; desenhar(); return; }
   if((x = t.closest('[data-prev-salvar]'))){ var gr = document.querySelector('[data-prev="' + x.dataset.prevSalvar + '"]'); var its = [].map.call(gr.querySelectorAll('input'), function(inp){ return {competencia: inp.name, valor: num(inp.value)}; }).filter(function(it){ var c = calc(inst(x.dataset.prevSalvar)); return it.valor || c.prev[it.competencia]; }); x.disabled = true; acao({acao: 'previsao', instrumento_id: x.dataset.prevSalvar, itens: its}, 'Previsão salva.'); return; }
-  if((x = t.closest('[data-tes-buscar]'))){ $('tes-res').innerHTML = buscarTesouro($('tes-busca').value); return; }
+  if((x = t.closest('[data-tes-buscar]'))){ buscarTesouro($('tes-busca').value); return; }
   if((x = t.closest('[data-tes-usar]'))){
     var marc = [].slice.call(document.querySelectorAll('[data-tes-ne]:checked')); if(!marc.length) return aviso('Marque ao menos uma NE.', true);
     var fi = $('f-inst'), atual = fi.nes.value.split(/[,;\s]+/).filter(Boolean);
@@ -561,7 +578,7 @@ $('tela').addEventListener('input', function(e){
   if(t.id === 'dem-busca'){ F.dem = t.value; clearTimeout(window._bd); window._bd = setTimeout(function(){ desenhar(); var b = $('dem-busca'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 250); }
   if(t.matches && t.matches('textarea[data-auto]')) autoAltura(t);
 });
-$('tela').addEventListener('keydown', function(e){ if(e.target.id === 'tes-busca' && e.key === 'Enter'){ e.preventDefault(); $('tes-res').innerHTML = buscarTesouro(e.target.value); } });
+$('tela').addEventListener('keydown', function(e){ if(e.target.id === 'tes-busca' && e.key === 'Enter'){ e.preventDefault(); buscarTesouro(e.target.value); } });
 
 /* ---------- início ---------- */
 if(!api()) mostrarLogin('config');
