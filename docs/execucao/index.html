@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Execução Financeira 2027 · TESTE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--verde:#155a30;--verde2:#1f6b3a;--verde3:#2f8a4c;--escuro:#133a2a;--texto:#1d2b24;--mudo:#5f6f66;--fundo:#e9efe9;--linha:#d6e0d8;--ouro:#f2b33d;--ambar:#b8650a;--ambarbg:#fdf0dc;--azul:#1f4e79;--azulbg:#e3edf7;--verdebg:#e3f1da;--vermelho:#b3261e;--vermbg:#fdecea;--cinzabg:#eef2ee}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Barlow,system-ui,sans-serif;color:var(--texto);background:var(--fundo);font-size:15px}
+button,input,select{font:inherit}
+.oculto{display:none!important}
+h1,h2,h3{font-family:"Barlow Semi Condensed",Barlow,sans-serif;margin:0}
+
+/* login */
+#login{min-height:100vh;display:grid;place-items:center;background:radial-gradient(1200px 700px at 85% 110%,#4c6b2a 0,#1c4a33 45%,#0d2a1f 85%);padding:24px}
+.lg-card{width:100%;max-width:420px;background:#fff;border-radius:20px;padding:30px 30px 22px;box-shadow:0 30px 60px #0008}
+.lg-kick{font-weight:700;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--verde2)}
+.lg-card h1{font-size:30px;color:var(--escuro);margin:6px 0 4px}
+.lg-sub{color:var(--mudo);margin:0 0 18px;line-height:1.45}
+.campo{display:block;font-size:13px;font-weight:600;color:#3d5a4b;margin-bottom:12px}
+.campo input,.campo select,.campo textarea{display:block;width:100%;margin-top:5px;height:44px;border:1.5px solid #cfdcd3;border-radius:10px;padding:0 12px;background:#fff;color:var(--texto);font-weight:500}
+.campo input:focus,.campo select:focus{outline:0;border-color:var(--verde3);box-shadow:0 0 0 4px #2f8a4c22}
+.bt{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:42px;padding:0 16px;border-radius:10px;border:0;background:var(--verde);color:#fff;font-weight:700;cursor:pointer;white-space:nowrap}
+.bt:hover{background:#0f4826}.bt:disabled{opacity:.55;cursor:wait}
+.bt.sec{background:#fff;color:var(--verde);border:1.5px solid #cfdcd3}.bt.sec:hover{background:var(--cinzabg)}
+.bt.alerta{background:#fff;color:var(--ambar);border:1.5px solid #e7c48f}
+.bt.peq{height:36px;padding:0 12px;font-size:14px}
+.bt.larga{width:100%;height:48px;font-size:16px}
+.msg{border-radius:10px;padding:10px 12px;font-size:14px;margin:0 0 14px;line-height:1.4}
+.msg.erro{background:var(--vermbg);color:var(--vermelho)}.msg.info{background:var(--verdebg);color:#1f5d34}
+.lg-aviso{font-size:12px;color:#7a877f;text-align:center;margin:16px 0 0}
+.lk{color:var(--verde2);font-weight:700;cursor:pointer;text-decoration:underline}
+
+/* app */
+#topo{background:var(--verde);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:12px 24px}
+#topo .marca{display:flex;flex-direction:column}
+#topo .marca small{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#cfe5d6;font-weight:600}
+#topo .marca b{font-family:"Barlow Semi Condensed";font-size:22px}
+.teste{background:var(--ouro);color:#3a2a00;font-weight:700;font-size:12px;border-radius:999px;padding:3px 10px;letter-spacing:.06em}
+#topo .eu{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px}
+#topo .eu .perfil{background:#ffffff26;border-radius:999px;padding:3px 10px;font-weight:600;font-size:12px}
+#topo .bt.sec{height:34px;background:#ffffff1a;color:#fff;border-color:#ffffff55}
+#corpo{display:flex;flex-wrap:wrap;min-height:calc(100vh - 64px)}
+#menu{flex:1 1 220px;max-width:100%;background:#fff;border-right:1px solid var(--linha);padding:16px 12px;display:flex;flex-direction:column;gap:4px}
+#menu button{display:flex;justify-content:space-between;align-items:center;text-align:left;width:100%;min-height:42px;border:0;background:transparent;border-radius:9px;padding:0 12px;cursor:pointer;color:var(--texto);font-weight:600}
+#menu button:hover{background:var(--cinzabg)}
+#menu button.on{background:var(--verde2);color:#fff}
+#menu button .n{font-size:12px;background:var(--cinzabg);color:var(--mudo);border-radius:999px;padding:1px 8px}
+#menu button.on .n{background:#ffffff33;color:#fff}
+#menu .grp{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mudo);padding:14px 12px 4px;font-weight:700}
+#tela{flex:999 1 560px;min-width:0;padding:24px 28px 60px;display:flex;flex-direction:column;gap:18px}
+.cab h2{font-size:28px;color:var(--escuro)}
+.cab p{margin:4px 0 0;color:var(--mudo);max-width:860px;line-height:1.45}
+.card{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:18px 20px}
+.card h3{font-size:18px;color:var(--escuro);margin-bottom:10px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:14px 16px}
+.kpi span{font-size:13px;color:var(--mudo)}.kpi b{display:block;font-size:26px;font-family:"Barlow Semi Condensed";margin-top:2px}.kpi small{color:var(--mudo)}
+.rolar{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--mudo);font-weight:700;padding:8px;border-bottom:1.5px solid var(--linha);white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid #e8eee9;vertical-align:middle}
+td .s{display:block;font-size:12.5px;color:var(--mudo)}
+tr.aberta td{background:#fbfcf8}
+.st{display:inline-block;font-size:12.5px;font-weight:700;border-radius:999px;padding:4px 10px;white-space:nowrap}
+.st-PREVISTO{background:var(--cinzabg);color:var(--mudo)}
+.st-REFORCO{background:var(--ambarbg);color:var(--ambar)}
+.st-SALDO_OK{background:var(--azulbg);color:var(--azul)}
+.st-DISTRIBUIDO{background:var(--ambarbg);color:#8a4c08}
+.st-INFORMADO{background:var(--azulbg);color:var(--azul)}
+.st-CONFIRMADO{background:var(--verdebg);color:#1f5d34}
+.st-PENDENCIA{background:var(--vermbg);color:var(--vermelho)}
+.rec{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:2px 7px}
+.rec-EXE001{background:var(--azulbg);color:var(--azul)}.rec-RAP001{background:var(--verdebg);color:#1f5d34}
+.mini{height:38px;border:1.5px solid #cfdcd3;border-radius:9px;padding:0 10px;background:#fff;color:var(--texto)}
+.form{background:#f6f9f4;border:1px solid var(--linha);border-radius:12px;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 14px}
+.form .tudo{grid-column:1/-1}
+.ne{display:flex;align-items:center;gap:10px;border:1.5px solid var(--linha);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:#fff}
+.ne.sel{border-color:var(--verde3);background:#f0f8f1}
+.ne input{width:18px;height:18px;accent-color:var(--verde2)}
+.ne .v{margin-left:auto;font-weight:700}
+.acoes{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.barra{height:8px;background:#e8eee9;border-radius:4px;overflow:hidden;margin:6px 0 12px}.barra i{display:block;height:8px;background:var(--verde3)}
+.filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.filtros label{font-size:13px;font-weight:600;color:#3d5a4b;display:flex;flex-direction:column;gap:4px}
+.vazio{color:var(--mudo);padding:18px 4px}
+.lista-inst{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.inst{text-align:left;background:#fff;border:1px solid var(--linha);border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.inst:hover{border-color:var(--verde3)}
+.inst b{font-size:16px}.inst span{font-size:13px;color:var(--mudo)}
+dl.dados{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 18px;margin:0}
+dl.dados dt{font-size:12.5px;color:var(--mudo)}dl.dados dd{margin:0;font-weight:600}
+#aviso{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--escuro);color:#fff;border-radius:12px;padding:12px 18px;font-weight:600;box-shadow:0 10px 30px #0005;z-index:10;max-width:90vw}
+#aviso.erro{background:var(--vermelho)}
+.rodape{font-size:12px;color:var(--mudo)}
+@media (max-width:760px){#tela{padding:18px 14px 50px}#menu{border-right:0;border-bottom:1px solid var(--linha)}}
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<section id="login" class="oculto">
+  <div class="lg-card">
+    <div class="lg-kick">SDR · MAPA · Teste</div>
+    <h1 id="lg-tit">Painel de Execução 2027</h1>
+    <p class="lg-sub" id="lg-sub">Digite seu e-mail. Enviaremos um código de acesso.</p>
+    <div id="lg-msg"></div>
+
+    <form id="f-config" class="oculto">
+      <label class="campo">Link do Apps Script (termina em /exec)
+        <input id="in-api" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <button class="bt larga" type="submit">Salvar e continuar →</button>
+      <p class="lg-aviso">Só é pedido uma vez neste aparelho, durante o teste.</p>
+    </form>
+
+    <form id="f-email" class="oculto">
+      <label class="campo">Seu e-mail<input id="in-email" type="email" autocomplete="email" placeholder="nome@exemplo.com"></label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--mudo);margin:0 0 14px"><input type="checkbox" id="in-lembrar" checked style="width:16px;height:16px;accent-color:#1f6b3a"> Lembrar neste aparelho por 30 dias</label>
+      <button class="bt larga" type="submit">Receber código →</button>
+      <p class="lg-aviso"><span class="lk" id="trocar-api">Trocar o link do Apps Script</span></p>
+    </form>
+
+    <form id="f-codigo" class="oculto">
+      <label class="campo">Código de 6 números<input id="in-cod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" style="font-size:26px;letter-spacing:.4em;text-align:center;font-weight:700"></label>
+      <button class="bt larga" type="submit">Entrar →</button>
+      <p class="lg-aviso"><span class="lk" id="voltar-email">Trocar e-mail ou reenviar</span> · o código vale 10 minutos</p>
+    </form>
+    <p class="lg-aviso">Controle interno da coordenação financeira · SDR/MAPA. Não é um site oficial do Ministério.</p>
+  </div>
+</section>
+
+<!-- ======================= APP ======================= -->
+<section id="app" class="oculto">
+  <header id="topo">
+    <div class="marca"><small>SDR · MAPA</small><b>Execução Financeira 2027</b></div>
+    <span class="teste">VERSÃO DE TESTE</span>
+    <div class="eu"><span id="eu-nome"></span><span class="perfil" id="eu-perfil"></span>
+      <button class="bt sec peq" id="bt-atualizar" type="button">Atualizar</button>
+      <button class="bt sec peq" id="bt-sair" type="button">Sair</button></div>
+  </header>
+  <div id="corpo">
+    <nav id="menu" aria-label="Menu"></nav>
+    <main id="tela"></main>
+  </div>
+</section>
+<div id="aviso" class="oculto" role="status"></div>
+
+<script>
+(function(){
+'use strict';
+var API_PADRAO = 'https://script.google.com/macros/s/AKfycbxbC5T9z3R4iX1slpbvpeh5RXKRMcDkpOZUrevhDov_foTsCwiLKxlJCywpG4yzqUe_/exec';                       // depois do teste: colar aqui o /exec e o painel não pergunta mais
+var K_API = 'exec27Api', K_SES = 'exec27Sessao';
+var $ = function(id){ return document.getElementById(id); };
+var D = null, VIEW = null, ABERTO = null, FICHA = null, FILA_TODAS = false, F = {comp: '', ug: '', busca: ''};
+var EMAIL = '';
+
+/* ---------- utilitários ---------- */
+function ls(k, v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(k) || 'null'); if(v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
+function api(){ var q = new URLSearchParams(location.search).get('api'); if(q){ ls(K_API, q); } return API_PADRAO || ls(K_API) || ''; }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function brl(v){ v = Number(v) || 0; return v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
+var MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function comp(c){ c = String(c || ''); var a = c.slice(0,4), m = +c.slice(5,7); return m ? MES[m-1] + '/' + a : c; }
+function dt(s){ if(!s) return ''; s = String(s); return s.slice(8,10) + '/' + s.slice(5,7) + '/' + s.slice(0,4) + (s.length > 11 ? ' ' + s.slice(11,16) : ''); }
+var ST = {PREVISTO: 'Previsto', REFORCO: 'Reforço de NE', SALDO_OK: 'Saldo confirmado', DISTRIBUIDO: 'Distribuído · a pagar', INFORMADO: 'Informado · aguarda Tesouro', CONFIRMADO: 'Confirmado pelo Tesouro', PENDENCIA: 'Pendência · sem OB'};
+function st(s){ return '<span class="st st-' + esc(s) + '">' + esc(ST[s] || s) + '</span>'; }
+function rec(r){ return r ? '<span class="rec rec-' + esc(r) + '">' + esc(r) + '</span>' : '—'; }
+function aviso(t, erro){ var a = $('aviso'); a.textContent = t; a.className = erro ? 'erro' : ''; clearTimeout(aviso._t); aviso._t = setTimeout(function(){ a.className = 'oculto'; }, 3800); }
+function post(o){
+  return fetch(api(), {method: 'POST', body: JSON.stringify(o), headers: {'Content-Type': 'text/plain;charset=utf-8'}}).then(function(r){ return r.json(); });
+}
+function chamar(o){
+  var s = ls(K_SES); o.token = s && s.token;
+  return post(o).then(function(r){
+    if(r.sessao === false){ ls(K_SES, null); mostrarLogin('email', r.msg); throw new Error('sessão'); }
+    return r;
+  });
+}
+function inst(id){ return (D.instrumentos || []).filter(function(i){ return i.id === id; })[0] || {}; }
+function nesDe(id){ return (D.nes || []).filter(function(n){ return n.instrumento_id === id; }); }
+function nomeDe(email){ var p = (D.equipe || []).filter(function(x){ return x.email === String(email).toLowerCase(); })[0]; return p ? p.nome : (email || '—'); }
+function admin(){ return D.eu.perfil === 'ADMIN'; }
+
+/* ---------- login ---------- */
+function msgLogin(t, tipo){ $('lg-msg').innerHTML = t ? '<div class="msg ' + (tipo || 'erro') + '">' + t + '</div>' : ''; }
+function mostrarLogin(tela, m){
+  $('app').classList.add('oculto'); $('login').classList.remove('oculto');
+  ['f-config','f-email','f-codigo'].forEach(function(f){ $(f).classList.add('oculto'); });
+  var tit = {config: ['Configurar o teste', 'Cole o link do Apps Script da planilha BASE EXECUÇÃO 2027.'], email: ['Painel de Execução 2027', 'Digite seu e-mail. Enviaremos um código de acesso.'], codigo: ['Confira seu e-mail', 'Enviamos um código de 6 números para <b>' + esc(EMAIL) + '</b>.']}[tela];
+  $('lg-tit').textContent = tit[0]; $('lg-sub').innerHTML = tit[1];
+  $('f-' + tela).classList.remove('oculto'); msgLogin(m || '');
+}
+function ocupado(form, sim){ var b = form.querySelector('button[type=submit]'); b.disabled = sim; if(sim){ b.dataset.t = b.textContent; b.textContent = 'Aguarde…'; } else if(b.dataset.t) b.textContent = b.dataset.t; }
+$('f-config').addEventListener('submit', function(e){
+  e.preventDefault(); var u = $('in-api').value.trim();
+  if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec/.test(u)){ msgLogin('O link precisa ser o do Apps Script e terminar em /exec.'); return; }
+  ls(K_API, u); mostrarLogin('email');
+});
+$('trocar-api').onclick = function(){ $('in-api').value = api(); mostrarLogin('config'); };
+$('f-email').addEventListener('submit', function(e){
+  e.preventDefault(); var f = this, em = $('in-email').value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ msgLogin('Digite um e-mail válido.'); return; }
+  ocupado(f, true);
+  post({acao: 'codigo', email: em}).then(function(r){
+    ocupado(f, false);
+    if(r.ok){ EMAIL = em; $('in-cod').value = ''; mostrarLogin('codigo'); setTimeout(function(){ $('in-cod').focus(); }, 50); }
+    else msgLogin(esc(r.msg || 'Não foi possível enviar o código.'));
+  }).catch(function(){ ocupado(f, false); msgLogin('Não consegui falar com o Apps Script. Confira o link e se a implantação está como "Qualquer pessoa".'); });
+});
+$('voltar-email').onclick = function(){ mostrarLogin('email'); $('in-email').value = EMAIL; };
+function entrar(){
+  var f = $('f-codigo'), c = $('in-cod').value.replace(/\D/g, '');
+  if(c.length !== 6){ msgLogin('Digite os 6 números.'); return; }
+  ocupado(f, true);
+  post({acao: 'entrar', email: EMAIL, codigo: c, lembrar: $('in-lembrar').checked}).then(function(r){
+    ocupado(f, false);
+    if(r.ok){ ls(K_SES, {token: r.token, exp: r.exp, email: EMAIL}); carregar(true); }
+    else { $('in-cod').value = ''; msgLogin(esc(r.msg)); }
+  }).catch(function(){ ocupado(f, false); msgLogin('Falha de conexão. Tente de novo.'); });
+}
+$('f-codigo').addEventListener('submit', function(e){ e.preventDefault(); entrar(); });
+$('in-cod').addEventListener('input', function(){ this.value = this.value.replace(/\D/g, '').slice(0, 6); if(this.value.length === 6) entrar(); });
+$('bt-sair').onclick = function(){ ls(K_SES, null); location.reload(); };
+$('bt-atualizar').onclick = function(){ carregar(false); };
+
+/* ---------- dados ---------- */
+function carregar(primeira){
+  if(primeira){ $('login').classList.add('oculto'); $('app').classList.remove('oculto'); $('tela').innerHTML = '<div class="vazio">Carregando a base…</div>'; }
+  return chamar({acao: 'dados'}).then(function(r){
+    if(!r.ok){ aviso(r.msg || 'Erro ao carregar', true); return; }
+    D = r;
+    $('eu-nome').textContent = D.eu.nome; $('eu-perfil').textContent = {ADMIN: 'Coordenação · distribui', ORCAMENTO: 'Orçamento', EXECUTOR: 'Executor'}[D.eu.perfil] || D.eu.perfil;
+    if(!VIEW || !permitido(VIEW)) VIEW = {ADMIN: 'geral', ORCAMENTO: 'orcamento', EXECUTOR: 'fila'}[D.eu.perfil] || 'fila';
+    desenhar();
+  }).catch(function(e){ if(e.message !== 'sessão') aviso('Não consegui falar com a base. Tente Atualizar.', true); });
+}
+function acao(o, ok){
+  return chamar(o).then(function(r){
+    if(!r.ok){ aviso(r.msg || 'Não deu certo.', true); return; }
+    aviso(ok); ABERTO = null; return carregar(false);
+  }).catch(function(e){ if(e.message !== 'sessão') aviso('Falha de conexão.', true); });
+}
+
+/* ---------- menu ---------- */
+var TELAS = [
+  {id: 'geral', nome: 'Visão geral', perfis: ['ADMIN']},
+  {id: 'orcamento', nome: 'Orçamento — demandas', perfis: ['ADMIN','ORCAMENTO'], n: function(){ return cs(function(c){ return c.situacao === 'REFORCO'; }).length || ''; }},
+  {id: 'distribuir', nome: 'Distribuir', perfis: ['ADMIN'], n: function(){ return cs(function(c){ return c.situacao === 'SALDO_OK'; }).length || ''; }},
+  {id: 'fila', nome: 'Minha fila', perfis: ['ADMIN','EXECUTOR'], n: function(){ return cs(function(c){ return c.executor === D.eu.email && /DISTRIBUIDO|PENDENCIA/.test(c.situacao); }).length || ''; }},
+  {id: 'instrumentos', nome: 'Consultar instrumento', perfis: ['ADMIN','ORCAMENTO','EXECUTOR']}
+];
+function permitido(v){ return TELAS.some(function(t){ return t.id === v && t.perfis.indexOf(D.eu.perfil) >= 0; }); }
+function cs(fn){ return (D.competencias || []).filter(fn); }
+function desenharMenu(){
+  $('menu').innerHTML = TELAS.filter(function(t){ return t.perfis.indexOf(D.eu.perfil) >= 0; }).map(function(t){
+    var n = t.n ? t.n() : '';
+    return '<button type="button" data-view="' + t.id + '" class="' + (VIEW === t.id ? 'on' : '') + '">' + t.nome + (n ? '<span class="n">' + n + '</span>' : '') + '</button>';
+  }).join('') + '<div class="grp">Base</div><div class="rodape" style="padding:0 12px">Atualizado ' + dt(D.atualizado.replace('Z','')) + '<br>Dados de TESTE</div>';
+}
+$('menu').addEventListener('click', function(e){ var b = e.target.closest('[data-view]'); if(!b) return; VIEW = b.dataset.view; ABERTO = null; FICHA = null; desenhar(); });
+
+function desenhar(){
+  desenharMenu();
+  var h = {geral: telaGeral, orcamento: telaOrcamento, distribuir: telaDistribuir, fila: telaFila, instrumentos: telaInstrumentos}[VIEW]();
+  $('tela').innerHTML = h + '<p class="rodape">Site não oficial — controle interno. Os instrumentos desta base de teste são exemplos.</p>';
+}
+function cab(t, p){ return '<div class="cab"><h2>' + t + '</h2>' + (p ? '<p>' + p + '</p>' : '') + '</div>'; }
+function linhaInst(c){ var i = inst(c.instrumento_id); return '<b>' + esc(i.favorecido) + '</b><span class="s">' + esc(i.tipo) + ' ' + esc(i.numero) + ' · UG ' + esc(i.ug) + (c.obs_orcamento && c.situacao === 'PREVISTO' ? ' · ' + esc(c.obs_orcamento) : '') + '</span>'; }
+
+/* ---------- Visão geral ---------- */
+function telaGeral(){
+  var tot = {}, val = {};
+  Object.keys(ST).forEach(function(k){ tot[k] = 0; val[k] = 0; });
+  D.competencias.forEach(function(c){ tot[c.situacao] = (tot[c.situacao] || 0) + 1; val[c.situacao] = (val[c.situacao] || 0) + (Number(c.valor) || Number(c.valor_previsto) || 0); });
+  var k = function(l, s, cor){ return '<div class="kpi"><span>' + l + '</span><b style="color:' + cor + '">' + tot[s] + '</b><small>' + brl(val[s]) + '</small></div>'; };
+  var ugs = {};
+  D.competencias.forEach(function(c){ var u = inst(c.instrumento_id).ug || '?'; ugs[u] = ugs[u] || {n: {}, inst: {}}; ugs[u].n[c.situacao] = (ugs[u].n[c.situacao] || 0) + 1; ugs[u].inst[c.instrumento_id] = 1; });
+  var linhas = Object.keys(ugs).sort().map(function(u){ var x = ugs[u].n; return '<tr><td><b>' + esc(u) + '</b></td><td>' + Object.keys(ugs[u].inst).length + '</td><td>' + (x.PREVISTO || 0) + '</td><td>' + ((x.SALDO_OK || 0) + (x.REFORCO || 0)) + '</td><td>' + (x.DISTRIBUIDO || 0) + '</td><td>' + (x.INFORMADO || 0) + '</td><td>' + (x.CONFIRMADO || 0) + '</td><td>' + (x.PENDENCIA ? '<span class="st st-PENDENCIA">' + x.PENDENCIA + '</span>' : 0) + '</td></tr>'; }).join('');
+  var hist = D.competencias.filter(function(c){ return c.informado_em || c.distribuido_em || c.orcamento_em; })
+    .sort(function(a, b){ return String(b.informado_em || b.distribuido_em || b.orcamento_em).localeCompare(String(a.informado_em || a.distribuido_em || a.orcamento_em)); }).slice(0, 8)
+    .map(function(c){ return '<tr><td>' + linhaInst(c) + '</td><td>' + comp(c.competencia) + '</td><td>' + st(c.situacao) + '</td><td>' + esc(c.executor ? nomeDe(c.executor) : '—') + '</td></tr>'; }).join('');
+  return cab('Visão geral', 'Todas as competências da base, por situação. Os números mudam conforme Orçamento, distribuição e executores fazem a sua parte.') +
+    '<div class="kpis">' + k('Previstas', 'PREVISTO', '#5f6f66') + k('Saldo confirmado', 'SALDO_OK', '#1f4e79') + k('Reforço de NE', 'REFORCO', '#b8650a') + k('Distribuídas · a pagar', 'DISTRIBUIDO', '#8a4c08') + k('Informadas', 'INFORMADO', '#1f4e79') + k('Confirmadas', 'CONFIRMADO', '#1f6b3a') + k('Pendências', 'PENDENCIA', '#b3261e') + '</div>' +
+    '<div class="card"><h3>Por UG</h3><div class="rolar"><table><tr><th>UG</th><th>Instrumentos</th><th>Previstas</th><th>No orçamento</th><th>A pagar</th><th>Informadas</th><th>Confirmadas</th><th>Pendências</th></tr>' + linhas + '</table></div></div>' +
+    '<div class="card"><h3>Conferência com o Tesouro</h3><p style="margin:0 0 12px;color:var(--mudo)">Procura na aba TESOURO_OB a OB de cada pagamento informado (mesma NE e mesmo valor). No teste, “Simular” confirma tudo o que estiver informado com uma OB fictícia.</p><div class="acoes" style="justify-content:flex-start"><button class="bt" type="button" data-conferir="0">Conferir com a aba TESOURO_OB</button><button class="bt sec" type="button" data-conferir="1">Simular confirmação (teste)</button></div></div>' +
+    '<div class="card"><h3>Últimos movimentos</h3>' + (hist ? '<div class="rolar"><table><tr><th>Instrumento</th><th>Competência</th><th>Situação</th><th>Executor</th></tr>' + hist + '</table></div>' : '<div class="vazio">Nenhum movimento ainda. Comece pelo Orçamento.</div>') + '</div>';
+}
+
+/* ---------- Orçamento ---------- */
+function compsDisponiveis(){ var s = {}; D.competencias.forEach(function(c){ s[c.competencia] = 1; }); return Object.keys(s).sort(); }
+function telaOrcamento(){
+  var meses = compsDisponiveis();
+  var itens = cs(function(c){ return /PREVISTO|REFORCO|SALDO_OK/.test(c.situacao) && (!F.comp || c.competencia === F.comp) && (!F.ug || inst(c.instrumento_id).ug === F.ug); })
+    .sort(function(a, b){ return a.competencia.localeCompare(b.competencia) || a.instrumento_id.localeCompare(b.instrumento_id); });
+  var ugs = {}; D.instrumentos.forEach(function(i){ ugs[i.ug] = 1; });
+  var linhas = itens.map(function(c){
+    var aberta = ABERTO === c.id;
+    var r = '<tr class="' + (aberta ? 'aberta' : '') + '"><td>' + linhaInst(c) + '</td><td>' + comp(c.competencia) + '</td><td>' + brl(c.valor_previsto) + '</td><td>' + st(c.situacao) + (c.processo_pagamento ? '<span class="s">' + esc(c.processo_pagamento) + '</span>' : '') + '</td><td style="text-align:right"><button class="bt peq ' + (aberta ? 'sec' : '') + '" type="button" data-abrir="' + esc(c.id) + '">' + (aberta ? 'Fechar' : (c.situacao === 'PREVISTO' ? 'Registrar demanda' : 'Rever')) + '</button></td></tr>';
+    if(aberta) r += '<tr class="aberta"><td colspan="5">' + formDemanda(c) + '</td></tr>';
+    return r;
+  }).join('');
+  return cab('Orçamento — demandas recebidas', 'A área demandante envia o processo pelo SEI. Escolha a competência, informe o processo SEI do pagamento, escolha a NE e confirme o saldo. O recurso (EXE001/RAP001) e a fonte vêm da NE.') +
+    '<div class="card"><div class="filtros"><label>Competência<select class="mini" data-f="comp"><option value="">Todas</option>' + meses.map(function(m){ return '<option value="' + m + '"' + (F.comp === m ? ' selected' : '') + '>' + comp(m) + '</option>'; }).join('') + '</select></label><label>UG<select class="mini" data-f="ug"><option value="">Todas</option>' + Object.keys(ugs).sort().map(function(u){ return '<option' + (F.ug === u ? ' selected' : '') + '>' + esc(u) + '</option>'; }).join('') + '</select></label></div></div>' +
+    '<div class="card rolar">' + (linhas ? '<table><tr><th>Instrumento</th><th>Competência</th><th>Previsto</th><th>Situação</th><th></th></tr>' + linhas + '</table>' : '<div class="vazio">Nada pendente com esse filtro.</div>') + '</div>';
+}
+function formDemanda(c){
+  var nes = nesDe(c.instrumento_id), i = inst(c.instrumento_id);
+  var sel = c.ne || (nes[0] && nes[0].ne);
+  var valor = Number(c.valor) || Number(c.valor_previsto) || 0;
+  return '<form class="form" data-demanda="' + esc(c.id) + '">' +
+    '<label class="campo">Processo SEI do pagamento' + (i.tipo === 'Parceria' ? ' (o do instrumento)' : '') + '<input name="processo" value="' + esc(c.processo_pagamento || (i.tipo === 'Parceria' ? i.processo_raiz : '')) + '" placeholder="21000.______/2027-__"></label>' +
+    '<label class="campo">Área demandante<input name="area" value="' + esc(c.area_demandante) + '" placeholder="Ex.: CEPLAC/SUPAM"></label>' +
+    '<label class="campo">Valor da fatura / parcela<input name="valor" value="' + valor.toFixed(2).replace('.', ',') + '"></label>' +
+    '<div class="tudo"><div style="font-size:13px;font-weight:600;color:#3d5a4b;margin:4px 0 8px">NE para o pagamento · saldo do Tesouro</div>' +
+    (nes.length ? nes.map(function(n){ var falta = Number(n.saldo) < valor; return '<label class="ne' + (n.ne === sel ? ' sel' : '') + '"><input type="radio" name="ne" value="' + esc(n.ne) + '"' + (n.ne === sel ? ' checked' : '') + '><span><b>' + esc(n.ne) + '</b> ' + rec(n.recurso) + '<span class="s">Fonte ' + esc(n.fonte) + ' · ' + esc(n.acao) + ' · ND ' + esc(n.nd) + '</span></span><span class="v" style="color:' + (falta ? 'var(--vermelho)' : 'inherit') + '">' + brl(n.saldo) + (falta ? ' · insuficiente' : '') + '</span></label>'; }).join('') : '<div class="msg erro">Este instrumento não tem NE vinculada na base.</div>') + '</div>' +
+    '<label class="campo tudo">Observação do orçamento<input name="obs" value="' + esc(c.situacao === 'PREVISTO' ? '' : c.obs_orcamento) + '" placeholder="opcional"></label>' +
+    '<div class="acoes tudo"><button class="bt alerta" type="button" data-saldo="0">Saldo insuficiente — pedir reforço</button><button class="bt" type="button" data-saldo="1">Saldo confirmado — enviar ao financeiro</button></div></form>';
+}
+
+/* ---------- Distribuir ---------- */
+function telaDistribuir(){
+  var itens = cs(function(c){ return c.situacao === 'SALDO_OK'; }).sort(function(a, b){ return a.competencia.localeCompare(b.competencia); });
+  var exec = D.equipe;
+  var carga = {}; exec.forEach(function(p){ carga[p.email] = 0; });
+  D.competencias.forEach(function(c){ if(/DISTRIBUIDO|PENDENCIA/.test(c.situacao) && c.executor) carga[c.executor] = (carga[c.executor] || 0) + 1; });
+  var max = Math.max.apply(null, [5].concat(Object.keys(carga).map(function(k){ return carga[k]; })));
+  var linhas = itens.map(function(c){
+    return '<tr><td>' + linhaInst(c) + '</td><td>' + comp(c.competencia) + '</td><td>' + brl(c.valor || c.valor_previsto) + '<span class="s">' + esc(c.processo_pagamento) + '</span></td><td>' + rec(c.recurso) + '</td><td><select class="mini" data-exec="' + esc(c.id) + '" aria-label="Executor"><option value="">Escolher executor</option>' + exec.map(function(p){ return '<option value="' + esc(p.email) + '">' + esc(p.nome) + '</option>'; }).join('') + '</select></td></tr>';
+  }).join('');
+  var redis = cs(function(c){ return c.situacao === 'DISTRIBUIDO'; });
+  return cab('Distribuir', 'Chegam aqui as demandas que o Orçamento conferiu. Só o coordenador financeiro e o chefe de divisão distribuem — caso a caso.') +
+    '<div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start"><div class="card rolar" style="flex:3 1 560px;min-width:0"><h3>Sem executor · ' + itens.length + '</h3>' +
+    (linhas ? '<table><tr><th>Instrumento</th><th>Competência</th><th>Valor / processo</th><th>Recurso</th><th>Executor</th></tr>' + linhas + '</table><div class="acoes" style="margin-top:14px"><button class="bt" type="button" id="bt-distribuir">Confirmar distribuição</button></div>' : '<div class="vazio">Nada aguardando distribuição.</div>') + '</div>' +
+    '<div class="card" style="flex:1 1 260px"><h3>Carga atual</h3>' + exec.map(function(p){ return '<div style="display:flex;justify-content:space-between"><b>' + esc(p.nome) + '</b><span>' + (carga[p.email] || 0) + '</span></div><div class="barra"><i style="width:' + Math.round((carga[p.email] || 0) / max * 100) + '%"></i></div>'; }).join('') +
+    '<p class="rodape">Para cadastrar executores: aba USUARIOS da planilha (perfil EXECUTOR).</p></div></div>' +
+    (redis.length ? '<div class="card rolar"><h3>Já distribuídas · a pagar</h3><table><tr><th>Instrumento</th><th>Competência</th><th>Executor</th><th>Desde</th></tr>' + redis.map(function(c){ return '<tr><td>' + linhaInst(c) + '</td><td>' + comp(c.competencia) + '</td><td>' + esc(nomeDe(c.executor)) + '</td><td>' + dt(c.distribuido_em) + '</td></tr>'; }).join('') + '</table></div>' : '');
+}
+
+/* ---------- Minha fila ---------- */
+function telaFila(){
+  var meu = function(c){ return FILA_TODAS ? !!c.executor : c.executor === D.eu.email; };
+  var abertos = cs(function(c){ return meu(c) && /DISTRIBUIDO|PENDENCIA/.test(c.situacao); });
+  var feitos = cs(function(c){ return meu(c) && /INFORMADO|CONFIRMADO/.test(c.situacao); }).sort(function(a, b){ return String(b.informado_em).localeCompare(String(a.informado_em)); });
+  var linhas = abertos.map(function(c){
+    var r = c.recurso || 'EXE001';
+    return '<tr data-linha="' + esc(c.id) + '"><td>' + linhaInst(c) + (FILA_TODAS ? '<span class="s">Executor: ' + esc(nomeDe(c.executor)) + '</span>' : '') + '</td><td>' + comp(c.competencia) + '</td><td>' + brl(c.valor || c.valor_previsto) + '<span class="s">Fonte ' + esc(c.fonte || '—') + ' · ' + esc(c.ne) + '</span></td>' +
+      '<td><input class="mini" name="processo" value="' + esc(c.processo_pagamento) + '" placeholder="21000.______/2027-__" style="width:200px" aria-label="Processo SEI do pagamento"></td>' +
+      '<td><select class="mini" name="recurso" aria-label="Recurso"><option' + (r === 'EXE001' ? ' selected' : '') + '>EXE001</option><option' + (r === 'RAP001' ? ' selected' : '') + '>RAP001</option></select></td>' +
+      '<td><input class="mini" name="obs" value="' + esc(c.obs) + '" placeholder="observação" style="width:180px" aria-label="Observação"></td>' +
+      '<td>' + st(c.situacao) + '</td><td style="white-space:nowrap"><button class="bt peq" type="button" data-pago="' + esc(c.id) + '">Informar pago</button></td></tr>';
+  }).join('');
+  var lf = feitos.map(function(c){
+    return '<tr><td>' + linhaInst(c) + '</td><td>' + comp(c.competencia) + '</td><td>' + esc(c.processo_pagamento) + '</td><td>' + rec(c.recurso) + '</td><td>' + esc(c.obs || '—') + '</td><td>' + st(c.situacao) + (c.tesouro_ob ? '<span class="s">' + esc(c.tesouro_ob) + ' · ' + dt(c.tesouro_data) + '</span>' : '') + '</td><td>' + (c.situacao === 'INFORMADO' ? '<button class="bt sec peq" type="button" data-desfazer="' + esc(c.id) + '">Desfazer</button>' : '') + '</td></tr>';
+  }).join('');
+  return cab(FILA_TODAS ? 'Fila de todos os executores' : 'Minha fila', 'Depois de pagar no Contratos.gov / SIAFI, informe o processo SEI do pagamento, o recurso (EXE001 do ano ou RAP001 de exercício anterior) e a observação. No dia seguinte a conferência traz OB, valor e data do Tesouro.') +
+    (admin() ? '<label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="fila-todas"' + (FILA_TODAS ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:#1f6b3a"> Ver a fila de todos (coordenação)</label>' : '') +
+    '<div class="card rolar"><h3>A pagar · ' + abertos.length + '</h3>' + (linhas ? '<table style="min-width:1180px"><tr><th>Instrumento</th><th>Mês</th><th>Valor / NE</th><th>Processo SEI do pagamento</th><th>Recurso</th><th>Observação</th><th>Situação</th><th></th></tr>' + linhas + '</table>' : '<div class="vazio">Nada a pagar na fila.</div>') + '</div>' +
+    '<div class="card rolar"><h3>Informados</h3>' + (lf ? '<table><tr><th>Instrumento</th><th>Mês</th><th>Processo SEI</th><th>Recurso</th><th>Observação</th><th>Situação</th><th></th></tr>' + lf + '</table>' : '<div class="vazio">Nenhum pagamento informado ainda.</div>') + '</div>';
+}
+
+/* ---------- Consultar instrumento ---------- */
+function telaInstrumentos(){
+  if(FICHA) return fichaInst(FICHA);
+  var b = F.busca.toLowerCase();
+  var lst = D.instrumentos.filter(function(i){ return !b || [i.favorecido, i.numero, i.processo_raiz, i.cnpj, i.ug, i.tipo].join(' ').toLowerCase().indexOf(b) >= 0; });
+  return cab('Consultar instrumento', 'Os instrumentos já entram cadastrados com os dados das bases. Busque por favorecido, número, processo, CNPJ ou UG.') +
+    '<div class="card"><label class="campo" style="margin:0">Buscar<input id="busca" value="' + esc(F.busca) + '" placeholder="favorecido, nº, processo, CNPJ…"></label></div>' +
+    '<div class="lista-inst">' + lst.map(function(i){ var n = D.competencias.filter(function(c){ return c.instrumento_id === i.id; }); var conf = n.filter(function(c){ return c.situacao === 'CONFIRMADO'; }).length; return '<button class="inst" type="button" data-ficha="' + esc(i.id) + '"><b>' + esc(i.favorecido) + '</b><span>' + esc(i.tipo) + ' ' + esc(i.numero) + ' · UG ' + esc(i.ug) + '</span><span>' + n.length + ' competências · ' + conf + ' confirmadas</span></button>'; }).join('') + '</div>' + (lst.length ? '' : '<div class="vazio">Nada encontrado.</div>');
+}
+function fichaInst(id){
+  var i = inst(id), cps = D.competencias.filter(function(c){ return c.instrumento_id === id; }).sort(function(a, b){ return a.competencia.localeCompare(b.competencia); });
+  var pago = cps.reduce(function(s, c){ return s + (c.situacao === 'CONFIRMADO' ? Number(c.tesouro_valor || c.valor) || 0 : 0); }, 0);
+  var campo = function(k, v){ return '<div><dt>' + k + '</dt><dd>' + v + '</dd></div>'; };
+  return '<div><button class="bt sec peq" type="button" data-ficha="">← Voltar</button></div>' +
+    cab(esc(i.favorecido), esc(i.tipo) + ' ' + esc(i.numero) + ' · UG ' + esc(i.ug) + ' · processo raiz ' + esc(i.processo_raiz)) +
+    '<div class="card"><h3>Dados do instrumento</h3><dl class="dados">' + campo('Objeto', esc(i.objeto)) + campo('CNPJ', esc(i.cnpj)) + campo('Vigência', dt(i.vigencia_ini).slice(0,10) + ' a ' + dt(i.vigencia_fim).slice(0,10)) + campo('Valor total', brl(i.valor_total)) + campo('Média mensal', i.media_mensal ? brl(i.media_mensal) : '—') + campo('Fiscal / gestor', esc(i.fiscal)) + campo('Confirmado pelo Tesouro', brl(pago)) + campo('Origem do cadastro', esc(i.origem)) + '</dl></div>' +
+    '<div class="card rolar"><h3>Notas de empenho</h3><table><tr><th>NE</th><th>Recurso</th><th>Fonte</th><th>Ação</th><th>ND</th><th>Saldo</th></tr>' + nesDe(id).map(function(n){ return '<tr><td><b>' + esc(n.ne) + '</b></td><td>' + rec(n.recurso) + '</td><td>' + esc(n.fonte) + '</td><td>' + esc(n.acao) + '</td><td>' + esc(n.nd) + '</td><td>' + brl(n.saldo) + '</td></tr>'; }).join('') + '</table></div>' +
+    '<div class="card rolar"><h3>Pagamentos por competência</h3><table><tr><th>Mês</th><th>Previsto</th><th>Processo SEI</th><th>Recurso</th><th>Executor</th><th>Tesouro</th><th>Situação</th><th>Observação</th></tr>' + cps.map(function(c){ return '<tr><td><b>' + comp(c.competencia) + '</b>' + (c.obs_orcamento && /parcela/i.test(c.obs_orcamento) ? '<span class="s">' + esc(c.obs_orcamento) + '</span>' : '') + '</td><td>' + brl(c.valor || c.valor_previsto) + '</td><td>' + esc(c.processo_pagamento || '—') + '</td><td>' + rec(c.recurso) + '</td><td>' + esc(c.executor ? nomeDe(c.executor) : '—') + '</td><td>' + (c.tesouro_ob ? esc(c.tesouro_ob) + '<span class="s">' + dt(c.tesouro_data) + '</span>' : '—') + '</td><td>' + st(c.situacao) + '</td><td>' + esc(c.obs || '—') + '</td></tr>'; }).join('') + '</table></div>';
+}
+
+/* ---------- eventos da tela ---------- */
+$('tela').addEventListener('click', function(e){
+  var t = e.target, x;
+  if((x = t.closest('[data-abrir]'))){ ABERTO = ABERTO === x.dataset.abrir ? null : x.dataset.abrir; desenhar(); return; }
+  if((x = t.closest('.ne'))){ var f = x.closest('form'); [].forEach.call(f.querySelectorAll('.ne'), function(n){ n.classList.toggle('sel', n === x); }); return; }
+  if((x = t.closest('[data-saldo]'))){
+    var fm = x.closest('form'), ne = fm.querySelector('input[name=ne]:checked');
+    var o = {acao: 'demanda', id: fm.dataset.demanda, processo: fm.processo.value.trim(), area: fm.area.value.trim(), valor: Number(fm.valor.value.replace(/\./g, '').replace(',', '.')), ne: ne && ne.value, obs: fm.obs.value.trim(), saldoOk: x.dataset.saldo === '1'};
+    if(!o.processo){ aviso('Informe o processo SEI do pagamento.', true); return; }
+    if(!o.ne){ aviso('Escolha a NE.', true); return; }
+    x.disabled = true; acao(o, o.saldoOk ? 'Saldo confirmado — enviado ao financeiro.' : 'Reforço de NE registrado.'); return;
+  }
+  if(t.id === 'bt-distribuir'){
+    var itens = [].map.call(document.querySelectorAll('[data-exec]'), function(s){ return {id: s.dataset.exec, executor: s.value}; }).filter(function(i){ return i.executor; });
+    if(!itens.length){ aviso('Escolha o executor de pelo menos um item.', true); return; }
+    t.disabled = true; acao({acao: 'distribuir', itens: itens}, itens.length + ' item(ns) distribuído(s).'); return;
+  }
+  if((x = t.closest('[data-pago]'))){
+    var tr = x.closest('tr'), p = {acao: 'pago', id: x.dataset.pago, processo: tr.querySelector('[name=processo]').value.trim(), recurso: tr.querySelector('[name=recurso]').value, obs: tr.querySelector('[name=obs]').value.trim()};
+    if(!p.processo){ aviso('Informe o processo SEI do pagamento.', true); return; }
+    x.disabled = true; acao(p, 'Pagamento informado. A conferência com o Tesouro confirma depois.'); return;
+  }
+  if((x = t.closest('[data-desfazer]'))){ x.disabled = true; acao({acao: 'desfazer', id: x.dataset.desfazer}, 'Desfeito — voltou para a fila.'); return; }
+  if((x = t.closest('[data-conferir]'))){ x.disabled = true; chamar({acao: 'conferir', simular: x.dataset.conferir === '1'}).then(function(r){ if(!r.ok){ aviso(r.msg, true); x.disabled = false; return; } aviso(r.confirmados + ' confirmado(s), ' + r.pendencias + ' pendência(s).'); carregar(false); }); return; }
+  if((x = t.closest('[data-ficha]'))){ FICHA = x.dataset.ficha || null; desenhar(); window.scrollTo(0, 0); return; }
+});
+$('tela').addEventListener('change', function(e){
+  var t = e.target;
+  if(t.dataset.f){ F[t.dataset.f] = t.value; ABERTO = null; desenhar(); }
+  if(t.id === 'fila-todas'){ FILA_TODAS = t.checked; desenhar(); }
+});
+$('tela').addEventListener('input', function(e){
+  if(e.target.id === 'busca'){ F.busca = e.target.value; clearTimeout(window._bq); window._bq = setTimeout(function(){ desenhar(); var b = $('busca'); b.focus(); b.setSelectionRange(b.value.length, b.value.length); }, 250); }
+});
+
+/* ---------- início ---------- */
+if(!api()) mostrarLogin('config');
+else { var s = ls(K_SES); if(s && s.token && s.exp > Date.now()) carregar(true); else mostrarLogin('email'); }
+})();
+</script>
+</body>
+</html>
