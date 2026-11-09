@@ -448,9 +448,9 @@ function salvarDdo(u, p) {
 function tesouroEmCache() {
   const c = CacheService.getScriptCache(), n = Number(c.get('tes_n') || 0);
   if (n) { const partes = c.getAll(Array.from({ length: n }, (_, i) => 'tes_' + i)); if (Object.keys(partes).length === n) { try { return JSON.parse(Array.from({ length: n }, (_, i) => partes['tes_' + i]).join('')); } catch (e) {} } }
-  const tes = lerTudo('TESOURO_NE'), txt = JSON.stringify(tes), o = {}, TAM = 90000;
-  const qt = Math.ceil(txt.length / TAM);
-  if (qt <= 80) { for (let i = 0; i < qt; i++) o['tes_' + i] = txt.slice(i * TAM, (i + 1) * TAM); o.tes_n = String(qt); try { c.putAll(o, 21600); } catch (e) {} }
+  const tes = lerTudo('TESOURO_NE'), txt = JSON.stringify(tes), o = {}, TAM = 45000;
+  const qt = Math.ceil(txt.length / TAM);   // 45 mil caracteres: fica abaixo de 100 KB mesmo com acentos
+  if (qt <= 150) { for (let i = 0; i < qt; i++) o['tes_' + i] = txt.slice(i * TAM, (i + 1) * TAM); o.tes_n = String(qt); try { c.putAll(o, 21600); } catch (e) {} }
   return tes;
 }
 function limparCacheTesouro() { CacheService.getScriptCache().remove('tes_n'); }
