@@ -5947,7 +5947,7 @@ const TERMOS_INST = ['INSTRUMENTO','PROPONENTE','MODALIDADE','VALOR GLOBAL','VAL
 // =====================================================================
 const nTed = h => normAccent(h).replace(/[^A-Z0-9º ]+/g,' ').replace(/\s+/g,' ').trim();   // como o robô: qualquer sinal (/ _ ( ) - .) vira espaço
 const TED_CAMPOS = {
-  tedVig: {num:['NRº','NR','Nº','NUMERO','SIAFI'], uf:['UF'], ent:['DESCENTRALIZADA','ENTIDADE'], proc:['PROCESSO'], fim:['FIM','FIM VIG','FIM DA VIGENCIA','TERMINO','DATA FIM'], objeto:['OBJETO'],
+  tedVig: {ano:['ANO'], num:['NRº','NR','Nº','NUMERO','SIAFI'], uf:['UF'], ent:['DESCENTRALIZADA','ENTIDADE'], proc:['PROCESSO'], fim:['FIM','FIM VIG','FIM DA VIGENCIA','TERMINO','DATA FIM'], objeto:['OBJETO'],
     firmado:['VR FIRMADO','VALOR FIRMADO'], aRep:['A REPASSAR'], rep:['REPASSADO'], pedFin:['PED FINANC'], orcPend:['ORC PEND'], depto:['DEPT','DEP'], rp:['RP'], fiscT:['FISCAL TITULAR'], fiscS:['FISCAL SUPLENTE'], ugResp:['UG RESPONSAVEL'], ugFav:['UG FAVORECIDA'], nc:['NOTA DE CREDITO'], vNC:['VALOR NOTA DE CREDITO','VALOR DA NOTA DE CREDITO','VALOR DA NC','VALOR NC'], pf:['PROGRAMACAO FINANCEIRA']},
   tedDisp: {ano:['ANO'], uf:['UF'], ent:['DESCENTRALIZADA','ENTIDADE'], proc:['PROCESSO'], fim:['FIM'], objeto:['OBJETO'], firmado:['VR FIRMADO','VALOR FIRMADO'], aRep:['A REPASSAR'],
     rep:['REPASSADO'], pedFin:['PED FINANC'], orcPend:['ORC PEND'], depto:['DEPT','DEP'], rp:['RP'], fiscT:['FISCAL TITULAR'], fiscS:['FISCAL SUPLENTE'], situ:['SITUACAO'], ugResp:['UG RESPONSAVEL'], ugFav:['UG FAVORECIDA'], nc:['NOTA DE CREDITO'], vNC:['VALOR NOTA DE CREDITO','VALOR DA NOTA DE CREDITO','VALOR DA NC','VALOR NC'], pf:['PROGRAMACAO FINANCEIRA']},
@@ -6075,7 +6075,7 @@ function lerTed(text, chave){
   for(const r of rows.slice(hi+1)){
     const ent = g(r,'ent'), proc = g(r,'proc'), num = g(r,'num'); if(!ent && !proc && !num) continue;
     const fim = dataBR(g(r,'fim')), dias = fim ? Math.round((fim-hoje)/864e5) : null;
-    const d = {fase:TED_NOME[chave], origem:chave, num:num.replace(/\.0+$/,''), ano:g(r,'ano').replace(/\.0+$/,'') || (fim ? String(fim.getFullYear()) : ''), uf:g(r,'uf').toUpperCase(), ent, proponente:ent,
+    const d = {fase:TED_NOME[chave], origem:chave, num:num.replace(/\.0+$/,''), ano:g(r,'ano').replace(/\.0+$/,'') || ((proc.match(/\/((?:19|20)\d{2})-\d{1,2}\s*$/)||[])[1]) || (fim ? String(fim.getFullYear()) : ''),   // sem coluna ANO (aba TED VIGENTE): ano do processo; antes caía no ano do fim da vigência e o filtro Ano 2022 zerava os vigentes uf:g(r,'uf').toUpperCase(), ent, proponente:ent,
       proc, fim, fimTxt:fmtData(fim), diasFim:dias, objeto:g(r,'objeto'), depto:limpa(g(r,'depto')).toUpperCase() || '(sem departamento)', rp:limpa(g(r,'rp')).toUpperCase() || 'Não informado',
       fiscT:limpa(g(r,'fiscT')), fiscS:limpa(g(r,'fiscS')), situ:limpa(g(r,'situ')), trat:limpa(g(r,'trat')),
       firmado:toNum(g(r,'firmado')), aRep:toNum(g(r,'aRep')), rep:toNum(g(r,'rep')), pedFin:toNum(g(r,'pedFin')), orcPend:toNum(g(r,'orcPend')),
