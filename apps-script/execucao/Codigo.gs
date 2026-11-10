@@ -116,7 +116,8 @@ function gerarPrevisao(i, por) {
   const ini = String(i.vigencia_ini).slice(0, 7);
   const fim = String(i.prorrogacao_prevista).toUpperCase() === 'SIM' ? '9999-12' : String(i.vigencia_fim).slice(0, 7);
   const ja = {}; lerTudo('PREVISAO').filter(p => p.instrumento_id === i.id).forEach(p => ja[p.competencia] = 1);
-  competenciasDoAno().forEach(c => { if (c >= ini && c <= fim && !ja[c]) anexar('PREVISAO', { instrumento_id: i.id, competencia: c, valor: parcela, alterado_por: por, alterado_em: agora() }); });
+  const quando = agora(), novas = competenciasDoAno().filter(c => c >= ini && c <= fim && !ja[c]).map(c => ({ instrumento_id: i.id, competencia: c, valor: parcela, alterado_por: por, alterado_em: quando }));
+  anexarVarios('PREVISAO', novas);
 }
 function salvarPrevisaoLinha(id, comp, valor, por) {
   const s = sh('PREVISAO'), v = s.getDataRange().getValues();
@@ -351,6 +352,7 @@ function doPost(e) {
     const f = acoes[p.acao];
     const r = f ? f(u, p) : { ok: false, msg: 'Ação desconhecida.' };
     SpreadsheetApp.flush();
+    if (r.ok && p.devolver) r.dados = dados(u);   // já devolve a base atualizada: uma ida ao servidor em vez de duas
     return json(r);
   } catch (err) {
     return json({ ok: false, msg: 'Erro: ' + err.message });
@@ -453,7 +455,16 @@ function salvarInstrumento(u, p) {
 }
 function salvarPrevisao(u, p) {
   if (!podeCadastrar(u)) return { ok: false, msg: 'Só o Orçamento ou o coordenador ajustam a previsão.' };
-  (p.itens || []).forEach(it => salvarPrevisaoLinha(p.instrumento_id, it.competencia, num(it.valor), u.email));
+  const ps = sh('PREVISAO'), v = ps.getDataRange().getValues(), quando = agora(), onde = {}, novas = [];
+  for (let r = 1; r < v.length; r++) if (v[r][0] === p.instrumento_id) onde[String(v[r][1])] = r;
+  let mudou = false;
+  (p.itens || []).forEach(it => {
+    const r = onde[it.competencia], val = num(it.valor);
+    if (r !== undefined) { v[r][2] = val; v[r][3] = u.email; v[r][4] = quando; mudou = true; }
+    else novas.push({ instrumento_id: p.instrumento_id, competencia: it.competencia, valor: val, alterado_por: u.email, alterado_em: quando });
+  });
+  if (mudou && v.length > 1) ps.getRange(2, 3, v.length - 1, 3).setValues(v.slice(1).map(x => [x[2], x[3], x[4]]));
+  anexarVarios('PREVISAO', novas);
   hist(u, 'previsão ajustada', p.instrumento_id, (p.itens || []).length + ' competência(s)');
   return { ok: true };
 }
@@ -547,11 +558,22 @@ function lerTudo(n) {
   return v.filter(r => r.join('') !== '').map(r => { const o = {}; cab.forEach((c, i) => o[c] = r[i] instanceof Date ? Utilities.formatDate(r[i], 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss") : r[i]); return o; });
 }
 function anexar(n, o) { sh(n).appendRow(ABAS[n].map(c => o[c] === undefined ? '' : o[c])); }
+/** Várias linhas de uma vez (uma gravação só). */
+function anexarVarios(n, lista) {
+  if (!lista.length) return;
+  const s = sh(n), cab = s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0];
+  s.getRange(s.getLastRow() + 1, 1, lista.length, cab.length).setValues(lista.map(o => cab.map(c => o[c] === undefined ? '' : o[c])));
+}
 function atualizar(n, id, campos) {
   const s = sh(n), v = s.getDataRange().getValues(), cab = v[0];
   for (let r = 1; r < v.length; r++) {
     if (v[r][0] !== id) continue;
-    Object.keys(campos).forEach(k => { const c = cab.indexOf(k); if (c >= 0) s.getRange(r + 1, c + 1).setValue(campos[k]); });
+    // uma gravação só: do primeiro ao último campo alterado da linha
+    const cols = Object.keys(campos).map(k => cab.indexOf(k)).filter(c => c >= 0);
+    if (!cols.length) return true;
+    const a = Math.min.apply(null, cols), b = Math.max.apply(null, cols), linha = v[r].slice(a, b + 1);
+    Object.keys(campos).forEach(k => { const c = cab.indexOf(k); if (c >= 0) linha[c - a] = campos[k]; });
+    s.getRange(r + 1, a + 1, 1, linha.length).setValues([linha]);
     return true;
   }
   return false;
