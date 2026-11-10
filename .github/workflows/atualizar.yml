@@ -106,6 +106,20 @@ jobs:
         env:
           HIST_ALERTAS: /tmp/alertas_hist.json
 
+      - name: Comunicados do MGI/Transferegov e da CMO + prazos dos cronogramas de emendas (Calendário de parcerias)
+        continue-on-error: true
+        run: |
+          curl -sfL "https://raw.githubusercontent.com/${{ github.repository }}/dados/comunicados/comunicados.json" -o /tmp/comunicados_ant.json || echo "sem rodada anterior"
+          python scripts/comunicados.py saida || true
+          python - <<'PY'
+          import json, os, shutil
+          novo, ant = 'saida/comunicados/comunicados.json', '/tmp/comunicados_ant.json'
+          try: n = len(json.load(open(novo, encoding='utf-8')).get('comunicados', []))
+          except Exception: n = 0
+          if n == 0 and os.path.exists(ant) and os.path.getsize(ant) > 50:
+              os.makedirs('saida/comunicados', exist_ok=True); shutil.copy(ant, novo); print('comunicados: leitura falhou, mantida a rodada anterior')
+          PY
+
       - name: Data de atualização de cada base (só muda quando o conteúdo muda)
         continue-on-error: true
         run: python scripts/datas_bases.py saida
