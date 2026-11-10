@@ -43,13 +43,13 @@ const ABAS = {
   PAGAMENTOS: ['id', 'instrumento_id', 'competencia', 'processo_pagamento', 'area_demandante', 'valor', 'ne', 'recurso', 'fonte',
     'obs_orcamento', 'orcamento_por', 'orcamento_em', 'situacao', 'executor', 'distribuido_por', 'distribuido_em',
     'obs', 'informado_por', 'informado_em', 'conferido_em',
-    'analista', 'recebido_por', 'recebido_em', 'dist_orc_por', 'dist_orc_em'],
+    'analista', 'recebido_por', 'recebido_em', 'dist_orc_por', 'dist_orc_em', 'devolvido_por', 'devolvido_em', 'motivo_devolucao'],
   DDO: ['id', 'instrumento_id', 'data', 'processo', 'valor', 'situacao', 'ne', 'objeto', 'periodo', 'por', 'em'],
   TESOURO_NE: ['ne', 'tipo', 'ug', 'processo', 'favorecido', 'acao', 'fonte', 'pi', 'nd', 'desc_nd', 'empenhado', 'liquidado', 'em_liquidacao', 'pago', 'saldo', 'base_liquidado', 'carga', 'origem'],
   HISTORICO: ['quando', 'email', 'acao', 'ref', 'detalhe'],
   SESSOES: ['token', 'email', 'exp']
 };
-const SIT = { RECEBIDO: 'RECEBIDO', NO_ORCAMENTO: 'NO_ORCAMENTO', REFORCO: 'REFORCO', SALDO_OK: 'SALDO_OK', DISTRIBUIDO: 'DISTRIBUIDO', INFORMADO: 'INFORMADO', CONFIRMADO: 'CONFIRMADO', AJUSTAR: 'AJUSTAR' };
+const SIT = { RECEBIDO: 'RECEBIDO', NO_ORCAMENTO: 'NO_ORCAMENTO', DEVOLVIDO: 'DEVOLVIDO', REFORCO: 'REFORCO', SALDO_OK: 'SALDO_OK', DISTRIBUIDO: 'DISTRIBUIDO', INFORMADO: 'INFORMADO', CONFIRMADO: 'CONFIRMADO', AJUSTAR: 'AJUSTAR' };
 const UGS = ['130010', '420013', '130141', '130255', '135098'];
 const NOME_UG = { '130010': 'CEPLAC', '420013': 'SDR', '130141': 'SDR · CGPI', '130255': 'SDR · PROMAQ', '135098': 'SDR · CGPI (repasse)' };
 
@@ -352,7 +352,7 @@ function doPost(e) {
     if (!u) return json({ ok: false, sessao: false, msg: 'Sessão expirada. Entre de novo.' });
     if (p.acao === 'dados') return json(dados(u));
     lock.waitLock(25000);
-    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, receber: receberProcesso, distribuirOrc: distribuirOrcamento, distribuir: distribuir, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
+    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, receber: receberProcesso, distribuirOrc: distribuirOrcamento, distribuir: distribuir, devolver: devolverAoOrcamento, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
     const f = acoes[p.acao];
     const r = f ? f(u, p) : { ok: false, msg: 'Ação desconhecida.' };
     SpreadsheetApp.flush();
@@ -459,8 +459,8 @@ function distribuirOrcamento(u, p) {
   const todos = lerTudo('PAGAMENTOS'), quando = agora(); let n = 0;
   (p.itens || []).forEach(it => {
     const c = todos.find(x => x.id === it.id);
-    if (!c || !it.analista || [SIT.RECEBIDO, SIT.NO_ORCAMENTO, SIT.REFORCO].indexOf(c.situacao) < 0) return;
-    atualizar('PAGAMENTOS', c.id, { analista: String(it.analista).toLowerCase(), dist_orc_por: u.email, dist_orc_em: quando, situacao: c.situacao === SIT.REFORCO ? SIT.REFORCO : SIT.NO_ORCAMENTO });
+    if (!c || !it.analista || [SIT.RECEBIDO, SIT.NO_ORCAMENTO, SIT.DEVOLVIDO, SIT.REFORCO].indexOf(c.situacao) < 0) return;
+    atualizar('PAGAMENTOS', c.id, { analista: String(it.analista).toLowerCase(), dist_orc_por: u.email, dist_orc_em: quando, situacao: [SIT.REFORCO, SIT.DEVOLVIDO].indexOf(c.situacao) >= 0 ? c.situacao : SIT.NO_ORCAMENTO });
     hist(u, 'distribuído no orçamento', c.id, it.analista); n++;
   });
   return { ok: true, n: n };
@@ -519,7 +519,7 @@ function registrarDemanda(u, p) {
   if (p.id) {
     const c = lerTudo('PAGAMENTOS').find(x => x.id === p.id);
     if (!c) return { ok: false, msg: 'Demanda não encontrada.' };
-    if ([SIT.RECEBIDO, SIT.NO_ORCAMENTO, SIT.REFORCO, SIT.SALDO_OK].indexOf(c.situacao) < 0) return { ok: false, msg: 'Esta demanda já foi distribuída no financeiro.' };
+    if ([SIT.RECEBIDO, SIT.NO_ORCAMENTO, SIT.DEVOLVIDO, SIT.REFORCO, SIT.SALDO_OK].indexOf(c.situacao) < 0) return { ok: false, msg: 'Esta demanda já foi distribuída no financeiro.' };
     if (!chefeOrc(u) && !igual(c.analista, u.email)) return { ok: false, msg: 'Esta demanda está com outro analista.' };
     if (!c.analista) o.analista = u.email;
     atualizar('PAGAMENTOS', p.id, o); hist(u, p.saldoOk ? 'saldo confirmado' : 'reforço de NE', p.id, p.processo); return { ok: true };
@@ -539,6 +539,21 @@ function distribuir(u, p) {
     hist(u, 'distribuído', c.id, it.executor); n++;
   });
   return { ok: true, n: n };
+}
+/** Financeiro (coordenação ou o próprio executor) devolve ao orçamento por irregularidade. Motivo obrigatório; volta ao mesmo analista. */
+function devolverAoOrcamento(u, p) {
+  garantirCabecalhos(['PAGAMENTOS']);
+  const c = lerTudo('PAGAMENTOS').find(x => x.id === p.id);
+  if (!c) return { ok: false, msg: 'Pagamento não encontrado.' };
+  const motivo = String(p.motivo || '').trim();
+  if (motivo.length < 5) return { ok: false, msg: 'Escreva o motivo da devolução.' };
+  if (u.perfil !== 'ADMIN') {
+    if (u.perfil !== 'EXECUTOR' || !igual(c.executor, u.email)) return { ok: false, msg: 'Só o executor do item ou a coordenação financeira devolvem.' };
+    if (c.situacao !== SIT.DISTRIBUIDO) return { ok: false, msg: 'Só dá para devolver o que ainda não foi informado como pago.' };
+  } else if ([SIT.SALDO_OK, SIT.DISTRIBUIDO].indexOf(c.situacao) < 0) return { ok: false, msg: 'Só dá para devolver o que ainda não foi informado como pago.' };
+  atualizar('PAGAMENTOS', c.id, { situacao: c.analista ? SIT.DEVOLVIDO : SIT.RECEBIDO, executor: '', devolvido_por: u.email, devolvido_em: agora(), motivo_devolucao: motivo });
+  hist(u, 'devolvido ao orçamento', c.id, motivo + (c.executor ? ' · estava com ' + c.executor : ''));
+  return { ok: true };
 }
 function informarPago(u, p) {
   const c = lerTudo('PAGAMENTOS').find(x => x.id === p.id);
