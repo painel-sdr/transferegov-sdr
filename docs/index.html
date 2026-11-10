@@ -10844,7 +10844,7 @@ function cpDesenhar(){
   const mesH = hoje.getFullYear() === ano ? hoje.getMonth() : (hoje.getFullYear() > ano ? 12 : -1);
   const quadros = CAL_MESES.map((nome, i) => {
     if(CP_F.mes !== '' && CP_F.mes !== String(i)) return '';
-    const E = L.filter(d => d.ini.getMonth() === i), ok = E.filter(feito).length;
+    const so = CP_F.mes !== '', E = L.filter(d => d.ini.getMonth() === i || (so && d.ini.getMonth() < i && d.fim.getMonth() >= i && d.fim.getFullYear() === ano)), ok = E.filter(feito).length;
     const tag = i === mesH ? '<span class="co-tag">mês atual</span>' : `<small>${ok && ok===E.length ? '✓ ' : ''}${E.length}</small>`;
     const passou = i < mesH && !CP_ABRE[i] && CP_F.mes === '';
     const segue = L.filter(d => d.ini.getMonth() < i && d.fim.getMonth() >= i && d.fim.getFullYear() === ano && d.fim > d.ini && !feito(d));
@@ -10852,9 +10852,9 @@ function cpDesenhar(){
       const est = f ? ' <span class="ok">✓</span>' : and ? ` <span class="fal">· ${dias(d.fim)===0?'termina hoje':'termina em '+dias(d.fim)+'d'}</span>` : prev(d) ? ` <span class="pv">· previsão</span>` : (n >= 0 && n <= 60 ? ` <span class="fal">· em ${n}d</span>` : '');
       const tip = [d.tipo[0], d.faz && 'O que a SDR faz: '+d.faz, d.resp && 'Responsável: '+d.resp, d.doc].filter(Boolean).join(' · ');
       const forte = (i === mesH || and) && !f;
-      return `<div class="co-ev" title="${esc(tip)}"><span class="co-d ${prev(d)&&!f?'prev':''}" style="color:${d.tipo[1]};${d.fim>d.ini?'min-width:62px':''}">${esc(d.faixa)}</span><div class="co-t">${forte?'<b>':''}${esc(d.ev)}${forte?'</b>':''}${est} ${lk(d)}</div></div>`; }).join('');
+      return `<div class="co-ev" title="${esc(tip)}"><span class="co-d ${prev(d)&&!f?'prev':''}" style="color:${d.tipo[1]};${d.fim>d.ini?'min-width:62px':''}">${esc(d.faixa)}</span><div class="co-t">${forte?'<b>':''}${d.link ? `<a class="cp-tit" href="${esc(d.link)}" target="_blank" rel="noopener">${esc(d.ev)} ↗</a>` : esc(d.ev)}${forte?'</b>':''}${est} ${d.link ? '' : lk(d)}${CP_F.mes !== '' ? `<div class="cp-det">${d.faz?`<span><b>O que a SDR faz:</b> ${esc(d.faz)}</span>`:''}${d.resp?`<span><b>Responsável:</b> ${esc(d.resp)}</span>`:''}${d.doc?`<span><b>Documento:</b> ${d.link?`<a href="${esc(d.link)}" target="_blank" rel="noopener">${esc(d.doc)} ↗</a>`:esc(d.doc)}</span>`:''}</div>` : ''}</div></div>`; }).join('');
     const nOk = E.filter(feito).length, resumo = passou && nOk ? `<div class="co-vazio" data-cpabre="${i}" style="cursor:pointer">✓ ${nOk} prazo${nOk===1?'':'s'} concluído${nOk===1?'':'s'} · <u>ver</u></div>` : '';
-    const seg = segue.length && !passou ? `<div class="co-vazio" title="${esc(segue.map(d => d.ev+' (até '+d.fim.toLocaleDateString('pt-BR')+')').join(' · '))}">↳ ${segue.length} período${segue.length===1?'':'s'} de meses anteriores segue${segue.length===1?'':'m'} neste mês</div>` : '';
+    const seg = segue.length && !passou && !so ? `<div class="co-vazio" title="${esc(segue.map(d => d.ev+' (até '+d.fim.toLocaleDateString('pt-BR')+')').join(' · '))}">↳ ${segue.length} período${segue.length===1?'':'s'} de meses anteriores segue${segue.length===1?'':'m'} neste mês</div>` : '';
     return `<div class="co-mes ${i<mesH?'passou':''} ${i===mesH?'atual':''}"><h4>${nome}${tag}</h4>${E.length ? resumo+ev : '<div class="co-vazio">Sem prazo cadastrado</div>'}${seg}</div>`;
   }).join('');
   const linhas = L.map(d => `<tr class="${feito(d)?'feito':prev(d)?'pv':''}"><td style="white-space:nowrap">${esc(d.dataTxt)}</td><td><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${d.tipo[1]};margin-right:5px"></i>${esc(d.tipoTxt||d.tipo[0])}</td><td><b>${esc(d.ev)}</b></td><td>${esc(d.faz)}</td><td>${esc(d.resp)}</td><td>${lk(d, true)}</td><td>${esc(cpSit(d, I))}</td><td><small>${d.fonte === 'robô' ? '🤖 robô' : 'equipe'}</small></td></tr>`).join('');
@@ -10876,10 +10876,10 @@ function cpDesenhar(){
       <p class="cp-dica" style="margin-top:8px"><b>Onde conferir:</b> ${CP_LINKS.map(x => `<a href="${x[1]}" target="_blank" rel="noopener" style="margin-right:12px;display:inline-block">${esc(x[0])} ↗</a>`).join('')}</p></div>` : ''}</div>`;
   const link = `https://docs.google.com/spreadsheets/d/e/${CAL_PUB}/pubhtml?gid=${CP_GID}&single=true`;
   el.innerHTML = `${faixa}
-    <div class="vx-sec">Calendário de parcerias ${ano} <small>clique no documento para abrir · passe o mouse para ver o que a SDR faz · meses já passados ficam resumidos (clique em ver)</small></div>
+    <div class="vx-sec">Calendário de parcerias ${ano} <small>clique no título para abrir o documento · escolha um mês para ver o detalhe (o que a SDR faz, responsável, documento) · meses passados ficam resumidos (clique em ver)</small></div>
     <div class="co-cab"><small></small><select data-cpf="mes">${optM}</select><select data-cpf="tipo">${optT}</select></div>
     <div class="co-leg">${CP_TIPOS.map(t => `<span><i style="background:${t[1]}"></i>${esc(t[0])}</span>`).join('')}<span><i style="background:#fff8dc;border:1.5px dashed #d4a017;border-radius:3px"></i>data prevista</span></div>
-    <div class="co-grade">${quadros}</div>${coms}${lista}
+    <div class="co-grade" ${CP_F.mes !== '' ? 'style="grid-template-columns:1fr"' : ''}>${quadros}</div>${coms}${lista}
     <p class="co-rod">${CP.fonte === 'planilha' ? `Prazos da planilha <b>CALENDÁRIO PARCERIAS SDR</b> (a equipe lança ofícios, atas e ajustes)${CP.auto ? ` + ${CP.auto} etapa${CP.auto===1?'':'s'} lida${CP.auto===1?'':'s'} pelo robô nos cronogramas do MGI` : ''} · <a href="${link}" target="_blank" rel="noopener">abrir ↗</a>` : 'Prazos da lista padrão do painel (1ª carga: Ofícios Circulares SRI nº 7 e nº 10/2026, Portarias Conjuntas nº 2 e nº 3/2026, Lei 9.504/1997) · a aba <b>CALENDÁRIO PARCERIAS SDR</b> não respondeu'}. Data em tracejado amarelo = previsão.</p>`;
 }
 function cpPDF(){
@@ -10947,7 +10947,10 @@ document.addEventListener('click', e => {
 #calPar .cp-lado h4{margin:0 0 8px;font-size:12px;letter-spacing:.1em;color:#1f6b3a;text-transform:uppercase}
 #calPar .cp-com{font-size:12px;padding:6px 0;border-bottom:1px solid #eef2ef;line-height:1.35}
 #calPar .cp-dica{font-size:12px;color:#5f6f66;margin:0 0 6px}#calPar .cp-chip{border:1px solid #1f6b3a;background:#fff;color:#1f6b3a;border-radius:14px;padding:3px 10px;font:inherit;font-size:11.5px;cursor:pointer}#calPar .cp-chip.on{background:#1f6b3a;color:#fff}#calPar .co-lista .co-tab td .co-tag{font-size:9px}
-#calPar .co-mes{min-height:0}#calPar .co-ev{margin-bottom:6px}#calPar .co-t{font-size:12px}
+#calPar .co-mes{min-height:0;padding:12px 14px}#calPar .co-mes h4{font-size:15px}#calPar .co-ev{margin-bottom:9px}#calPar .co-t{font-size:14px;line-height:1.4}#calPar .co-d{font-size:12.5px;padding:4px 4px}#calPar .co-vazio{font-size:13px}
+#calPar .co-grade{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:1000px){#calPar .co-grade{grid-template-columns:1fr}}
+#calPar a.cp-tit{font-size:14px;font-weight:inherit;color:#1f4e79}#calPar .cp-det{display:flex;flex-direction:column;gap:3px;margin-top:5px;font-size:13px;color:#43534a;background:#f4f7f5;border-radius:6px;padding:6px 9px}#calPar .cp-det a{font-size:13px}
+#calPar .co-leg{font-size:12.5px}#calPar .co-tab{font-size:13.5px}
 `; document.head.appendChild(st); })();
 function telaExtra(tela){
   let el = document.getElementById('v-extra');
