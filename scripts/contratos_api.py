@@ -27,7 +27,7 @@ def chave_num(n):
 
 def base_contratos():
     """Lê a Base Contratos publicada: números, processos, UGs citadas e a unidade (sigla) de cada contrato."""
-    out = {'nums': {}, 'procs': {}, 'ugs': set()}
+    out = {'nums': {}, 'procs': {}, 'ugs': set(), 'numcnpj': {}}
     try:
         with urllib.request.urlopen(urllib.request.Request(BASE_CONTRATOS, headers={'User-Agent': 'painel-sdr-mapa/1.0'}), timeout=90) as r:
             rows = list(csv.reader(io.StringIO(r.read().decode('utf-8', 'ignore'))))
@@ -42,12 +42,15 @@ def base_contratos():
     ach = lambda f: next((i for i, h in enumerate(H) if f(h)), -1)
     iN, iP, iU = ach(lambda h: 'NUMERO DO CONTRATO' in h), ach(lambda h: 'PROCESSO' in h), ach(lambda h: h == 'UNIDADE')
     iUG = [i for i, h in enumerate(H) if 'UNIDADE GESTORA' in h or 'UNIDADE DA COMPRA' in h or h in ('UG', 'UG RESPONSAVEL')]
+    iC = ach(lambda h: h == 'CNPJ' or h.endswith(' CNPJ') or h.startswith('CNPJ'))
     for r in rows[hi + 1:]:
         g = lambda i: (r[i] if 0 <= i < len(r) else '').strip()
         k, pr, un = chave_num(g(iN)), re.sub(r'\D', '', g(iP)), g(iU)
         if not k and not pr:
             continue
+        cn = re.sub(r'\D', '', g(iC))
         if k: out['nums'][k] = un
+        if k and cn: out['numcnpj'][k + '|' + cn] = un
         if len(pr) >= 15: out['procs'][pr] = un
         for i in iUG:
             out['ugs'].update(re.findall(r'\b(1[0-9]{5})\b', g(i)))
@@ -223,7 +226,28 @@ def reaproveitar():
         if os.path.exists(q):
             shutil.copy(q, nome(k))
     print(f'Contratos.gov.br: reaproveitados os arquivos de hoje ({len(l)} contratos)', flush=True)
+    remarcar_base()
     return True
+
+
+def remarcar_base():
+    """Refaz, no arquivo de contratos já baixado, a marca "Na Base Contratos" e a unidade (processo, ou número + CNPJ)."""
+    bc = base_contratos()
+    if not bc['nums']:
+        return
+    p = nome('ctr'); l = list(csv.DictReader(open(p, encoding='utf-8')))
+    if not l or 'Na Base Contratos' not in l[0]:
+        return
+    n = 0
+    for r in l:
+        pr, nc = re.sub(r'\D', '', r.get('Processo', '')), chave_num(r.get('Nº contrato')) + '|' + re.sub(r'\D', '', r.get('CNPJ/CPF', ''))
+        ok = pr in bc['procs'] or nc in bc['numcnpj']
+        r['Na Base Contratos'] = 'SIM' if ok else ''
+        r['Unidade (Base)'] = bc['procs'].get(pr) or bc['numcnpj'].get(nc) or (bc['nums'].get(chave_num(r.get('Nº contrato'))) if r.get('UG atual') in UGS else '') or ''
+        n += ok
+    with open(p, 'w', encoding='utf-8', newline='') as fh:
+        w = csv.DictWriter(fh, fieldnames=ARQ['ctr']); w.writeheader(); w.writerows(l)
+    print(f'  Base Contratos: {n} contrato(s) da API casados pelo processo ou número + CNPJ', flush=True)
 
 
 # leitura anterior da página dos contratos (postos, PNCP, edital): usada quando a página não abre na rodada
@@ -315,10 +339,14 @@ def main():
                 c['_ug'] = ug; c['_ativo'] = ativo; cs.append(c)
     # contratos das unidades (ex.: CEPLAC regionais) que estão na Base Contratos: busca na UG da unidade e fica só com os da Base
     bc = base_contratos()
-    na_base = lambda c: chave_num(c.get('numero')) in bc['nums'] or re.sub(r'\D', '', str(c.get('processo') or '')) in bc['procs']
-    unid = lambda c: bc['nums'].get(chave_num(c.get('numero'))) or bc['procs'].get(re.sub(r'\D', '', str(c.get('processo') or ''))) or ''
+    # casa pelo processo ou pelo número + CNPJ do fornecedor (só o número repete entre UGs: "12/2025" existe em várias)
+    pdig = lambda c: re.sub(r'\D', '', str(c.get('processo') or ''))
+    ncn = lambda c: chave_num(c.get('numero')) + '|' + re.sub(r'\D', '', str((c.get('fornecedor') or {}).get('cnpj_cpf_idgener') or ''))
+    na_base = lambda c: pdig(c) in bc['procs'] or ncn(c) in bc['numcnpj']
+    unid = lambda c: bc['procs'].get(pdig(c)) or bc['numcnpj'].get(ncn(c)) or (bc['nums'].get(chave_num(c.get('numero'))) if c.get('_ug') in UGS else '') or ''
     for c in cs:
         c['_base'], c['_unid'] = na_base(c), unid(c)
+    print(f"  na Base, entre os das 5 UGs: {sum(1 for c in cs if c['_base'])}", flush=True)
     ja = {c['id'] for c in cs}; extra = 0
     for ug in sorted(bc['ugs'] - set(UGS)):
         for c in (get(f'/api/contrato/ug/{ug}') or []):
