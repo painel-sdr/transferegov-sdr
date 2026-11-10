@@ -123,7 +123,7 @@ dl.dados dt{font-size:12.5px;color:var(--mudo)}dl.dados dd{margin:0;font-weight:
 .grade tr:hover td:not(.def){filter:brightness(.97)}
 .legenda{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--mudo)}
 .legenda i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
-.prev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.prev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .prev-grid label{font-size:12.5px;font-weight:600;color:var(--mudo);display:flex;flex-direction:column;gap:3px}
 .prev-grid input{height:36px;border:1.5px solid #cfdcd3;border-radius:8px;padding:0 8px;text-align:right}
 .res-tes{max-height:260px;overflow:auto;border:1px solid var(--linha);border-radius:10px;background:#fff}
@@ -202,7 +202,9 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 function num(v){ if(typeof v === 'number') return v; var s = String(v || '').replace(/R\$|\s/g, ''); if(!s) return 0; if(s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.'); var n = parseFloat(s); return isNaN(n) ? 0 : n; }
 function brl(v){ return (Number(v) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
 function brlc(v){ v = Number(v) || 0; if(!v) return '—'; var a = Math.abs(v); var t = a >= 1e6 ? (a/1e6).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + ' mi' : a >= 1e3 ? (a/1e3).toLocaleString('pt-BR', {maximumFractionDigits: 1}) + ' mil' : a.toLocaleString('pt-BR', {maximumFractionDigits: 0}); return (v < 0 ? '− ' : '') + t; }
-function v2(v){ return (Number(v) || 0).toFixed(2).replace('.', ','); }
+function v2(v){ return brl(v); }   // campos de valor já aparecem com R$
+var CAMPO_MOEDA = /^(valor|valor_global|valor_parcela|executado_anteriores|\d{4}-\d{2})$/;
+function mascaraMoeda(el){ var d = el.value.replace(/\D/g, '').replace(/^0+/, ''); el.value = d ? brl(Number(d) / 100) : ''; }
 var MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 function comp(c){ c = String(c || ''); var m = +c.slice(5,7); return m ? MES[m-1] + '/' + c.slice(2,4) : c; }
 function dt(s){ if(!s) return ''; s = String(s); return s.slice(8,10) + '/' + s.slice(5,7) + '/' + s.slice(0,4) + (s.length > 11 ? ' ' + s.slice(11,16) : ''); }
@@ -439,7 +441,7 @@ function telaDdo(){
   return cab('Autorizações do ano (DDO)', 'Controle interno do que foi autorizado no ano (Declaração de Disponibilidade Orçamentária). Não altera nada no Tesouro nem na conferência.') +
     '<div class="kpis"><div class="kpi"><span>Autorizado no ano</span><b>' + brlc(total) + '</b><small>' + lst.length + ' declaração(ões)</small></div><div class="kpi"><span>A empenhar</span><b>' + brlc(lst.filter(function(d){ return d.situacao === 'A empenhar'; }).reduce(function(a, d){ return a + num(d.valor); }, 0)) + '</b><small>autorizado sem NE</small></div></div>' +
     '<div class="card"><h3>Registrar DDO</h3>' + (sel ? '<form data-ddo="' + esc(sel.id) + '"><p style="margin:0 0 10px"><b>' + esc(sel.favorecido) + '</b> · ' + esc(titulo(sel)) + ' · UG ' + esc(sel.ug) + ' <button type="button" class="lk" data-ddo-trocar>trocar</button></p><div class="form">' +
-      '<label class="campo">Data<input type="date" name="data" value="' + D.agora.slice(0, 10) + '"></label><label class="campo">Processo SEI<input name="processo" value="' + esc(sel.processo_raiz) + '"></label><label class="campo">Valor<input name="valor" placeholder="0,00"></label>' +
+      '<label class="campo">Data<input type="date" name="data" value="' + D.agora.slice(0, 10) + '"></label><label class="campo">Processo SEI<input name="processo" value="' + esc(sel.processo_raiz) + '"></label><label class="campo">Valor<input name="valor" placeholder="R$ 0,00" inputmode="numeric"></label>' +
       '<label class="campo">Situação<select name="situacao">' + opts(LISTAS.ddoSit, 'A empenhar') + '</select></label><label class="campo">NE (se já empenhado)<input name="ne"></label><label class="campo">Objeto<select name="objeto">' + opts(LISTAS.ddoObj, 'Prorrogação') + '</select></label><label class="campo">Período<input name="periodo" placeholder="ex.: jan a dez/' + D.ano + '"></label>' +
       '<div class="acoes tudo"><button class="bt" type="button" data-ddo-salvar>Registrar DDO</button></div></div></form>'
       : '<label class="campo" style="margin:0">Buscar instrumento<input id="dem-busca" value="' + esc(F.dem) + '" placeholder="contrato, instrumento, proposta, processo, CNPJ…" autocomplete="off"></label>' + (F.dem ? '<div class="lista-inst" style="margin-top:12px">' + (achados.length ? achados.map(function(i){ return '<button class="inst" type="button" data-ddo-inst="' + esc(i.id) + '"><b>' + esc(i.favorecido) + '</b><span>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + '</span></button>'; }).join('') : '<div class="vazio">Nada encontrado.</div>') + '</div>' : '')) + '</div>' +
@@ -469,7 +471,7 @@ function telaFila(){
     return '<tr data-linha="' + esc(p.id) + '"><td>' + linhaInst(i) + (FILA_TODAS ? '<span class="s">Executor: ' + esc(nomeDe(p.executor)) + '</span>' : '') + (p.situacao === 'AJUSTAR' ? '<span class="s" style="color:var(--vermelho)">Tesouro não mostrou essa liquidação na NE ' + esc(p.ne) + '. Confira valor e NE.</span>' : '') + '</td>' +
       '<td><select class="mini" name="competencia" aria-label="Competência">' + D.competencias.map(function(m){ return '<option value="' + m + '"' + (m === p.competencia ? ' selected' : '') + '>' + comp(m) + '</option>'; }).join('') + '</select></td>' +
       '<td><input class="mini" name="processo" value="' + esc(p.processo_pagamento) + '" style="width:190px" aria-label="Processo SEI do pagamento"></td>' +
-      '<td><input class="mini" name="valor" value="' + v2(p.valor) + '" style="width:120px;text-align:right" aria-label="Valor liquidado (bruto)"></td>' +
+      '<td><input class="mini" name="valor" value="' + v2(p.valor) + '" style="width:140px;text-align:right" aria-label="Valor liquidado (bruto)"></td>' +
       '<td><select class="mini" name="recurso" aria-label="Recurso"><option' + (r === 'EXE001' ? ' selected' : '') + '>EXE001</option><option' + (r === 'RAP001' ? ' selected' : '') + '>RAP001</option></select><span class="s">' + esc(p.ne) + ' · fonte ' + esc(p.fonte) + '</span></td>' +
       '<td><input class="mini" name="obs" value="' + esc(p.obs) + '" placeholder="observação" style="width:170px" aria-label="Observação"></td>' +
       '<td>' + st(p.situacao) + '</td><td style="white-space:nowrap"><button class="bt peq" type="button" data-pago="' + esc(p.id) + '">Informar pago</button> <button class="bt sec peq" type="button" data-repetir="' + esc(p.id) + '" title="Outro pagamento no mesmo processo">+ mesmo processo</button></td></tr>';
@@ -594,7 +596,9 @@ $('tela').addEventListener('input', function(e){
   var t = e.target;
   if(t.id === 'dem-busca'){ F.dem = t.value; clearTimeout(window._bd); window._bd = setTimeout(function(){ desenhar(); var b = $('dem-busca'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 250); }
   if(t.matches && t.matches('textarea[data-auto]')) autoAltura(t);
+  if(t.tagName === 'INPUT' && CAMPO_MOEDA.test(t.name) && !t.readOnly) mascaraMoeda(t);
 });
+$('tela').addEventListener('focusin', function(e){ var t = e.target; if(t.tagName === 'INPUT' && CAMPO_MOEDA.test(t.name)) t.inputMode = 'numeric'; });
 $('tela').addEventListener('keydown', function(e){ if(e.target.id === 'tes-busca' && e.key === 'Enter'){ e.preventDefault(); buscarTesouro(e.target.value); } });
 
 /* ---------- início ---------- */
