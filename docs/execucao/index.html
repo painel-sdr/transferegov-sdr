@@ -73,6 +73,9 @@ tr.click{cursor:pointer}tr.click:hover td{background:#f6faf3}
 .st{display:inline-block;font-size:12.5px;font-weight:700;border-radius:999px;padding:4px 10px;white-space:nowrap}
 .st-REFORCO{background:var(--ambarbg);color:var(--ambar)}
 .st-RECEBIDO,.st-NO_ORCAMENTO{background:#efe9f7;color:#5b3d8a}
+.st-DEVOLVIDO{background:var(--vermbg);color:var(--vermelho)}
+.motivo{display:block;color:var(--vermelho);font-size:12.5px;margin-top:3px}
+tr.dev td{background:#fdf3f2}
 .filtro-orc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .filtro-orc label{font-size:13px;font-weight:600;color:#3d5a4b;display:flex;flex-direction:column;gap:4px}
 .abas{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 14px}
@@ -218,7 +221,7 @@ var MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','de
 function comp(c){ c = String(c || ''); var m = +c.slice(5,7); return m ? MES[m-1] + '/' + c.slice(2,4) : c; }
 function dt(s){ if(!s) return ''; s = String(s); return s.slice(8,10) + '/' + s.slice(5,7) + '/' + s.slice(0,4) + (s.length > 11 ? ' ' + s.slice(11,16) : ''); }
 function norm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
-var ST = {RECEBIDO: 'Aguardando analista', NO_ORCAMENTO: 'Com o analista', REFORCO: 'Reforço de NE', SALDO_OK: 'Saldo confirmado', DISTRIBUIDO: 'A pagar', INFORMADO: 'Informado · aguarda Tesouro', CONFIRMADO: 'Confirmado pelo Tesouro', AJUSTAR: 'Ajustar'};
+var ST = {RECEBIDO: 'Aguardando analista', NO_ORCAMENTO: 'Com o analista', DEVOLVIDO: 'Devolvido pelo financeiro', REFORCO: 'Reforço de NE', SALDO_OK: 'Saldo confirmado', DISTRIBUIDO: 'A pagar', INFORMADO: 'Informado · aguarda Tesouro', CONFIRMADO: 'Confirmado pelo Tesouro', AJUSTAR: 'Ajustar'};
 function st(s){ return '<span class="st st-' + esc(s) + '">' + esc(ST[s] || s) + '</span>'; }
 function rec(r){ return r ? '<span class="rec rec-' + esc(r) + '">' + esc(r) + '</span>' : '—'; }
 function opts(lista, sel, vazio){ return (vazio != null ? '<option value="">' + vazio + '</option>' : '') + lista.map(function(o){ return '<option' + (String(o) === String(sel) ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join(''); }
@@ -249,8 +252,8 @@ function calc(i){
   pags.forEach(function(p){
     var m = porMes[p.competencia] || (porMes[p.competencia] = {v: 0, st: ''});
     if(/INFORMADO|CONFIRMADO|AJUSTAR/.test(p.situacao)){ informado += num(p.valor); m.v += num(p.valor); }
-    else if(/DISTRIBUIDO|SALDO_OK|REFORCO|RECEBIDO|NO_ORCAMENTO/.test(p.situacao)){ aberto += num(p.valor); if(!m.v) m.aberto = (m.aberto || 0) + num(p.valor); }
-    var ord = {AJUSTAR: 5, INFORMADO: 4, DISTRIBUIDO: 3, SALDO_OK: 3, REFORCO: 3, NO_ORCAMENTO: 3, RECEBIDO: 3, CONFIRMADO: 2};
+    else if(/DISTRIBUIDO|SALDO_OK|REFORCO|RECEBIDO|NO_ORCAMENTO|DEVOLVIDO/.test(p.situacao)){ aberto += num(p.valor); if(!m.v) m.aberto = (m.aberto || 0) + num(p.valor); }
+    var ord = {AJUSTAR: 5, INFORMADO: 4, DISTRIBUIDO: 3, SALDO_OK: 3, REFORCO: 3, NO_ORCAMENTO: 3, RECEBIDO: 3, DEVOLVIDO: 4, CONFIRMADO: 2};
     if((ord[p.situacao] || 0) > (ord[m.st] || 0)) m.st = p.situacao;
   });
   var s = function(k){ return nes.reduce(function(a, t){ return a + num(t[k]); }, 0); };
@@ -347,7 +350,7 @@ function reativar(){ [].forEach.call(document.querySelectorAll('#tela button[dis
 /* ---------- menu ---------- */
 var TELAS = [
   {id: 'geral', nome: 'Visão geral do ano', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO']},
-  {id: 'orcamento', nome: 'Orçamento', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO'], n: function(){ return D.pagamentos.filter(function(p){ return chefeOrc() ? p.situacao === 'RECEBIDO' : (p.situacao === 'NO_ORCAMENTO' && String(p.analista || '').toLowerCase() === D.eu.email); }).length; }},
+  {id: 'orcamento', nome: 'Orçamento', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO'], n: function(){ return D.pagamentos.filter(function(p){ return chefeOrc() ? p.situacao === 'RECEBIDO' : (/^(NO_ORCAMENTO|DEVOLVIDO)$/.test(p.situacao) && String(p.analista || '').toLowerCase() === D.eu.email); }).length; }},
   {id: 'ddo', nome: 'Autorizações (DDO)', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO']},
   {id: 'distribuir', nome: 'Distribuir', perfis: ['ADMIN'], n: function(){ return D.pagamentos.filter(function(p){ return p.situacao === 'SALDO_OK'; }).length; }},
   {id: 'fila', nome: 'Minha fila', perfis: ['ADMIN','EXECUTOR'], n: function(){ return D.pagamentos.filter(function(p){ return p.executor === D.eu.email && /DISTRIBUIDO|AJUSTAR/.test(p.situacao); }).length; }},
@@ -358,7 +361,7 @@ function desenharMenu(){
   $('menu').innerHTML = TELAS.filter(function(t){ return t.perfis.indexOf(D.eu.perfil) >= 0; }).map(function(t){ var n = t.n ? t.n() : 0; return '<button type="button" data-view="' + t.id + '" class="' + (VIEW === t.id ? 'on' : '') + '">' + t.nome + (n ? '<span class="n">' + n + '</span>' : '') + '</button>'; }).join('') +
     '<div class="grp">Bases</div><div class="rodape" style="padding:0 12px;line-height:1.5">Cadastro: ' + esc(D.importacao ? String(D.importacao).split(' · ')[0].replace('T', ' ') : 'ainda não importado') + '<br>Tesouro: ' + esc(D.carga ? String(D.carga).split(' · ')[0].replace('T', ' ') : 'ainda não feita') + '<br>Conferência: ' + esc(D.conferencia ? String(D.conferencia).replace('T', ' ') : '—') + '</div>';
 }
-$('menu').addEventListener('click', function(e){ var b = e.target.closest('[data-view]'); if(!b) return; VIEW = b.dataset.view; FICHA = null; EDITAR = null; ABERTO = null; if(VIEW !== 'instrumentos'){ F.busca = ''; $('busca-g').value = ''; } desenhar(); });
+$('menu').addEventListener('click', function(e){ var b = e.target.closest('[data-view]'); if(!b) return; VIEW = b.dataset.view; FICHA = null; EDITAR = null; ABERTO = null; DEV = null; if(VIEW !== 'instrumentos'){ F.busca = ''; $('busca-g').value = ''; } desenhar(); });
 function desenhar(){
   D.instrumentos.forEach(function(i){ delete i._c; delete i._k; });
   indexar();
@@ -455,7 +458,7 @@ function telaOrcamento(){
   var chefe = chefeOrc();
   var prevs = chefe ? previstasSemProcesso() : [];
   var dist = chefe ? pagsOrc(/^(RECEBIDO|NO_ORCAMENTO)$/) : [];
-  var mesa = pagsOrc(/^NO_ORCAMENTO$/, true), refo = pagsOrc(/^REFORCO$/, !chefe), env = pagsOrc(/^(SALDO_OK|DISTRIBUIDO)$/, !chefe);
+  var mesa = pagsOrc(/^(NO_ORCAMENTO|DEVOLVIDO)$/, true).sort(function(a, b){ return (a.situacao === 'DEVOLVIDO' ? 0 : 1) - (b.situacao === 'DEVOLVIDO' ? 0 : 1); }), refo = pagsOrc(/^REFORCO$/, !chefe), env = pagsOrc(/^(SALDO_OK|DISTRIBUIDO)$/, !chefe);
   var abas = (chefe ? [['prev', 'Previstas sem processo', prevs.length], ['dist', 'A distribuir no orçamento', dist.filter(function(p){ return p.situacao === 'RECEBIDO'; }).length]] : []).concat([['mesa', chefe && ORC.todas ? 'Com os analistas' : 'Na minha mesa', mesa.length], ['refo', 'Reforço de NE', refo.length], ['env', 'Enviadas ao financeiro', env.length]]);
   if(!ORC.aba || !abas.some(function(a){ return a[0] === ORC.aba; })) ORC.aba = chefe ? 'prev' : 'mesa';
   var campo = function(k, rot, ph){ return '<label>' + rot + '<input class="mini" data-fo="' + k + '" value="' + esc(FO[k]) + '" placeholder="' + ph + '" autocomplete="off"></label>'; };
@@ -486,18 +489,21 @@ function abaPrevistas(lst){
 }
 function selAnalista(p){ return '<select class="mini" data-analista="' + esc(p.id) + '"><option value="">Escolher analista</option>' + (D.equipeOrc || []).map(function(x){ return '<option value="' + esc(x.email) + '"' + (String(p.analista || '').toLowerCase() === x.email ? ' selected' : '') + '>' + esc(x.nome) + '</option>'; }).join('') + '</select>'; }
 function abaDistOrc(lst){
-  return '<div class="card rolar"><h3>A distribuir no orçamento</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>Chegou em</th><th>Analista</th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + dt(p.recebido_em) + '</td><td>' + selAnalista(p) + (p.situacao === 'NO_ORCAMENTO' ? '<span class="s">com ' + esc(nomeOrc(p.analista)) + ' desde ' + dt(p.dist_orc_em).slice(0, 10) + '</span>' : '') + '</td></tr>'; }).join('') + '</table><div class="acoes"><button class="bt" type="button" data-orc-distribuir>Confirmar distribuição</button></div>'
+  return '<div class="card rolar"><h3>A distribuir no orçamento</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>Chegou em</th><th>Analista</th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + motivoDev(p) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + dt(p.recebido_em) + '</td><td>' + selAnalista(p) + (p.situacao === 'NO_ORCAMENTO' ? '<span class="s">com ' + esc(nomeOrc(p.analista)) + ' desde ' + dt(p.dist_orc_em).slice(0, 10) + '</span>' : '') + '</td></tr>'; }).join('') + '</table><div class="acoes"><button class="bt" type="button" data-orc-distribuir>Confirmar distribuição</button></div>'
     : '<div class="vazio">Nenhum processo aguardando analista.</div>') + '</div>';
 }
 function abaMesa(lst){
   var refo = ORC.aba === 'refo';
-  return '<div class="card rolar"><h3>' + (refo ? 'Reforço de NE' : (chefeOrc() && ORC.todas ? 'Com os analistas' : 'Na minha mesa')) + '</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>' + (refo ? 'NE' : 'Analista') + '</th><th>Situação</th><th></th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + (refo ? esc(p.ne) + ' ' + rec(p.recurso) + '<span class="s">' + esc(nomeOrc(p.analista)) + '</span>' : esc(nomeOrc(p.analista))) + '</td><td>' + st(p.situacao) + '</td><td><button class="bt peq" type="button" data-rever="' + esc(p.id) + '">' + (refo ? 'Rever' : 'Tratar') + '</button></td></tr>'; }).join('') + '</table>'
+  return '<div class="card rolar"><h3>' + (refo ? 'Reforço de NE' : (chefeOrc() && ORC.todas ? 'Com os analistas' : 'Na minha mesa')) + '</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>' + (refo ? 'NE' : 'Analista') + '</th><th>Situação</th><th></th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr' + (p.situacao === 'DEVOLVIDO' ? ' class="dev"' : '') + '><td>' + linhaInst(i) + motivoDev(p) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + (refo ? esc(p.ne) + ' ' + rec(p.recurso) + '<span class="s">' + esc(nomeOrc(p.analista)) + '</span>' : esc(nomeOrc(p.analista))) + '</td><td>' + st(p.situacao) + '</td><td><button class="bt peq" type="button" data-rever="' + esc(p.id) + '">' + (refo ? 'Rever' : 'Tratar') + '</button></td></tr>'; }).join('') + '</table>'
     : '<div class="vazio">' + (refo ? 'Nenhuma demanda parada em reforço.' : 'Nada na mesa.') + '</div>') + '</div>';
 }
 function abaEnviadas(lst){
   return '<div class="card rolar"><h3>Enviadas ao financeiro</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>NE</th><th>Analista</th><th>Situação</th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + esc(p.ne) + ' ' + rec(p.recurso) + '</td><td>' + esc(nomeOrc(p.analista)) + '<span class="s">' + dt(p.orcamento_em) + '</span></td><td>' + st(p.situacao) + (p.executor ? '<span class="s">' + esc(nomeDe(p.executor)) + '</span>' : '') + '</td></tr>'; }).join('') + '</table>'
     : '<div class="vazio">Nada enviado ao financeiro ainda.</div>') + '</div>';
 }
+function motivoDev(p){ return p.situacao === 'DEVOLVIDO' || (p.situacao === 'RECEBIDO' && p.motivo_devolucao) ? '<span class="motivo"><b>Devolvido por ' + esc(nomeDe(p.devolvido_por)) + ' em ' + dt(p.devolvido_em).slice(0, 10) + ':</b> ' + esc(p.motivo_devolucao) + '</span>' : ''; }
+var DEV = null;
+function linhaDevolver(p, cols){ return DEV === p.id ? '<tr class="dev"><td colspan="' + cols + '"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;left:0;max-width:min(980px,calc(100vw - 300px))"><b>Devolver ao orçamento · motivo</b><input class="mini" id="dev-motivo" style="flex:1 1 320px" placeholder="NE errada, valor diverge da nota, falta certidão…"><button class="bt sec peq" type="button" data-dev-cancelar>Cancelar</button><button class="bt alerta peq" type="button" data-dev-confirmar="' + esc(p.id) + '">Confirmar devolução</button></div></td></tr>' : ''; }
 function formChegou(i, m){
   var c = calc(i), parceria = /fomento|colabora|conv[eê]nio|repasse|TED/i.test(i.formalizacao), v = c.prev[m] || 0;
   return '<form class="card" data-chegou-form="' + esc(i.id) + '"><h3>Chegou processo · ' + esc(i.favorecido) + ' <small>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · raiz ' + esc(i.processo_raiz) + '</small></h3><div class="form">' +
@@ -517,7 +523,7 @@ function formDemanda(i, p){
   var c = calc(i), comp_ = p ? p.competencia : proximaComp(i), valor = p ? num(p.valor) : (c.prev[comp_] || 0);
   var sel = p && p.ne ? p.ne : (c.nes.filter(function(t){ return num(t.saldo) >= valor; })[0] || c.nes[0] || {}).ne;
   var parceria = /fomento|colabora|conv[eê]nio|repasse|TED/i.test(i.formalizacao);
-  return '<form class="card" data-demanda="' + esc(i.id) + '" data-pag="' + esc(p ? p.id : '') + '"><h3>' + esc(i.favorecido) + ' <small>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · raiz ' + esc(i.processo_raiz) + '</small></h3><div class="form">' +
+  return '<form class="card" data-demanda="' + esc(i.id) + '" data-pag="' + esc(p ? p.id : '') + '"><h3>' + esc(i.favorecido) + ' <small>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · raiz ' + esc(i.processo_raiz) + '</small></h3>' + (p && p.situacao === 'DEVOLVIDO' ? '<div class="msg erro" style="margin:0 0 10px">' + motivoDev(p) + 'Corrija e envie de novo ao financeiro.</div>' : '') + '<div class="form">' +
     '<label class="campo">Processo SEI do pagamento' + (parceria ? ' (o do instrumento)' : '') + '<input name="processo" value="' + esc(p ? p.processo_pagamento : (parceria ? i.processo_raiz : '')) + '" placeholder="21000.______/' + D.ano + '-__"></label>' +
     '<label class="campo">Competência<select name="competencia">' + D.competencias.map(function(m){ return '<option value="' + m + '"' + (m === comp_ ? ' selected' : '') + '>' + comp(m) + (c.prev[m] ? ' · prev. ' + brlc(c.prev[m]) : '') + '</option>'; }).join('') + '</select></label>' +
     '<label class="campo">Valor (bruto)<input name="valor" value="' + v2(valor) + '"></label>' +
@@ -552,7 +558,7 @@ function telaDistribuir(){
   var redis = D.pagamentos.filter(function(p){ return p.situacao === 'DISTRIBUIDO'; });
   return cab('Distribuir', 'Chegam aqui as demandas com saldo confirmado pelo Orçamento. Só o coordenador e o chefe de divisão distribuem — caso a caso.') +
     '<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start"><div class="card rolar" style="flex:3 1 560px;min-width:0"><h3>Sem executor <small>' + itens.length + '</small></h3>' +
-    (itens.length ? '<table><tr><th>Instrumento</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>Recurso</th><th>Executor</th></tr>' + itens.map(function(p){ return '<tr><td>' + linhaInst(inst(p.instrumento_id)) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + rec(p.recurso) + '</td><td><select class="mini" data-exec="' + esc(p.id) + '" aria-label="Executor"><option value="">Escolher</option>' + D.equipe.map(function(x){ return '<option value="' + esc(x.email) + '">' + esc(x.nome) + '</option>'; }).join('') + '</select></td></tr>'; }).join('') + '</table><div class="acoes" style="margin-top:12px"><button class="bt" type="button" id="bt-distribuir">Confirmar distribuição</button></div>' : '<div class="vazio">Nada aguardando distribuição.</div>') + '</div>' +
+    (itens.length ? '<table><tr><th>Instrumento</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>Recurso</th><th>Executor</th><th></th></tr>' + itens.map(function(p){ return '<tr><td>' + linhaInst(inst(p.instrumento_id)) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + rec(p.recurso) + '</td><td><select class="mini" data-exec="' + esc(p.id) + '" aria-label="Executor"><option value="">Escolher</option>' + D.equipe.map(function(x){ return '<option value="' + esc(x.email) + '">' + esc(x.nome) + '</option>'; }).join('') + '</select></td><td><button class="lk" type="button" data-devolver="' + esc(p.id) + '">Devolver ao orçamento</button></td></tr>' + linhaDevolver(p, 7); }).join('') + '</table><div class="acoes" style="margin-top:12px"><button class="bt" type="button" id="bt-distribuir">Confirmar distribuição</button></div>' : '<div class="vazio">Nada aguardando distribuição.</div>') + '</div>' +
     '<div class="card" style="flex:1 1 240px"><h3>Carga atual</h3>' + D.equipe.map(function(x){ return '<div style="display:flex;justify-content:space-between"><b>' + esc(x.nome) + '</b><span>' + (carga[x.email] || 0) + '</span></div><div class="barra"><i style="width:' + Math.round((carga[x.email] || 0) / max * 100) + '%"></i></div>'; }).join('') + '<p class="rodape">Executores: aba USUARIOS da planilha (perfil EXECUTOR).</p></div></div>' +
     (redis.length ? '<div class="card rolar"><h3>Já distribuídas · a pagar</h3><table><tr><th>Instrumento</th><th>Comp.</th><th>Processo</th><th>Executor</th><th>Desde</th></tr>' + redis.map(function(p){ return '<tr><td>' + linhaInst(inst(p.instrumento_id)) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td>' + esc(nomeDe(p.executor)) + '</td><td>' + dt(p.distribuido_em) + '</td></tr>'; }).join('') + '</table></div>' : '');
 }
@@ -570,7 +576,7 @@ function telaFila(){
       '<td><input class="mini" name="valor" value="' + v2(p.valor) + '" style="width:140px;text-align:right" aria-label="Valor liquidado (bruto)"></td>' +
       '<td><select class="mini" name="recurso" aria-label="Recurso"><option' + (r === 'EXE001' ? ' selected' : '') + '>EXE001</option><option' + (r === 'RAP001' ? ' selected' : '') + '>RAP001</option></select><span class="s">' + esc(p.ne) + ' · fonte ' + esc(p.fonte) + '</span></td>' +
       '<td><input class="mini" name="obs" value="' + esc(p.obs) + '" placeholder="observação" style="width:170px" aria-label="Observação"></td>' +
-      '<td>' + st(p.situacao) + '</td><td style="white-space:nowrap"><button class="bt peq" type="button" data-pago="' + esc(p.id) + '">Informar pago</button> <button class="bt sec peq" type="button" data-repetir="' + esc(p.id) + '" title="Outro pagamento no mesmo processo">+ mesmo processo</button></td></tr>';
+      '<td>' + st(p.situacao) + '</td><td style="white-space:nowrap"><button class="bt peq" type="button" data-pago="' + esc(p.id) + '">Informar pago</button> <button class="bt sec peq" type="button" data-repetir="' + esc(p.id) + '" title="Outro pagamento no mesmo processo">+ mesmo processo</button>' + (p.situacao === 'DISTRIBUIDO' ? '<br><button class="lk" type="button" data-devolver="' + esc(p.id) + '" style="margin-top:6px">Devolver ao orçamento</button>' : '') + '</td></tr>' + linhaDevolver(p, 8);
   }).join('');
   var lf = feitos.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + rec(p.recurso) + '</td><td>' + esc(p.obs || '—') + '</td><td>' + st(p.situacao) + (p.conferido_em && p.situacao === 'CONFIRMADO' ? '<span class="s">' + dt(p.conferido_em) + '</span>' : '') + '</td><td>' + (p.situacao === 'INFORMADO' ? '<button class="bt sec peq" type="button" data-desfazer="' + esc(p.id) + '">Desfazer</button>' : '') + '</td></tr>'; }).join('');
   return cab(FILA_TODAS ? 'Fila de todos os executores' : 'Minha fila', 'Depois de pagar (Contratos.gov / SIAFI), informe o processo SEI do pagamento, a competência, o valor liquidado bruto (com os impostos), o recurso e a observação. No dia seguinte a contraprova compara com o liquidado da NE no Tesouro; se não bater, volta como “Ajustar”.') +
@@ -641,6 +647,9 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-dem]'))){ ABERTO = {inst: x.dataset.dem}; VIEW = 'orcamento'; FICHA = null; desenhar(); var fm = document.querySelector('form[data-demanda]'); if(fm) fm.scrollIntoView({behavior: 'smooth'}); return; }
   if((x = t.closest('[data-rever]'))){ var p = D.pagamentos.filter(function(q){ return q.id === x.dataset.rever; })[0]; ABERTO = {inst: p.instrumento_id, pag: p.id}; desenhar(); document.querySelector('form[data-demanda]').scrollIntoView({behavior: 'smooth'}); return; }
   if(t.closest('[data-fechar-dem]')){ ABERTO = null; desenhar(); return; }
+  if((x = t.closest('[data-devolver]'))){ DEV = x.dataset.devolver; desenhar(); var mi = $('dev-motivo'); if(mi) mi.focus(); return; }
+  if(t.closest('[data-dev-cancelar]')){ DEV = null; desenhar(); return; }
+  if((x = t.closest('[data-dev-confirmar]'))){ var mot = ($('dev-motivo') || {}).value || ''; if(mot.trim().length < 5) return aviso('Escreva o motivo da devolução.', true); x.disabled = true; DEV = null; acao({acao: 'devolver', id: x.dataset.devConfirmar, motivo: mot.trim()}, 'Devolvido ao orçamento.'); return; }
   if((x = t.closest('[data-chegou]'))){ ABERTO = {chegou: x.dataset.chegou, comp: x.dataset.comp}; VIEW = 'orcamento'; FICHA = null; desenhar(); window.scrollTo(0, 0); return; }
   if((x = t.closest('[data-chegou-salvar]'))){
     var fc = x.closest('form'), oc = {acao: 'receber', instrumento_id: fc.dataset.chegouForm, processo: fc.processo.value.trim(), competencia: fc.competencia.value, valor: num(fc.valor.value), area: fc.area.value.trim(), analista: fc.analista.value};
