@@ -21,6 +21,7 @@ UGS = {'130010', '420013', '130141', '130255', '135098'}
 HOJE = time.strftime('%Y-%m-%d')
 INI, FIM = f'{ANO - 1}-12', f'{ANO}-12'
 DEP_UG = {'130010': 'CEPLAC', '130141': 'CGPI', '130255': 'PROMAQ', '135098': 'CGPI'}
+DEP_ACAO_PO = {('215A', '0005'): 'DEFLO'}   # 10/11/2026: 215A · PO 0005 (Apoio ao Desenvolvimento Territorial Rural) = DEFLO; vale antes da regra por ação
 DEP_ACAO = {'20ZY': 'CEPLAC', '8593': 'DEPROS', '214Z': 'DIAGRO', '00PN': 'DIAGRO', '215A': 'DECAP', '8622': 'DECAP', '21B6': 'DECAP', '8606': 'DECAP', '2000': 'GABINETE', '20ZV': 'CGPI'}
 REGIAO = {**dict.fromkeys('AC AM AP PA RO RR TO'.split(), 'Norte'), **dict.fromkeys('AL BA CE MA PB PE PI RN SE'.split(), 'Nordeste'),
           **dict.fromkeys('DF GO MS MT'.split(), 'Centro-Oeste'), **dict.fromkeys('ES MG RJ SP'.split(), 'Sudeste'), **dict.fromkeys('PR RS SC'.split(), 'Sul')}
@@ -127,6 +128,19 @@ def contratos(saida):
     print('    previsão: ' + ' · '.join(f'{k}: {v}' for k, v in n.items() if k not in ('VIGENTE', 'VENCIDO_COM_NE')))
 
 
+def dep_por_po(chave_instrumento):
+    """Departamento pela ação + PO dos empenhos do instrumento (PTRES → ação/PO pela base de orçamento)."""
+    po = {}
+    for r in ler(os.path.join('orcamento', 'orcamento.csv')):
+        if (r.get('ptres') or '').strip():
+            po[r['ptres'].strip()] = ((r.get('acao') or '').strip(), (r.get('po') or '').strip().zfill(4))
+    dep = {}
+    for r in ler('painel_empenhos.csv'):
+        d = DEP_ACAO_PO.get(po.get((r.get('ptres') or '').strip()))
+        if d: dep.setdefault(str(r.get(chave_instrumento) or '').strip(), d)
+    return dep
+
+
 def parcerias(saida, prev):
     inst = [r for r in ler('painel_instrumentos.csv') if r.get('ug_emitente') in UGS and r.get('situacao') == 'Em execução' and num(r.get('valor_a_desembolsar')) > 0]
     ids = {r['nr_instrumento'] for r in inst}
@@ -144,6 +158,7 @@ def parcerias(saida, prev):
     for r in ler('planilha_parcerias.csv'):
         if r.get('Nº Instrumento') in crono:
             extra[r['Nº Instrumento']] = r
+    dpo = dep_por_po('nr_instrumento')
     forma = {'CONVENIO': 'Convênio', 'CONTRATO DE REPASSE': 'Contrato de Repasse', 'TERMO DE FOMENTO': 'Termo de fomento', 'TERMO DE COLABORACAO': 'Termo de colaboração'}
     n = 0
     for r in inst:
@@ -151,7 +166,7 @@ def parcerias(saida, prev):
         x, ug, acao = extra.get(nr, {}), r['ug_emitente'], (r.get('acao_orcamentaria') or '')[-4:]
         uf = (r.get('uf') or '').strip()
         saida.append({'chave': 'TGV' + nr, 'condicao': 'VIGENTE', 'formalizacao': forma.get((r.get('modalidade') or '').upper(), (r.get('modalidade') or '').title()),
-                      'orcamento': DEP_UG.get(ug) or DEP_ACAO.get(acao, ''), 'ug': ug, 'instrumento': nr, 'proposta': x.get('Nº Proposta', ''),
+                      'orcamento': DEP_UG.get(ug) or dpo.get(nr) or DEP_ACAO.get(acao, ''), 'ug': ug, 'instrumento': nr, 'proposta': x.get('Nº Proposta', ''),
                       'processo_raiz': processo(r.get('nr_processo')), 'favorecido': r.get('proponente', ''), 'cnpj': cnpj(x.get('CNPJ', '')),
                       'modalidade': (r.get('modalidade') or '').title(), 'objeto': (r.get('objeto') or '').strip(),
                       'vigencia_ini': iso(x.get('Data Início de Vigência Conv.', '')), 'vigencia_fim': iso(r.get('fim_vigencia')),

@@ -2600,6 +2600,8 @@ const ORC_ESCOPO = {'20ZV':null,'20ZY':null,'2000':['000H','000K'],'215A':null,'
 // departamento definido pela UG executora (vale para EXE, RAP, Orçamento e Parcerias)
 // 27/10/2026: 130141 e 135098 = CGPI · 130255 = PROMAQ (nas Parcerias a coluna DEPARTAMENTO da planilha vale primeiro)
 const DEP_UG = {'130141':'CGPI', '130255':'PROMAQ', '135098':'CGPI'};
+// departamento por ação + PO, que vale antes de tudo (10/11/2026: 215A PO 0005 · Apoio ao Desenvolvimento Territorial Rural = DEFLO)
+const DEP_ACAO_PO = {'215A|0005':'DEFLO'};
 const ORC_DEP_FIXO = {'2000|000H':'SDR · 420013', '2000|000K':'SDR · administração', '20ZY':'CEPLAC', '8593':'DEPROS', '214Z':'DIAGRO', '00PN':'DIAGRO', '215A':'DECAP', '8622':'DECAP', '21B6':'DECAP', '8606':'DECAP'};
 async function orcamentoDoTesouro(S){
   const txt = await window.__tgGet('https://raw.githubusercontent.com/painel-sdr/transferegov-sdr/dados/orcamento/orcamento.csv');
@@ -2621,7 +2623,7 @@ async function orcamentoDoTesouro(S){
     o.emp += n(r,'emp'); o.liq += n(r,'liq'); o.pago += n(r,'pago'); });
   const vistoPloa = new Set(), out = [];
   ag.forEach(o => { const kAP = o.acao+'|'+o.po;
-    o.depto = o.depFixo || depAP.get(kAP) || ORC_DEP_FIXO[kAP] || ORC_DEP_FIXO[o.acao] || depA.get(o.acao) || '(sem departamento)';
+    o.depto = o.depFixo || DEP_ACAO_PO[kAP] || depAP.get(kAP) || ORC_DEP_FIXO[kAP] || ORC_DEP_FIXO[o.acao] || depA.get(o.acao) || '(sem departamento)';
     o.ploa = vistoPloa.has(kAP) ? 0 : (ploa.get(kAP)||0); vistoPloa.add(kAP);
     o.disp = o.atual - o.bloq; o.aEmp = o.disp - o.emp; out.push(o); });
   if(!out.length) throw new Error('a base do Tesouro veio sem linhas no escopo');
@@ -2749,7 +2751,7 @@ const LEITORES = {
         ne: neM ? neM[0] : '', fav: neM && ix.fav!==-1 ? limpo(g(r,ix.fav+1)) : '', proc: limpo(g(r,ix.proc)), ugNome: g(r,ix.ug+1),
         contrato: neM ? contratoDe(g(r,ix.contrato), ix.fav!==-1 ? limpo(g(r,ix.fav+1)) : '', g(r,ix.tipo)) : '', form: neM ? limpo(g(r,ix.form)) : '', tipo: neM ? limpo(g(r,ix.tipo)) : '',
         prov:toNum(g(r,ix.prov)), dRec:toNum(g(r,ix.dRec)), dConc:toNum(g(r,ix.dConc)), cred:toNum(g(r,ix.cred)), emp:toNum(g(r,ix.emp)), liq:toNum(g(r,ix.liq)), pago:toNum(g(r,ix.pago)),
-        depto: DEP_UG[ug] || limpo(g(r,ix.depto)) || '(sem departamento)', ptres: limpo(g(r,ix.ptres)),
+        depto: DEP_UG[ug] || DEP_ACAO_PO[acao+'|'+((ix.pi>1 ? limpo(g(r,ix.pi-2)) : '').match(/^\d{4}/)||[''])[0]] || limpo(g(r,ix.depto)) || '(sem departamento)', ptres: limpo(g(r,ix.ptres)),
       });
     }
     if(!out.length) throw new Error('a aba EXE foi lida, mas nenhuma linha com Ano/Mês foi reconhecida.');
@@ -4851,7 +4853,7 @@ function statusCfg(s){
   if(/PRESTACAO/.test(n)) return {cor:'#6b7280', ico:'•'};
   return {cor:'#6b7280', ico:'•'};
 }
-const DEP_COR = {DECAP:'#2a78d6',DEPROS:'#c8742f',DIAGRO:'#1e6b45',SDR:'#4c2a85',SPOA:'#1a9c8c',PESCA:'#5b6eae',ORGANICO:'#7a8f2a',SFA:'#d55181'};
+const DEP_COR = {DEFLO:'#8a5a2b',DECAP:'#2a78d6',DEPROS:'#c8742f',DIAGRO:'#1e6b45',SDR:'#4c2a85',SPOA:'#1a9c8c',PESCA:'#5b6eae',ORGANICO:'#7a8f2a',SFA:'#d55181'};
 const depCor = d => DEP_COR[normAccent(d)] || '#6b7280';
 const pillStatus = (s, n) => { const c = statusCfg(s); return `<span class="st-pill" style="background:${c.cor}">${c.ico} ${esc(s)}${n>1?' ('+n+')':''}</span>`; };
 function miniMapaUF(uf){
