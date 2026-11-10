@@ -10762,6 +10762,165 @@ document.addEventListener('click', e => {
   if(e.target.closest('#calOrc [data-callista]')){ CAL_LISTA = !CAL_LISTA; calDesenhar(); }
 });
 
+// =====================================================================
+// CALENDÁRIO DE PARCERIAS (tela própria · PARCERIAS) · emendas RP6/RP7/RP8/RP9, transferências especiais, ofícios, atas, comunicados
+// Fonte: aba "CALENDÁRIO PARCERIAS SDR" da planilha PAINEL SDR 2026 publicada (CP_GID). Falhou = lista padrão abaixo (1ª carga, 10/11/2026).
+// Colunas: Data | Até | Data é | Mês | Tipo | Evento | O que a SDR faz | Responsável | Documento | Link | Situação
+// =====================================================================
+const CP_GID = '178764118';
+const CP_PADRAO = [["15/01/2026", "", "confirmada", "Janeiro", "Norma / prazo legal", "Portaria Conjunta MPO/MGI/SRI nº 2/2026 · regras de emendas do ano", "Seguir procedimentos e prazos de RP6, RP7 e RP8", "MPO · MGI · SRI", "Portaria Conjunta nº 2/2026", "https://www.gov.br/transferegov/pt-br/legislacao/portarias/portaria-conjunta-mpo-mgi-sri-pr-no-2-de-15-de-janeiro-de-2026", ""], ["20/01/2026", "", "legal", "Janeiro", "Norma / prazo legal", "Registro das justificativas de impedimento remanescentes", "Registrar no SIOP as justificativas que faltam", "Órgão setorial (SDR)", "Portaria Conjunta nº 2/2026, art. 29", "https://www.gov.br/transferegov/pt-br/legislacao/portarias/portaria-conjunta-mpo-mgi-sri-pr-no-2-de-15-de-janeiro-de-2026", ""], ["31/01/2026", "", "legal", "Janeiro", "Norma / prazo legal", "Justificativa de execução de RP7/RP8 abaixo de 99% (exercício anterior)", "Justificar a execução abaixo de 99%", "Órgão setorial (SDR)", "Portaria Conjunta nº 2/2026, arts. 39 e 42", "https://www.gov.br/transferegov/pt-br/legislacao/portarias/portaria-conjunta-mpo-mgi-sri-pr-no-2-de-15-de-janeiro-de-2026", ""], ["10/02/2026", "20/05/2026", "confirmada", "Fevereiro", "RP6 (todas as modalidades)", "Registro de impedimentos de ordem técnica e divulgação", "Analisar as indicações e registrar impedimentos no SIOP", "Órgão setorial (SDR)", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["13/03/2026", "19/03/2026", "confirmada", "Março", "RP6 (todas as modalidades)", "Indicação/ajustes de beneficiários, objetos (TE) e ordem de prioridade no SIOP", "Acompanhar as indicações das ações da SDR", "Autores", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["20/03/2026", "22/06/2026", "confirmada", "Março", "RP6 transferência especial", "Procedimentos e execução do 1º ciclo das transferências especiais", "Acompanhar", "MGI · autores · beneficiários", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["21/04/2026", "30/04/2026", "confirmada", "Abril", "RP7 / RP8", "1ª janela de alteração orçamentária · envio dos pedidos (Portaria + PLN)", "Receber os pedidos das bancadas e comissões", "Autores", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["01/05/2026", "10/05/2026", "confirmada", "Maio", "RP7 / RP8", "1ª janela · registro dos pedidos no SIOP", "Registrar os pedidos no SIOP", "Órgão setorial (SDR)", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["11/05/2026", "30/05/2026", "confirmada", "Maio", "RP7 / RP8", "1ª janela · consolidação, Portaria e envio de PLN", "Acompanhar a publicação", "MPO", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["22/05/2026", "01/06/2026", "confirmada", "Maio", "RP6 (todas as modalidades)", "Saneamento de impedimentos pelo autor (remanejamentos por portaria)", "Acompanhar os remanejamentos das ações da SDR", "Autores", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["02/06/2026", "07/07/2026", "confirmada", "Junho", "RP6 (todas as modalidades)", "Tramitação e publicação dos saneamentos", "Acompanhar a publicação", "MPO", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["04/07/2026", "04/10/2026", "legal", "Julho", "Eleitoral", "Defeso eleitoral · vedadas transferências voluntárias a estados e municípios nos 3 meses antes do pleito", "Não celebrar nem transferir a estados e municípios (salvo exceções legais)", "Todos", "Lei 9.504/1997, art. 73, VI, a", "https://www.planalto.gov.br/ccivil_03/leis/l9504.htm", ""], ["09/07/2026", "15/07/2026", "confirmada", "Julho", "RP6 (todas as modalidades)", "Indicação/ajustes de beneficiários após a portaria das medidas saneadoras", "Acompanhar as novas indicações", "Autores", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["14/08/2026", "19/08/2026", "confirmada", "Agosto", "RP6 (todas as modalidades)", "Solicitação de remanejamento pelo autor: Portaria + GND + Projeto de Lei", "Receber os pedidos", "Autores", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["20/08/2026", "16/09/2026", "confirmada", "Agosto", "RP6 (todas as modalidades)", "Tramitação e publicação do remanejamento (Portaria + GND + PL)", "Acompanhar a publicação", "MPO", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["22/08/2026", "31/08/2026", "confirmada", "Agosto", "RP7 / RP8", "2ª janela · envio dos pedidos (Portaria + PLN)", "Receber os pedidos das bancadas e comissões", "Autores", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["01/09/2026", "10/09/2026", "confirmada", "Setembro", "RP7 / RP8", "2ª janela · registro dos pedidos no SIOP", "Registrar os pedidos no SIOP", "Órgão setorial (SDR)", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["11/09/2026", "30/09/2026", "confirmada", "Setembro", "RP7 / RP8", "2ª janela · consolidação, Portaria e envio de PLN", "Acompanhar a publicação", "MPO", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["18/09/2026", "24/09/2026", "confirmada", "Setembro", "RP6 (todas as modalidades)", "Indicação/ajustes de beneficiários, objetos e prioridade após o remanejamento", "Acompanhar as novas indicações", "Autores", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["21/09/2026", "", "confirmada", "Setembro", "Norma / prazo legal", "Portaria Conjunta MPO/MGI/SRI nº 3/2026 · regras para as emendas de 2027", "Ajustar a portaria setorial de 2027", "MPO · MGI · SRI", "Portaria Conjunta nº 3/2026", "https://www.gov.br/sri/pt-br/acesso-a-informacao/institucional/atos-normativos/portaria-conjunta-mpo_mgi_sri-pr-no-3-de-21-de-setembro-de-2026.pdf", ""], ["25/09/2026", "23/12/2026", "confirmada", "Setembro", "RP6 transferência especial", "Procedimentos e execução do 2º ciclo das transferências especiais", "Acompanhar", "MGI · autores · beneficiários", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["30/09/2026", "", "legal", "Setembro", "Norma / prazo legal", "Portaria setorial do MAPA para as emendas de 2027", "Publicar a portaria setorial", "MAPA", "Portaria Conjunta nº 2/2026, art. 2º, §6º", "https://www.gov.br/sri/pt-br/acesso-a-informacao/institucional/atos-normativos/portaria-conjunta-mpo_mgi_sri-pr-no-3-de-21-de-setembro-de-2026.pdf", ""], ["04/10/2026", "", "legal", "Outubro", "Eleitoral", "Eleições · 1º turno", "—", "—", "Calendário eleitoral (TSE)", "https://www.tse.jus.br", ""], ["22/10/2026", "31/10/2026", "confirmada", "Outubro", "RP7 / RP8", "3ª janela · envio dos pedidos (só Portaria)", "Receber os pedidos das bancadas e comissões", "Autores", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["25/10/2026", "", "legal", "Outubro", "Eleitoral", "Eleições · 2º turno", "—", "—", "Calendário eleitoral (TSE)", "https://www.tse.jus.br", ""], ["01/11/2026", "10/11/2026", "confirmada", "Novembro", "RP7 / RP8", "3ª janela · registro dos pedidos no SIOP", "Registrar os pedidos no SIOP", "Órgão setorial (SDR)", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["04/11/2026", "09/11/2026", "confirmada", "Novembro", "RP6 (todas as modalidades)", "Solicitação de remanejamento pelo autor: Portaria + GND", "Receber os pedidos", "Autores", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["10/11/2026", "04/12/2026", "confirmada", "Novembro", "RP6 (todas as modalidades)", "Tramitação e publicação do remanejamento (Portaria + GND)", "Acompanhar a publicação", "MPO", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""], ["11/11/2026", "30/11/2026", "confirmada", "Novembro", "RP7 / RP8", "3ª janela · consolidação e publicação da Portaria", "Acompanhar a publicação", "MPO", "Ofício Circular nº 10/2026/SEPAR/SRI/PR", "https://legis.senado.leg.br/sdleg-getter/documento/download/7373656d-deee-435c-bdc7-d3af15857f09", ""], ["08/12/2026", "14/12/2026", "confirmada", "Dezembro", "RP6 (todas as modalidades)", "Indicação/ajustes de beneficiários e ordem de prioridade no SIOP", "Acompanhar as indicações das ações da SDR", "Autores", "Ofício Circular nº 7/2026/SEPAR/SRI/PR (SEI 7398768)", "", ""]];
+const CP_TIPOS = [['RP6','#1f4e79'],['RP6 transferência especial','#1a9c8c'],['RP7 / RP8','#2f8a4c'],['RP8 comissão','#8e44ad'],['RP9','#7f8c8d'],['Ofício','#d4881a'],['Ata','#c0392b'],['Comunicado MGI','#155a30'],['Norma / prazo legal','#555555'],['Eleitoral','#8a5a00']];
+const CP_LINKS = [['Comunicados gerais 2026 (MGI)','https://www.gov.br/transferegov/pt-br/comunicados/comunicados-gerais/2026'],['Cronogramas de emendas parlamentares','https://www.gov.br/transferegov/pt-br/comunicados/cronogramas-de-emendas-parlamentares'],['Atualização de valores (TED e regime simplificado)','https://www.gov.br/transferegov/pt-br/comunicados/atualizacao-de-valores'],['Comunicados da CMO (instruções do Executivo · ofícios da SRI)','https://www.congressonacional.leg.br/web/cmo/comunicados'],['Portarias de emendas parlamentares','https://www.gov.br/transferegov/pt-br/legislacao/portarias-de-emendas-parlamentares']];
+let CP = null, CP_F = {mes:'', tipo:''}, CP_LISTA = false;
+function cpTipo(t){ const n = String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const k = /elei|defeso/.test(n) ? 9 : /norma|legal|portaria/.test(n) ? 8 : /comunic/.test(n) ? 7 : /\bata\b|atas|reuni/.test(n) ? 6 : /oficio/.test(n) ? 5 : /rp ?9/.test(n) ? 4 : /rp ?7|rp ?8|bancada|comiss/.test(n) ? (/rp ?7|bancada/.test(n) ? 2 : 3) : /especial|pix/.test(n) ? 1 : 0;
+  return CP_TIPOS[k]; }
+function cpData(s){ s = String(s||'').trim(); let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if(m) return {dt:new Date(+m[3], +m[2]-1, +m[1]), dia:m[1].padStart(2,'0'), mes:m[2].padStart(2,'0')};
+  m = s.match(/^(\d{1,2})\/(\d{4})$/); if(m) return {dt:new Date(+m[2], +m[1], 0), dia:CAL_MESES[+m[1]-1].slice(0,3).toLowerCase(), mes:m[1].padStart(2,'0'), soMes:true}; return null; }
+function cpLinhas(rows, fonte){
+  const L = [];
+  rows.forEach(r => { const a = cpData(r[0]); if(!a) return; const b = cpData(r[1]); const ev = String(r[5]||'').trim(); if(!ev) return;
+    L.push({ini:a.dt, fim:b ? b.dt : a.dt, dia:a.dia, faixa:b ? `${a.dia}/${a.mes}–${b.dia}/${b.mes}` : (a.soMes ? a.dia : `${a.dia}/${a.mes}`), dataTxt:String(r[0]).trim()+(b?' a '+String(r[1]).trim():''),
+      tipoTxt:String(r[4]||'').trim(), tipo:cpTipo(r[4]), dataE:String(r[2]||'').trim().toLowerCase(), ev, faz:String(r[6]||'').trim(), resp:String(r[7]||'').trim(), doc:String(r[8]||'').trim(), link:String(r[9]||'').trim(), sit:String(r[10]||'').trim().toLowerCase()}); });
+  L.sort((x,y) => x.ini - y.ini || x.fim - y.fim); return {L, fonte};
+}
+async function cpCarregar(){
+  if(CP_GID){
+    try{
+      const r = await fetch(`https://docs.google.com/spreadsheets/d/e/${CAL_PUB}/pub?gid=${CP_GID}&single=true&output=csv`, {cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const rows = calCSV(await r.text()), h = rows.findIndex(x => /^data$/i.test(String(x[0]||'').trim()));
+      const c = cpLinhas(rows.slice(h+1), 'planilha'); if(c.L.length) return c;
+    }catch(e){ console.warn('calendário de parcerias: usando a lista padrão', e); }
+  }
+  return cpLinhas(CP_PADRAO, 'padrão');
+}
+async function calParAbrir(){
+  const el = document.getElementById('v-extra'); if(!el) return;
+  el.innerHTML = `<div class="vx-top"><div><h1>📅 CALENDÁRIO DE PARCERIAS</h1><small>emendas RP6 · RP7 · RP8 · RP9 · transferências especiais (PIX) · ofícios · atas · comunicados do MGI e da SRI</small></div><div><button type="button" class="vx-btn" data-cppdf style="background:#fff;color:#155a30">🖨 Imprimir / PDF</button></div></div><div id="calPar"><p class="dica" style="padding:16px">Carregando os prazos…</p></div>`;
+  if(!CP) CP = await cpCarregar();
+  if(el.dataset.tela === 'cronparc') cpDesenhar();
+}
+function cpInfo(){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const dias = d => Math.round((d - hoje)/864e5), prev = d => /previs/.test(d.dataE), canc = d => /cancel/.test(d.sit);
+  const feito = d => /conclu/.test(d.sit) || (!/vencer|confirmar|pendente/.test(d.sit) && d.fim < hoje && !prev(d));
+  const andamento = d => !canc(d) && d.ini <= hoje && d.fim >= hoje && d.fim > d.ini;
+  const vivos = CP.L.filter(d => !canc(d) && d.fim >= hoje);
+  // próximo marco: fim de algo em andamento ou início de algo futuro, o que vier antes
+  const marcos = vivos.map(d => andamento(d) ? {d, quando:d.fim, oque:'termina'} : {d, quando:d.ini, oque:d.fim > d.ini ? 'começa' : ''}).sort((a,b) => a.quando - b.quando);
+  const ano = (vivos[0] || CP.L[CP.L.length-1] || {ini:hoje}).ini.getFullYear();
+  const L = CP.L.filter(d => d.ini.getFullYear() === ano && (!CP_F.tipo || d.tipo[0] === CP_F.tipo) && (CP_F.mes === '' || d.ini.getMonth() === +CP_F.mes || (d.ini.getMonth() <= +CP_F.mes && d.fim.getMonth() >= +CP_F.mes && d.fim.getFullYear() === ano)));
+  return {hoje, dias, prev, feito, andamento, vivos, marcos, ano, L};
+}
+function cpSit(d, I){ if(/cancel/.test(d.sit)) return 'cancelado'; if(I.feito(d)) return '✓ concluído'; if(I.andamento(d)) return `em andamento · termina em ${I.dias(d.fim)} dia${I.dias(d.fim)===1?'':'s'}`;
+  if(I.prev(d)) return 'previsão'+(/confirmar/.test(d.sit)?' · a confirmar':''); const n = I.dias(d.ini); return n >= 0 ? `começa em ${n} dia${n===1?'':'s'}` : 'a vencer'; }
+function cpDesenhar(){
+  const el = document.getElementById('calPar'); if(!el || !CP) return;
+  const I = cpInfo(), {dias, prev, feito, andamento, vivos, marcos, ano, L, hoje} = I, m0 = marcos[0];
+  const ate = n => marcos.filter(x => dias(x.quando) <= n).length;
+  const curto = t => String(t||'').replace(/^(Of[ií]cio Circular nº \d+\/\d{4}).*$/i,'$1').replace(/\s*\(SEI[^)]*\)/,'');
+  const lk = (d, inteiro) => { const t = inteiro ? d.doc : curto(d.doc); return d.link ? `<a href="${esc(d.link)}" target="_blank" rel="noopener" title="${esc(d.doc)}">${esc(t||'abrir')} ↗</a>` : (d.doc ? `<small style="color:#5f6f66" title="${esc(d.doc)}">${esc(t)}</small>` : ''); };
+  const faixa = m0 ? `<div class="co-faixa"><div class="co-dias"><b>${dias(m0.quando)}</b><small>${dias(m0.quando)===1?'dia':'dias'}</small></div>
+    <div class="co-prox"><b>Próximo prazo: ${esc(m0.d.ev)}${m0.oque?' · '+m0.oque:''}</b><small>${esc(m0.d.faixa)}${prev(m0.d)?' (previsão)':''} · ${esc(m0.d.tipo[0])}${m0.d.resp?' · '+esc(m0.d.resp):''}${m0.d.link?` · <a href="${esc(m0.d.link)}" target="_blank" rel="noopener" style="color:#fff">${esc(m0.d.doc||'documento')} ↗</a>`:''}</small></div>
+    <div class="co-cont"><div>em andamento<b>${vivos.filter(andamento).length}</b></div><div>até 30 dias<b>${ate(30)}</b></div><div>até 60 dias<b>${ate(60)}</b></div></div></div>`
+    : `<div class="co-faixa"><div class="co-prox"><b>Nenhum prazo futuro cadastrado</b><small>acrescente os prazos na aba CALENDÁRIO PARCERIAS SDR</small></div></div>`;
+  const optM = '<option value="">Mês: todos</option>' + CAL_MESES.map((m,i) => `<option value="${i}" ${CP_F.mes===String(i)?'selected':''}>${m}</option>`).join('');
+  const optT = '<option value="">Tipo: todos</option>' + CP_TIPOS.map(t => `<option ${CP_F.tipo===t[0]?'selected':''}>${esc(t[0])}</option>`).join('');
+  const mesH = hoje.getFullYear() === ano ? hoje.getMonth() : (hoje.getFullYear() > ano ? 12 : -1);
+  const quadros = CAL_MESES.map((nome, i) => {
+    if(CP_F.mes !== '' && CP_F.mes !== String(i)) return '';
+    const E = L.filter(d => d.ini.getMonth() === i), ok = E.filter(feito).length;
+    const tag = i === mesH ? '<span class="co-tag">mês atual</span>' : `<small>${ok && ok===E.length ? '✓ ' : ''}${E.length}</small>`;
+    const ev = E.map(d => { const f = feito(d), and = andamento(d), n = dias(d.ini);
+      const est = f ? ' <span class="ok">✓</span>' : and ? ` <span class="fal">· em andamento, termina em ${dias(d.fim)} dia${dias(d.fim)===1?'':'s'}</span>` : prev(d) ? ` <span class="pv">· previsão</span>` : (n >= 0 && n <= 60 ? ` <span class="fal">· começa em ${n} dia${n===1?'':'s'}</span>` : '');
+      const tip = [d.tipo[0], d.faz && 'O que a SDR faz: '+d.faz, d.resp && 'Responsável: '+d.resp].filter(Boolean).join(' · ');
+      const forte = (i === mesH || and) && !f;
+      return `<div class="co-ev" title="${esc(tip)}"><span class="co-d ${prev(d)&&!f?'prev':''}" style="color:${d.tipo[1]};${d.fim>d.ini?'min-width:62px':''}">${esc(d.faixa)}</span><div class="co-t">${forte?'<b>':''}${esc(d.ev)}${forte?'</b>':''}${est}<br>${lk(d)}</div></div>`; }).join('');
+    // janelas que começaram antes e ainda correm neste mês
+    const cont = L.filter(d => d.ini.getMonth() < i && d.fim.getMonth() >= i && d.fim.getFullYear() === ano && d.fim > d.ini).map(d => `<div class="co-ev" style="opacity:.75"><span class="co-d" style="color:${d.tipo[1]};min-width:62px">↳ até ${String(d.fim.getDate()).padStart(2,'0')}/${String(d.fim.getMonth()+1).padStart(2,'0')}</span><div class="co-t"><small>${esc(d.ev)}</small></div></div>`).join('');
+    return `<div class="co-mes ${i<mesH?'passou':''} ${i===mesH?'atual':''}"><h4>${nome}${tag}</h4>${ev}${cont}${ev||cont ? '' : '<div class="co-vazio">Sem prazo cadastrado</div>'}</div>`;
+  }).join('');
+  const linhas = L.map(d => `<tr class="${feito(d)?'feito':prev(d)?'pv':''}"><td style="white-space:nowrap">${esc(d.dataTxt)}</td><td><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${d.tipo[1]};margin-right:5px"></i>${esc(d.tipoTxt||d.tipo[0])}</td><td><b>${esc(d.ev)}</b></td><td>${esc(d.faz)}</td><td>${esc(d.resp)}</td><td>${lk(d, true)}</td><td>${esc(cpSit(d, I))}</td></tr>`).join('');
+  const lista = `<div class="co-lista"><div class="co-lc" data-cplista><span>${CP_LISTA?'▴':'▾'} Lista completa dos prazos — descrições e documentos (${L.length})</span><button type="button" data-cppdf>🖨 Imprimir / PDF</button></div>
+    ${CP_LISTA ? `<div style="overflow-x:auto"><table class="co-tab"><thead><tr><th>Data</th><th>Tipo</th><th>Evento</th><th>O que a SDR faz</th><th>Responsável</th><th>Documento / link</th><th>Situação</th></tr></thead><tbody>${linhas || '<tr><td colspan="7">Nenhum prazo com esses filtros.</td></tr>'}</tbody></table></div>` : ''}</div>`;
+  const coms = CP.L.filter(d => d.tipo[0] === 'Comunicado MGI').slice(-6).reverse();
+  const lado = `<div class="cp-lado"><h4>Comunicados do MGI e ofícios da SRI</h4>
+    ${coms.length ? coms.map(d => `<div class="cp-com"><b>${esc(d.dataTxt)}</b> · ${esc(d.ev)} ${lk(d)}</div>`).join('') : '<p class="cp-dica">Os comunicados lançados na planilha (Tipo = Comunicado MGI) aparecem aqui.</p>'}
+    <h4 style="margin-top:12px">Onde conferir</h4>${CP_LINKS.map(x => `<div class="cp-com"><a href="${x[1]}" target="_blank" rel="noopener">${esc(x[0])} ↗</a></div>`).join('')}</div>`;
+  const link = `https://docs.google.com/spreadsheets/d/e/${CAL_PUB}/pubhtml?gid=${CP_GID}&single=true`;
+  el.innerHTML = `${faixa}
+    <div class="vx-sec">Calendário de parcerias ${ano} <small>clique no documento para abrir · passe o mouse para ver o que a SDR faz · períodos aparecem no mês em que começam e seguem (↳) nos meses seguintes</small></div>
+    <div class="co-cab"><small></small><select data-cpf="mes">${optM}</select><select data-cpf="tipo">${optT}</select></div>
+    <div class="co-leg">${CP_TIPOS.map(t => `<span><i style="background:${t[1]}"></i>${esc(t[0])}</span>`).join('')}<span><i style="background:#fff8dc;border:1.5px dashed #d4a017;border-radius:3px"></i>data prevista</span></div>
+    <div class="cp-wrap"><div class="co-grade">${quadros}</div>${lado}</div>${lista}
+    <p class="co-rod">${CP.fonte === 'planilha' ? `Prazos da planilha <b>CALENDÁRIO PARCERIAS SDR</b> (a equipe lança ofícios, atas e comunicados) · <a href="${link}" target="_blank" rel="noopener">abrir ↗</a>` : 'Prazos da lista padrão do painel (1ª carga: Ofícios Circulares SRI nº 7 e nº 10/2026, Portarias Conjuntas nº 2 e nº 3/2026, Lei 9.504/1997) · a aba <b>CALENDÁRIO PARCERIAS SDR</b> não respondeu'}. Data em tracejado amarelo = previsão.</p>`;
+}
+function cpPDF(){
+  if(!CP) return;
+  const I = cpInfo(), quando = new Date().toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});
+  const filtro = [CP_F.mes !== '' ? CAL_MESES[+CP_F.mes] : '', CP_F.tipo].filter(Boolean).join(' · ');
+  const lin = I.L.map(d => `<tr class="${I.feito(d)?'feito':I.prev(d)?'pv':''}"><td>${escPDF(d.dataTxt)}</td><td>${escPDF(d.tipoTxt||d.tipo[0])}</td><td><b>${escPDF(d.ev)}</b></td><td>${escPDF(d.faz)}</td><td>${escPDF(d.resp)}</td><td>${escPDF(d.doc)}${d.link?`<br><a href="${escPDF(d.link)}">${escPDF(d.link)}</a>`:''}</td><td>${escPDF(cpSit(d, I))}</td></tr>`).join('');
+  abrirPDF(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Calendário de parcerias ${I.ano}</title><style>
+  @page{size:A4 landscape;margin:9mm 9mm 11mm}html,body{margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{padding:12px;font-family:"Segoe UI",Arial,sans-serif;color:#1d2b24;font-size:11px}
+  table{width:100%;border-collapse:collapse}thead{display:table-header-group}th{background:#1f6b3a;color:#fff;text-align:left;padding:6px;font-size:10.5px}td{padding:5px 6px;border-bottom:1px solid #dfe7e1;vertical-align:top}tr{break-inside:avoid}
+  tr.pv td{background:#fff8dc}tr.feito td{color:#6b7a71}a{color:#1f4e79;font-size:9.5px;word-break:break-all}
+  .barra{background:#fff8e1;border:1px solid #e6cf7a;border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:13px;display:flex;gap:12px;align-items:center}.barra button{font:inherit;font-weight:700;background:#1f6b3a;color:#fff;border:0;border-radius:8px;padding:7px 14px;cursor:pointer}
+  ${CSS_CAB_PDF}@media print{.barra{display:none}body{padding:0}}</style></head><body>
+  <div class="barra"><button onclick="window.print()">Salvar em PDF</button><span>Na janela de impressão, escolha <b>Salvar como PDF</b> em "Destino".</span></div>
+  ${cabecalhoPDF('Calendário de parcerias '+I.ano+(filtro?' · '+escPDF(filtro):''), quando)}
+  <table><thead><tr><th>Data</th><th>Tipo</th><th>Evento</th><th>O que a SDR faz</th><th>Responsável</th><th>Documento / link</th><th>Situação</th></tr></thead><tbody>${lin}</tbody></table>
+  <p style="font-size:10px;color:#5f6f66;margin-top:8px">Fundo amarelo = data prevista. Fonte: ${CP.fonte === 'planilha' ? 'planilha CALENDÁRIO PARCERIAS SDR' : 'lista padrão do Painel SDR 2026'}.</p>
+  <script>setTimeout(function(){ try{ window.print(); }catch(e){} }, 700);<\/script></body></html>`, 'calendario_parcerias_'+I.ano);
+}
+document.addEventListener('change', e => { const s = e.target.closest('#calPar [data-cpf]'); if(s){ CP_F[s.dataset.cpf] = s.value; cpDesenhar(); } });
+document.addEventListener('click', e => {
+  if(e.target.closest('[data-cppdf]')){ e.stopPropagation(); cpPDF(); return; }
+  if(e.target.closest('#calPar [data-cplista]')){ CP_LISTA = !CP_LISTA; cpDesenhar(); }
+});
+
+(function(){ const st = document.createElement('style'); st.textContent = `#calPar{font-size:13px;color:#1d2b24}
+#calPar .co-faixa{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,#155a30,#2f8a4c);color:#fff;border-radius:14px;padding:14px 18px;flex-wrap:wrap;margin-top:14px}
+#calPar .co-dias{text-align:center;line-height:1}#calPar .co-dias b{font-size:36px;display:block}#calPar .co-dias small{font-size:11px}
+#calPar .co-prox{flex:1;min-width:240px}#calPar .co-prox b{font-size:16px}#calPar .co-prox small{display:block;opacity:.92;margin-top:3px;font-size:12px}#calPar .co-prox a{color:#fff}
+#calPar .co-cont{display:flex;gap:8px}#calPar .co-cont div{background:rgba(255,255,255,.16);border-radius:8px;padding:6px 12px;font-size:11px}#calPar .co-cont b{display:block;font-size:18px}
+#calPar .co-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0}
+#calPar .co-cab small{color:#5f6f66;flex:1}
+#calPar .co-cab select{border:1px solid #1f6b3a;border-radius:6px;padding:6px 8px;font:inherit;background:#fff;min-width:170px}
+#calPar .co-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:#5f6f66;margin-bottom:10px}
+#calPar .co-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+#calPar .co-grade{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:1000px){#calPar .co-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){#calPar .co-grade{grid-template-columns:1fr}}
+#calPar .co-mes{background:#fff;border:1px solid #dfe7e1;border-radius:10px;padding:10px 12px;min-height:110px}
+#calPar .co-mes.passou{opacity:.62}
+#calPar .co-mes.atual{border:2px solid #1f6b3a;box-shadow:0 2px 10px rgba(31,107,58,.18)}
+#calPar .co-mes h4{margin:0 0 8px;display:flex;justify-content:space-between;font-size:13px;color:#1f6b3a}
+#calPar .co-mes h4 small{font-weight:400;color:#5f6f66;font-size:11px}
+#calPar .co-tag{background:#c0392b;color:#fff;border-radius:9px;padding:1px 8px;font-size:10px;font-weight:700}
+#calPar .co-ev{display:flex;gap:8px;margin:0 0 8px;align-items:flex-start}
+#calPar .co-d{min-width:30px;text-align:center;font-weight:700;font-size:11px;border-radius:5px;padding:3px 2px;border:1px solid #dfe7e1;background:#f4f7f5}
+#calPar .co-d.prev{border:1.5px dashed #d4a017;background:#fff8dc}
+#calPar .co-t{flex:1;line-height:1.3}#calPar a{color:#1f4e79;font-size:11.5px;font-weight:700;text-decoration:none}#calPar a:hover{text-decoration:underline}
+#calPar .ok{color:#2f8a4c}#calPar .pv{color:#8a5a00;font-size:11px}#calPar .fal{color:#c0392b;font-size:11px}
+#calPar .co-vazio{color:#9aa69f;font-size:12px}
+#calPar .co-lista{border:2px solid #1f6b3a;border-radius:12px;overflow:hidden;margin-top:14px;background:#fff}
+#calPar .co-lc{background:#1f6b3a;color:#fff;padding:10px 14px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+#calPar .co-lc button{border:0;background:#fff;color:#1f6b3a;border-radius:6px;padding:5px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+#calPar .co-tab{width:100%;border-collapse:collapse;font-size:12.5px}
+#calPar .co-tab th{background:#e3ebe5;text-align:left;padding:7px 8px;font-size:12px}#calPar .co-tab td{padding:7px 8px;border-top:1px solid #dfe7e1;vertical-align:top}
+#calPar .co-tab tr.pv td{background:#fff8dc}#calPar .co-tab tr.feito td{color:#6b7a71}
+#calPar .co-rod{font-size:11.5px;color:#5f6f66;margin-top:10px}
+
+#calPar .cp-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:start}
+@media(max-width:1100px){#calPar .cp-wrap{grid-template-columns:1fr}}
+#calPar .cp-lado{background:#fff;border:1px solid #dfe7e1;border-radius:10px;padding:12px}
+#calPar .cp-lado h4{margin:0 0 8px;font-size:12px;letter-spacing:.1em;color:#1f6b3a;text-transform:uppercase}
+#calPar .cp-com{font-size:12px;padding:6px 0;border-bottom:1px solid #eef2ef;line-height:1.35}
+#calPar .cp-dica{font-size:12px;color:#5f6f66;margin:0 0 6px}
+#calPar .co-grade{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:800px){#calPar .co-grade{grid-template-columns:1fr}}
+`; document.head.appendChild(st); })();
 function telaExtra(tela){
   let el = document.getElementById('v-extra');
   if(!el){ el = document.createElement('section'); el.id = 'v-extra'; el.hidden = true; el.className = 'vx'; document.getElementById('v-visao').after(el);
@@ -10769,7 +10928,7 @@ function telaExtra(tela){
   ['v-antigo','v-visao','v-menu','v-painel'].forEach(id => { const x = document.getElementById(id); if(x) x.hidden = true; });
   document.body.style.overflow = ''; document.body.dataset.tema = '';
   el.hidden = false; el.dataset.tela = tela; window.scrollTo(0,0); marcarHash(tela); setTimeout(pintarChips, 0);
-  if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
+  if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'cronparc') calParAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
 }
 (function(){ const st = document.createElement('style'); st.textContent = `
 .vx{box-sizing:border-box;max-width:100%;overflow-x:hidden;padding:18px 24px 40px;background:#e9efe9;min-height:100vh;font-family:Barlow,'Segoe UI',Arial,sans-serif;color:#1d2b24}
@@ -13256,7 +13415,7 @@ window.relExtrasParc = relExtrasParc; window.rgAbrir = rgAbrir;
 async function ir(tela, sel){
   if(!tela || tela==='menu') tela = 'visao';
   { const vx = document.getElementById('v-extra'); if(vx) vx.hidden = true; }
-  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='portmapa' || tela==='acoessdr' || tela==='captacao' || tela==='cronorc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
+  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='portmapa' || tela==='acoessdr' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
   if(TELAS_ANTIGAS.includes(tela)){
     marcarHash(tela);
     fecharMS(); VISAO = 'menu'; abrirAntiga(tela, sel); return;
@@ -13644,7 +13803,7 @@ function preCarregar(){
     ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)'],['ctrsdr','📄','Contratos SDR'],['despesas','🧾','Despesas previstas'],['conferencia','✔','Conferência de Contratos'],['relctr','📄','Relatório do contrato'],['_relctr','📊','Relatório de gestão de contratos'],['alertactr','🔔','Alerta Contratos']]],
     ['ORÇAMENTO E FINANÇAS', [['orcacao','🏛','Orçamento por ações'],['exe','$','Financeiro EXE'],['rap','⏱','Financeiro RAP'],['exerap','⇄','EXE + RAP'],['_relorc','📊','Relatório de gestão orçamentária e financeira'],['cronorc','📅','Cronograma orçamentário'],['alertaorc','🔔','Alerta Orç & Fin']]],
     ['PARCERIAS', [['parc','🤝','Parceria SDR',[['geral','Visão geral'],['prop','Propostas'],['inst','Instrumentos vigentes'],['pc','Prestação de contas']]],
-                   ['prop','📝','Propostas SDR'],['conv','📋','Execução Convênio/TF 420013'],['repasse','🏠','Contrato de Repasse'],['relinst','📄','Relatório do instrumento'],['captacao','💡','Captação de Emendas',[['ind','Emenda Individual']]],['indic','🎯','Indicadores'],['_rel','📊','Relatório de gestão de parcerias'],['alertaparc','🔔','Alerta Parcerias']]],
+                   ['prop','📝','Propostas SDR'],['conv','📋','Execução Convênio/TF 420013'],['repasse','🏠','Contrato de Repasse'],['relinst','📄','Relatório do instrumento'],['captacao','💡','Captação de Emendas',[['ind','Emenda Individual']]],['indic','🎯','Indicadores'],['_rel','📊','Relatório de gestão de parcerias'],['cronparc','📅','Calendário de parcerias'],['alertaparc','🔔','Alerta Parcerias']]],
     ['TED', [['tedapi','✉','TED GERAL SDR'],['ted','👥','TED EQUIPE SDR'],['_relted','📊','Relatório de gestão de TED'],['alertated','🔔','Alerta TED']]],
     ['PORTFÓLIO E CARTILHAS SDR', [['portmapa','📘','Portfólio MAPA 2026'],['acoessdr','🌱','Ações SDR 2026']]],
     ['AJUDA', [['assist','🤖','Assistente virtual'],['metodo','📚','Metodologia e fontes']]],
