@@ -8,7 +8,7 @@ Lê o que o robô já gerou na pasta (contratos da API Contratos.gov.br, parceri
 Quem entra:
   Contratos  situação Ativo na API. Vigentes → condicao VIGENTE. Vencidos → VENCIDO_COM_NE (o Apps Script só importa
              se alguma NE do contrato ainda tiver saldo no Tesouro). ACT fica de fora (não tem pagamento).
-  Parcerias  "Em execução", com valor a desembolsar (inclusive as de parcela atrasada, de anos anteriores).
+  Parcerias  todas "Em execução" (as com a desembolsar entram com previsão, inclusive parcela atrasada de anos anteriores).
              A previsão do ano é o a desembolsar, limitado ao saldo das NEs, em jul/ANO (o Apps Script aplica o limite).
   TED        enviados pelas UGs da SDR, em execução.
 Uso: python scripts/execucao_cadastro.py PASTA   (ANO do exercício: variável EXECUCAO_ANO, padrão 2027)
@@ -171,7 +171,7 @@ def dep_por_po(chave_instrumento):
 
 
 def parcerias(saida, prev):
-    inst = [r for r in ler('painel_instrumentos.csv') if r.get('ug_emitente') in UGS and r.get('situacao') == 'Em execução' and num(r.get('valor_a_desembolsar')) > 0]
+    inst = [r for r in ler('painel_instrumentos.csv') if r.get('ug_emitente') in UGS and 'EM EXECU' in (r.get('situacao') or '').upper().replace('Ç', 'C')]   # todas em execução, como no Painel SDR (as já 100% desembolsadas ficam sem previsão)
     ids = {r['nr_instrumento'] for r in inst}
     crono, futuro = {}, {}
     for r in ler('cronograma_desembolso.csv'):
@@ -205,7 +205,7 @@ def parcerias(saida, prev):
         for comp, v in sorted(crono.get(nr, {}).items()):
             prev.append({'chave': 'TGV' + nr, 'competencia': comp, 'valor': round(v, 2)})
         n += 1
-    print(f'  parcerias: {n} em execução com saldo a desembolsar ({len(crono)} com parcela no cronograma entre {INI} e {FIM})')
+    print(f'  parcerias: {n} em execução ({sum(1 for r in inst if num(r.get("valor_a_desembolsar")) > 0)} com saldo a desembolsar; {len(crono)} com parcela no cronograma entre {INI} e {FIM})')
 
 
 def teds(saida, prev):
