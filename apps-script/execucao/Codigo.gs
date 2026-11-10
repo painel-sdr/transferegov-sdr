@@ -137,7 +137,7 @@ function gerarPrevisao(i, por) {
 }
 function salvarPrevisaoLinha(id, comp, valor, por) {
   const s = sh('PREVISAO'), v = s.getDataRange().getValues();
-  for (let r = 1; r < v.length; r++) if (v[r][0] === id && String(v[r][1]) === comp) { s.getRange(r + 1, 3, 1, 3).setValues([[valor, por, agora()]]); return; }
+  for (let r = 1; r < v.length; r++) if (v[r][0] === id && compStr(v[r][1]) === comp) { s.getRange(r + 1, 3, 1, 3).setValues([[valor, por, agora()]]); return; }
   anexar('PREVISAO', { instrumento_id: id, competencia: comp, valor: valor, alterado_por: por, alterado_em: agora() });
 }
 
@@ -323,11 +323,14 @@ function importarCadastro(u) {
   const somaU = {};
   prevs.forEach(p => { const id = idPorChave[p.chave]; if (id && unico[id]) somaU[id] = (somaU[id] || 0) + num(p.valor); });
   Object.keys(unico).forEach(id => { if (!somaU[id]) { const r = unico[id]; const sd = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + (saldoNe[ne + '|' + g(r, 'ug')] || 0), 0); if (sd > 0.01) somaU[id] = sd; } });
-  const pv = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, 5).getValues().filter(x => x.join('') !== '') : [];
+  competenciaComoTexto();
+  const pvBruto = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, 5).getValues().filter(x => x.join('') !== '') : [];
+  const unicoPv = {}; pvBruto.forEach(x => { x[1] = compStr(x[1]); const k = x[0] + '|' + x[1], old = unicoPv[k]; if (!old || String(old[3]) === 'robô' || String(old[3]) === 'teste') unicoPv[k] = x; });   // uma linha por instrumento e mês; a editada à mão vence
+  const pv = Object.keys(unicoPv).map(k => unicoPv[k]);
   const manual = {}; pv.forEach(x => { if (unico[x[0]] && ['robô', 'teste', ''].indexOf(String(x[3])) < 0) manual[x[0]] = 1; });
   const fica = pv.filter(x => !(unico[x[0]] && !manual[x[0]]));
   Object.keys(somaU).forEach(id => { if (!manual[id]) fica.push([id, mesUnico(), Math.round(somaU[id] * 100) / 100, 'robô', agora_]); });
-  if (pv.length) ps.getRange(2, 1, pv.length, 5).clearContent();
+  if (pvBruto.length) ps.getRange(2, 1, pvBruto.length, 5).clearContent();
   if (fica.length) ps.getRange(2, 1, fica.length, 5).setValues(fica);
   const ja = {}; fica.forEach(x => ja[x[0] + '|' + x[1]] = 1);
   const novasPrev = [], add = (id, c, val) => { if (!ja[id + '|' + c] && val) { ja[id + '|' + c] = 1; novasPrev.push([id, c, val, 'robô', agora_]); } };
@@ -463,7 +466,7 @@ function chefeOrc(u) { return u.perfil === 'ADMIN' || u.perfil === 'CHEFE_ORCAME
 /** Responsável do orçamento: o processo SEI chegou. Cria a demanda (sem NE ainda) e, se já escolher, entrega ao analista. */
 function receberProcesso(u, p) {
   if (!chefeOrc(u)) return { ok: false, msg: 'Só o responsável do orçamento registra a chegada do processo.' };
-  garantirCabecalhos(['PAGAMENTOS']);
+  garantirCabecalhos(['PAGAMENTOS']); competenciaComoTexto();
   const i = lerTudo('INSTRUMENTOS').find(x => x.id === p.instrumento_id);
   if (!i) return { ok: false, msg: 'Instrumento não encontrado.' };
   if (!String(p.processo || '').trim()) return { ok: false, msg: 'Informe o processo SEI.' };
@@ -517,8 +520,9 @@ function salvarInstrumento(u, p) {
 }
 function salvarPrevisao(u, p) {
   if (!podeCadastrar(u)) return { ok: false, msg: 'Só o Orçamento ou o coordenador ajustam a previsão.' };
+  competenciaComoTexto();
   const ps = sh('PREVISAO'), v = ps.getDataRange().getValues(), quando = agora(), onde = {}, novas = [];
-  for (let r = 1; r < v.length; r++) if (v[r][0] === p.instrumento_id) onde[String(v[r][1])] = r;
+  for (let r = 1; r < v.length; r++) if (v[r][0] === p.instrumento_id) onde[compStr(v[r][1])] = r;
   let mudou = false;
   (p.itens || []).forEach(it => {
     const r = onde[it.competencia], val = Math.abs(num(it.valor));   // previsão é sempre despesa: guarda positivo
@@ -640,7 +644,13 @@ function sh(n) { return SpreadsheetApp.getActive().getSheetByName(n); }
 function lerTudo(n) {
   const s = sh(n); if (!s || s.getLastRow() < 2) return [];
   const v = s.getRange(1, 1, s.getLastRow(), s.getLastColumn()).getValues(), cab = v.shift();
-  return v.filter(r => r.join('') !== '').map(r => { const o = {}; cab.forEach((c, i) => o[c] = r[i] instanceof Date ? Utilities.formatDate(r[i], 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss") : r[i]); return o; });
+  return v.filter(r => r.join('') !== '').map(r => { const o = {}; cab.forEach((c, i) => o[c] = c === 'competencia' ? compStr(r[i]) : (r[i] instanceof Date ? Utilities.formatDate(r[i], 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss") : r[i])); return o; });
+}
+/** O Google Sheets transforma "2027-03" em data: aqui volta sempre para o texto "2027-03". */
+function compStr(x) { return x instanceof Date ? Utilities.formatDate(x, 'America/Sao_Paulo', 'yyyy-MM') : String(x || '').slice(0, 7); }
+/** Deixa a coluna competência como texto, para o Sheets não converter mais (uma vez por aba). */
+function competenciaComoTexto() {
+  ['PREVISAO', 'PAGAMENTOS'].forEach(n => { const s = sh(n); if (!s) return; const c = s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0].indexOf('competencia'); if (c >= 0) s.getRange(1, c + 1, s.getMaxRows(), 1).setNumberFormat('@'); });
 }
 function anexar(n, o) { sh(n).appendRow(ABAS[n].map(c => o[c] === undefined ? '' : o[c])); }
 /** Várias linhas de uma vez (uma gravação só). */

@@ -244,6 +244,8 @@ function titulo(i){ return (i.formalizacao || '') + ' ' + (i.numero || i.instrum
 var IX = null;
 function indexar(){
   IX = {prev: {}, pag: {}, ddo: {}, tes: {}};
+  var cpt = function(x){ x = String(x || ''); var m = x.match(/^(\d{4})-(\d{2})/); if(m) return m[1] + '-' + m[2]; var d = new Date(x); return isNaN(d) ? x : d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); };   // o Sheets pode ter virado a competência em data
+  D.previsao.forEach(function(p){ p.competencia = cpt(p.competencia); }); D.pagamentos.forEach(function(p){ p.competencia = cpt(p.competencia); });
   D.previsao.forEach(function(p){ (IX.prev[p.instrumento_id] = IX.prev[p.instrumento_id] || {})[p.competencia] = num(p.valor); });
   D.pagamentos.forEach(function(p){ (IX.pag[p.instrumento_id] = IX.pag[p.instrumento_id] || []).push(p); });
   D.ddo.forEach(function(d){ (IX.ddo[d.instrumento_id] = IX.ddo[d.instrumento_id] || []).push(d); });
