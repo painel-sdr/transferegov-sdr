@@ -483,14 +483,15 @@ function telaOrcamento(){
   var chefe = chefeOrc();
   var prevs = chefe ? previstasSemProcesso() : [];
   var dist = chefe ? pagsOrc(/^(RECEBIDO|NO_ORCAMENTO)$/) : [];
+  var falta = faltaEmpenhar();
   var mesa = pagsOrc(/^(NO_ORCAMENTO|DEVOLVIDO)$/, true).sort(function(a, b){ return (a.situacao === 'DEVOLVIDO' ? 0 : 1) - (b.situacao === 'DEVOLVIDO' ? 0 : 1); }), refo = pagsOrc(/^REFORCO$/, !chefe), env = pagsOrc(/^(SALDO_OK|DISTRIBUIDO)$/, !chefe);
-  var abas = (chefe ? [['prev', 'Previstas sem processo', prevs.length], ['dist', 'A distribuir no orçamento', dist.filter(function(p){ return p.situacao === 'RECEBIDO'; }).length]] : []).concat([['mesa', chefe && ORC.todas ? 'Com os analistas' : 'Na minha mesa', mesa.length], ['refo', 'Reforço de NE', refo.length], ['env', 'Enviadas ao financeiro', env.length]]);
+  var abas = (chefe ? [['prev', 'Previstas sem processo', prevs.length], ['dist', 'A distribuir no orçamento', dist.filter(function(p){ return p.situacao === 'RECEBIDO'; }).length]] : []).concat([['mesa', chefe && ORC.todas ? 'Com os analistas' : 'Na minha mesa', mesa.length], ['refo', 'Reforço de NE', refo.length], ['env', 'Enviadas ao financeiro', env.length], ['falta', 'Falta empenhar', falta.length]]);
   if(!ORC.aba || !abas.some(function(a){ return a[0] === ORC.aba; })) ORC.aba = chefe ? 'prev' : 'mesa';
   var campo = function(k, rot, ph){ return '<label>' + rot + '<input class="mini" data-fo="' + k + '" value="' + esc(FO[k]) + '" placeholder="' + ph + '" autocomplete="off"></label>'; };
   var form = '';
   if(ABERTO && ABERTO.chegou) form = formChegou(inst(ABERTO.chegou), ABERTO.comp);
   else if(ABERTO && ABERTO.inst) form = formDemanda(inst(ABERTO.inst), ABERTO.pag ? D.pagamentos.filter(function(p){ return p.id === ABERTO.pag; })[0] : null);
-  var corpo = {prev: abaPrevistas, dist: abaDistOrc, mesa: abaMesa, refo: abaMesa, env: abaEnviadas}[ORC.aba]({prev: prevs, dist: dist, mesa: mesa, refo: refo, env: env}[ORC.aba]);
+  var corpo = {prev: abaPrevistas, dist: abaDistOrc, mesa: abaMesa, refo: abaMesa, env: abaEnviadas, falta: abaFalta}[ORC.aba]({prev: prevs, dist: dist, mesa: mesa, refo: refo, env: env, falta: falta}[ORC.aba]);
   return cab('Orçamento', chefe ? 'O processo chega pelo SEI: registre a chegada e distribua ao analista. O analista escolhe a NE, confirma o saldo e envia ao financeiro (ou pede reforço).' : 'Processos que o responsável do orçamento distribuiu para você: escolha a NE, confirme o saldo e envie ao financeiro, ou peça reforço.') +
     '<div class="card"><h3>Buscar</h3><div class="filtro-orc">' + campo('cnpj', 'CNPJ', '00.000.000/0001-00') + campo('contrato', 'Contrato', '12/2025') + campo('entidade', 'Entidade / favorecido', 'nome') + campo('instrumento', 'Instrumento', '945123/2025') + campo('proposta', 'Proposta', '012345/2025') + campo('ne', 'Nota de empenho', '2027NE000123') +
     '<label>UG<select class="mini" data-fo="ug">' + opts(LISTAS.ug, FO.ug, 'Todas') + '</select></label></div>' + (filtroAtivo() ? '<div class="acoes" style="margin-top:8px"><button class="lk" type="button" data-fo-limpar>Limpar busca</button></div>' : '') + '</div>' +
@@ -511,6 +512,20 @@ function abaPrevistas(lst){
     (mostra.length ? '<table><tr><th>Despesa</th><th>UG</th><th>Comp.</th><th class="n">Previsto</th><th>NE com saldo</th><th></th></tr>' + mostra.map(function(x){ var t = neSugerida(x.i, x.v); return '<tr><td>' + linhaInst(x.i) + '<span class="s">Raiz ' + esc(x.i.processo_raiz) + '</span></td><td>' + esc(x.i.ug) + '</td><td>' + comp(x.m) + (x.m < alvo ? '<span class="s neg">atrasado</span>' : '') + '</td><td class="n">' + brl(x.v) + '</td><td>' + (t ? esc(t.ne) + '<span class="s">' + brl(t.saldo) + '</span>' : '<span class="neg">Sem NE com saldo</span>') + '</td><td><button class="bt sec peq" type="button" data-chegou="' + esc(x.i.id) + '" data-comp="' + x.m + '">Chegou processo</button></td></tr>'; }).join('') + '</table>' +
       (lst.length > mostra.length ? '<div class="acoes" style="justify-content:center"><button class="bt sec" type="button" data-orc-mais>Mostrar mais (' + (lst.length - mostra.length) + ')</button></div>' : '')
       : '<div class="vazio">Nenhuma despesa prevista sem processo ' + (ORC.atras ? 'até ' : 'em ') + comp(alvo) + (filtroAtivo() ? ' com essa busca' : '') + '.</div>') + '</div>';
+}
+/* Falta empenhar: o que falta pagar no ano é maior que o saldo das NEs (EXE + RAP) ligadas ao instrumento */
+function faltaEmpenhar(){
+  return D.instrumentos.filter(function(i){ return i.situacao_cadastro !== 'ENCERRADO' && bateFO(i); })
+    .map(function(i){ var c = calc(i); return {i: i, c: c, falta: -c.deficit}; })
+    .filter(function(x){ return x.falta > 0.01; })
+    .sort(function(a, b){ return b.falta - a.falta; });
+}
+function abaFalta(lst){
+  var mostra = lst.slice(0, ORC.lim), tot = lst.reduce(function(a, x){ return a + x.falta; }, 0);
+  return '<div class="card rolar"><h3>Falta empenhar <small>' + lst.length + ' · ' + brl(tot) + '</small></h3><p class="rodape" style="margin:0 0 8px">O que falta pagar no ano (previsão − pago) é maior que o saldo das NEs ligadas. Parcerias: o a desembolsar até ' + D.ano + ', inclusive parcela atrasada de anos anteriores.</p>' +
+    (mostra.length ? '<table><tr><th>UG</th><th>Departamento</th><th>Despesa</th><th>Formalização</th><th class="n">Falta pagar no ano</th><th class="n">Saldo de empenho</th><th class="n">Falta empenhar</th><th>NEs</th></tr>' + mostra.map(function(x){ var i = x.i, c = x.c; return '<tr class="click" data-ficha="' + esc(i.id) + '"><td><b>' + esc(i.ug) + '</b></td><td>' + esc(i.orcamento || '—') + '</td><td>' + linhaInst(i) + '</td><td>' + esc(i.formalizacao || '—') + '</td><td class="n">' + brl(c.faltaAno) + '</td><td class="n">' + brl(c.saldo) + '</td><td class="n neg"><b>' + brl(x.falta) + '</b></td><td>' + (c.nes.length ? c.nes.map(function(t){ return esc(t.ne); }).join(', ') : '<span class="neg">nenhuma</span>') + '</td></tr>'; }).join('') + '</table>' +
+      (lst.length > mostra.length ? '<div class="acoes" style="justify-content:center"><button class="bt sec" type="button" data-orc-mais>Mostrar mais (' + (lst.length - mostra.length) + ')</button></div>' : '')
+      : '<div class="vazio">Nada falta empenhar' + (filtroAtivo() ? ' com essa busca' : '') + '.</div>') + '</div>';
 }
 function selAnalista(p){ return '<select class="mini" data-analista="' + esc(p.id) + '"><option value="">Escolher analista</option>' + (D.equipeOrc || []).map(function(x){ return '<option value="' + esc(x.email) + '"' + (String(p.analista || '').toLowerCase() === x.email ? ' selected' : '') + '>' + esc(x.nome) + '</option>'; }).join('') + '</select>'; }
 function abaDistOrc(lst){
@@ -625,7 +640,7 @@ function fichaInst(i){
   var dir = '<div class="acoes"><button class="bt sec" type="button" data-ficha="">← Voltar</button>' + (cadastra() ? '<button class="bt sec" type="button" data-editar="' + esc(i.id) + '">Editar cadastro</button>' + (chefeOrc() ? '<button class="bt" type="button" data-chegou="' + esc(i.id) + '" data-comp="' + compAtual() + '">Chegou processo</button>' : '') : '') + '</div>';
   return cab(esc(i.favorecido || '—'), esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' (' + esc(D.nomeUg[i.ug] || '') + ') · processo raiz ' + esc(i.processo_raiz) + (i.instrumento ? ' · instrumento ' + esc(i.instrumento) : '') + (i.proposta ? ' · proposta ' + esc(i.proposta) : ''), dir) +
     '<div class="blocos">' +
-      '<div class="card"><h3>Contrato <small>todo o período</small></h3><div class="linhas-val">' + lv('Valor contratado (global)', brl(c.global)) + (num(i.a_desembolsar) ? lv('A desembolsar (Transferegov)', brl(i.a_desembolsar) + (semEmpenho(i, c) ? ' · <span class="neg">sem NE com saldo</span>' : '')) : '') + lv('Executado em anos anteriores', brl(c.anteriores)) + lv('Liquidado no ano ' + D.ano, brl(c.liqAno)) + lv('Saldo do contrato', brl(c.saldoContrato), 'total') + '</div></div>' +
+      '<div class="card"><h3>Contrato <small>todo o período</small></h3><div class="linhas-val">' + lv('Valor contratado (global)', brl(c.global)) + (num(i.a_desembolsar) ? lv('A desembolsar (Transferegov)', brl(i.a_desembolsar)) + (num(i.a_desembolsar_futuro) ? lv('Programado para depois de ' + D.ano, brl(i.a_desembolsar_futuro)) : '') : '') + lv('Executado em anos anteriores', brl(c.anteriores)) + lv('Liquidado no ano ' + D.ano, brl(c.liqAno)) + lv('Saldo do contrato', brl(c.saldoContrato), 'total') + '</div></div>' +
       '<div class="card"><h3>Ano ' + D.ano + ' <small>o que importa para o déficit</small></h3><div class="linhas-val">' + lv('Previsão do ano', brl(c.previsaoAno)) + lv('Liquidado no ano (Tesouro)', brl(c.liqAno)) + lv('Falta pagar no ano', brl(c.faltaAno)) + lv('Saldo de empenho (EXE + RAP)', brl(c.saldo)) + lv(c.deficit < 0 ? 'Déficit do ano' : 'Sobra de empenho', brl(c.deficit), 'total ' + (c.deficit < 0 ? 'neg' : 'pos')) + '</div></div>' +
       '<div class="card"><h3>Conferência <small>informado × Tesouro</small></h3><div class="linhas-val">' + lv('Informado pelos executores', brl(c.informado)) + lv('Liquidado no Tesouro', brl(c.liqAno)) + lv('Em andamento (orçamento / fila)', brl(c.aberto)) + lv('Autorizado no ano (DDO)', brl(c.ddo)) + lv('Ajustar', Math.abs(c.ajustar) > 1 ? brl(c.ajustar) : 'nada a ajustar', 'total ' + (Math.abs(c.ajustar) > 1 ? 'neg' : 'pos')) + '</div><p class="rodape" style="margin:8px 0 0">Ajustar positivo: liquidado sem lançamento no painel. Negativo: informado a mais que o Tesouro.</p></div>' +
     '</div>' +

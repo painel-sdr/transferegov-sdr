@@ -38,7 +38,7 @@ const ABAS = {
   INSTRUMENTOS: ['id', 'formalizacao', 'orcamento', 'ug', 'sigla', 'atividade', 'natureza', 'numero', 'instrumento', 'proposta',
     'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'prorrogacao_prevista',
     'valor_global', 'valor_parcela', 'executado_anteriores', 'nes', 'regiao', 'uf', 'origem', 'criado_em', 'criado_por', 'alterado_em', 'alterado_por', 'justificativa',
-    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao', 'a_desembolsar'],
+    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao', 'a_desembolsar', 'a_desembolsar_futuro'],
   PREVISAO: ['instrumento_id', 'competencia', 'valor', 'alterado_por', 'alterado_em'],
   PAGAMENTOS: ['id', 'instrumento_id', 'competencia', 'processo_pagamento', 'area_demandante', 'valor', 'ne', 'recurso', 'fonte',
     'obs_orcamento', 'orcamento_por', 'orcamento_em', 'situacao', 'executor', 'distribuido_por', 'distribuido_em',
@@ -118,7 +118,8 @@ function competenciasDoAno() {
  *  Parcerias: o a desembolsar (inclusive parcela atrasada), limitado ao saldo das NEs. Ata e compra: o saldo das NEs. */
 const MES_UNICO_RE = /^(ata|contrato de repasse|conv[eê]nio|termo de fomento|termo de colabora)/i;
 function previsaoMesUnico(i) { return MES_UNICO_RE.test(String(i.formalizacao || '')) || /^compra/i.test(String(i.base_previsao || '')); }
-function mesUnico() { return ano() + '-07'; }
+/** Julho (limite depois da LOA e do contingenciamento); passado julho sem pagar, a previsão vai para dezembro. */
+function mesUnico() { const A = ano(), hoje = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM'); return hoje > A + '-07' ? A + '-12' : A + '-07'; }
 const PARCERIA_RE = /^(contrato de repasse|conv[eê]nio|termo de fomento|termo de colabora)/i;
 function saldoDasNes(nes, ug) { const sd = {}; tesouroEmCache().forEach(t => { const k = t.ne + '|' + t.ug; sd[k] = (sd[k] || 0) + num(t.saldo); }); return String(nes || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + (sd[ne + '|' + ug] || 0), 0); }
 function gerarPrevisao(i, por) {
@@ -410,7 +411,7 @@ function importarCadastro(u) {
   const dig = x => String(x || '').replace(/\D/g, '');
   const porChave = {}, porProc = {};
   linhas.forEach(r => { if (g(r, 'chave')) porChave[g(r, 'chave')] = r; porProc[dig(g(r, 'processo_raiz')) + '|' + g(r, 'ug') + '|' + String(g(r, 'numero') || g(r, 'instrumento'))] = r; });
-  const AUTO = ['formalizacao', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'uf', 'regiao', 'acao', 'a_desembolsar'];
+  const AUTO = ['formalizacao', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'uf', 'regiao', 'acao', 'a_desembolsar', 'a_desembolsar_futuro'];
   const agora_ = agora(), vistos = {}, tocados = [];
   let criados = 0, atualizados = 0, encerrados = 0, semSaldo = 0;
   novos.forEach(n => {
@@ -444,8 +445,9 @@ function importarCadastro(u) {
   prevs.forEach(p => { const id = idPorChave[p.chave]; if (id && unico[id]) crono[id] = (crono[id] || 0) + num(p.valor); });
   Object.keys(unico).forEach(id => {
     const r = unico[id], sd = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + Math.max(0, saldoNe[ne + '|' + g(r, 'ug')] || 0), 0);
-    const parceria = PARCERIA_RE.test(String(g(r, 'formalizacao') || '')), falta = num(g(r, 'a_desembolsar')) || crono[id] || 0;
-    const v = parceria ? Math.min(falta, sd) : sd;   // só o que tem empenho para pagar
+    const parceria = PARCERIA_RE.test(String(g(r, 'formalizacao') || ''));
+    const devido = Math.max(0, (num(g(r, 'a_desembolsar')) || crono[id] || 0) - num(g(r, 'a_desembolsar_futuro')));   // o que falta pagar até o fim do ano (com ou sem empenho)
+    const v = parceria ? devido : sd;   // parceria: o devido (o que faltar de empenho aparece no Orçamento › Falta empenhar); ata/compra: o saldo das NEs
     if (v > 0.01) somaU[id] = v;
   });
   competenciaComoTexto();
@@ -493,7 +495,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10e · EXE pelo último mês';
+const VERSAO = '2026-11-10f · falta empenhar';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
