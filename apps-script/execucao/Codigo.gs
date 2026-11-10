@@ -146,14 +146,33 @@ function salvarPrevisaoLinha(id, comp, valor, por) {
 /* ====================== TESOURO (CSV publicados) ====================== */
 
 /** Lê os CSVs ativos da aba FONTES e regrava TESOURO_NE (mantém a base_liquidado de cada NE e as linhas de TESTE). */
+/** Mesmas abas de RAP do Painel SDR (planilha "BASE GERENCIAL RAP 2026", compartilhada por link). OUTRAS AÇÕES por último. */
+const RAP_PLANILHA = '1cPRChDP0KU0rfjgGij4hC2hz76auQ4a_rxL-XXFqrWQ';
+const RAP_ABAS = [['1255285299', 'RAP - 20ZV'], ['1626303078', 'RAP - 20ZY'], ['1251866406', 'RAP - 2000'], ['2071147261', 'RAP 215A'], ['296590604', 'RAP - 8593'],
+  ['557514819', 'RAP - 214Z'], ['1888642019', 'RAP - 00PN'], ['1039014086', 'RAP - 8622'], ['238112304', 'RAP - 21B6'], ['1419215442', 'RAP - 8606'], ['240279963', 'RAP - 2161'], ['132081842', 'RAP - OUTRAS AÇÕES']];
+/** Se a aba FONTES ainda não tem RAP ativo, troca a linha-modelo pelas abas do Painel SDR. */
+function configurarRap() {
+  const f = lerTudo('FONTES');
+  if (f.some(x => String(x.tipo).toUpperCase() === 'RAP' && String(x.ativo).toUpperCase() === 'SIM' && /^https?:/.test(x.url))) return false;
+  const s = sh('FONTES'), v = s.getDataRange().getValues(), cab = v[0], iT = cab.indexOf('tipo'), iU = cab.indexOf('url');
+  const fica = v.slice(1).filter(r => r.join('') !== '' && !(String(r[iT]).toUpperCase() === 'RAP' && !/^https?:/.test(String(r[iU]))));
+  if (v.length > 1) s.getRange(2, 1, v.length - 1, cab.length).clearContent();
+  if (fica.length) s.getRange(2, 1, fica.length, cab.length).setValues(fica);
+  anexarVarios('FONTES', RAP_ABAS.map(a => ({ nome: a[1], tipo: 'RAP', ativo: 'SIM', url: 'https://docs.google.com/spreadsheets/d/' + RAP_PLANILHA + '/export?format=csv&gid=' + a[0] })));
+  return true;
+}
 function carregarTesouro() {
+  try { configurarRap(); } catch (e) { }
   const fontes = lerTudo('FONTES').filter(f => String(f.ativo).toUpperCase() === 'SIM' && /^https?:/.test(f.url));
   const antes = {}; lerTudo('TESOURO_NE').forEach(t => antes[t.ne + '|' + t.ug] = t);
   const porNe = {}, log = [];
   fontes.forEach(f => {
     try {
-      const txt = UrlFetchApp.fetch(f.url, { muteHttpExceptions: true, followRedirects: true }).getContentText('UTF-8');
-      const n = lerRelatorioTesouro(txt, String(f.tipo || 'EXE').toUpperCase(), porNe);
+      let r = UrlFetchApp.fetch(f.url, { muteHttpExceptions: true, followRedirects: true });   // planilha compartilhada por link: baixa sem login
+      if (r.getResponseCode() !== 200 || /<html/i.test(r.getContentText().slice(0, 300))) r = UrlFetchApp.fetch(f.url, { muteHttpExceptions: true, followRedirects: true, headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
+      if (r.getResponseCode() !== 200) throw new Error('HTTP ' + r.getResponseCode());
+      const txt = r.getContentText('UTF-8'), tipo = String(f.tipo || 'EXE').toUpperCase();
+      const n = tipo === 'RAP' ? lerRapMensal(txt, porNe) : lerRelatorioTesouro(txt, tipo, porNe);
       log.push(f.nome + ': ' + n + ' linhas');
     } catch (e) { log.push(f.nome + ': ERRO ' + e.message); }
   });
@@ -204,6 +223,53 @@ function lerRelatorioTesouro(txt, tipo, porNe) {
     n++;
   }
   return n;
+}
+/**
+ * RAP do Tesouro Gerencial por mês de lançamento (como a base do Painel SDR): cada NE tem uma linha por mês, com a posição acumulada.
+ * Fica só o último mês de cada NE + UG. Liquidado (para a contraprova) = não processados liquidados + processados pagos no ano:
+ * o processado já veio liquidado do ano anterior, então o que mexe nele em 2027 é o pagamento.
+ * Uma NE que já veio de uma aba anterior não é somada de novo (a aba OUTRAS AÇÕES só completa).
+ */
+function lerRapMensal(txt, porNe) {
+  const L = Utilities.parseCsv(txt);
+  const hi = L.findIndex(l => l.some(c => normalizar(c) === 'NE CCOR' || /(^| )NE CCOR$/.test(normalizar(c))));
+  if (hi < 0) return 0;
+  let H = L[hi].map(c => normalizar(c));
+  const prox = (L[hi + 1] || []).map(c => normalizar(c)), duplo = prox.some(c => /INSCRIT|PAGO|LIQUIDAD|A PAGAR/.test(c));
+  if (duplo) H = H.map((c, i) => prox[i] && c !== prox[i] ? (c ? c + ' ' + prox[i] : prox[i]) : c);
+  const ach = (f) => H.findIndex(f), tem = t => h => h.indexOf(t) >= 0;
+  const np = t => ach(h => h.indexOf('NAO PROCESSADOS ' + t) >= 0);
+  const pr = t => ach(h => h.indexOf('PROCESSADOS ' + t) >= 0 && h.indexOf('NAO PROCESSADOS') < 0);
+  const ix = { ano: ach(tem('ANO LANCAMENTO')), mes: ach(tem('MES LANCAMENTO')), ug: ach(tem('UG EXECUTORA')), acao: ach(tem('ACAO GOVERNO')), pi: ach(h => h === 'PI' || h.indexOf('PLANO INTERNO') >= 0),
+    fonte: ach(tem('FONTE RECURSOS')), nd: ach(h => h.indexOf('ND DETALHADA') >= 0 || h.indexOf('NATUREZA DESPESA DETALHADA') >= 0), fav: (function () { const f = H.indexOf('FORNECEDOR'); if (f >= 0) return f; const i = H.findIndex(h => h.indexOf('FAVORECIDO') >= 0); return i >= 0 && H[i + 1] === '' ? i + 1 : i; })(),
+    ne: ach(h => h === 'NE CCOR' || /(^| )NE CCOR$/.test(h)), proc: ach(tem('PROCESSO')),
+    pI: pr('INSCRITOS'), pR: pr('REINSCRITOS'), pC: pr('CANCELADOS'), pP: pr('PAGOS'), pAP: pr('A PAGAR'),
+    nI: np('INSCRITOS'), nR: np('REINSCRITOS'), nC: np('CANCELADOS'), nL: np('LIQUIDADOS'), nP: np('PAGOS'), nAP: np('A PAGAR') };
+  const g = (r, i) => i < 0 ? '' : String(r[i] || '').trim(), n = (r, i) => i < 0 ? 0 : num(r[i]);
+  const ult = {}, linhas = [];
+  for (let i = hi + (duplo ? 2 : 1); i < L.length; i++) {
+    const r = L[i], m = g(r, ix.ne).toUpperCase().match(/(\d{4}NE\d{6})/); if (!m) continue;
+    const ugM = g(r, ix.ug).match(/\d{6}/), ug = ugM ? ugM[0] : (g(r, ix.ne).match(/^\d{6}/) || [''])[0];
+    const mesTxt = normalizar(g(r, ix.mes)), MES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    const mes = parseInt(mesTxt, 10) || (MES.indexOf(mesTxt.slice(0, 3)) + 1), rank = (parseInt(g(r, ix.ano), 10) || 0) * 100 + (mes > 0 ? mes : 0);
+    const k = m[1] + '|' + ug;
+    linhas.push({ k: k, ne: m[1], ug: ug, rank: rank, r: r });
+    if (!(k in ult) || rank > ult[k]) ult[k] = rank;
+  }
+  const novos = {}; let cont = 0;
+  linhas.forEach(x => {
+    if (x.rank !== ult[x.k]) return;
+    if (porNe[x.k] && !novos[x.k]) return;   // já veio de outra aba
+    const r = x.r, insc = n(r, ix.pI) + n(r, ix.pR) + n(r, ix.nI) + n(r, ix.nR), canc = n(r, ix.pC) + n(r, ix.nC), pago = n(r, ix.pP) + n(r, ix.nP);
+    const saldo = (ix.pAP >= 0 || ix.nAP >= 0) ? n(r, ix.pAP) + n(r, ix.nAP) : insc - canc - pago;
+    const t = porNe[x.k] || (porNe[x.k] = novos[x.k] = { ne: x.ne, tipo: 'RAP', ug: x.ug, processo: g(r, ix.proc), favorecido: mascarar(g(r, ix.fav)), acao: g(r, ix.acao), fonte: g(r, ix.fonte), pi: g(r, ix.pi),
+      nd: g(r, ix.nd), desc_nd: ix.nd >= 0 ? g(r, ix.nd + 1) : '', empenhado: 0, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 0 });
+    t.empenhado += insc - canc; t.liquidado += n(r, ix.nL) + n(r, ix.pP); t.pago += pago; t.saldo += Math.max(0, saldo);
+    ['processo', 'acao', 'fonte', 'pi', 'nd'].forEach(c => { if (!t[c]) t[c] = g(r, ix[{ processo: 'proc' }[c] || c]); });
+    if (!t.favorecido) t.favorecido = mascarar(g(r, ix.fav));
+    cont++;
+  });
+  return cont;
 }
 function extrairLinha(row, tipo) {
   const d = { ne: '', proc: '', ug: '', acao: '', fonte: '', pi: '', nd: '', descNd: '', fav: '', empenhado: 0, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 0 };
