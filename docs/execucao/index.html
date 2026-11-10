@@ -324,8 +324,14 @@ function montar(){
     desenhar();
 }
 function acao(o, ok, depois){
-  return chamar(o).then(function(r){ if(!r.ok){ aviso(r.msg || 'Não deu certo.', true); reativar(); return; } aviso(typeof ok === 'function' ? ok(r) : ok); if(depois) depois(r); return carregar(false); })
-    .catch(function(e){ if(e.message !== 'sessão'){ aviso('Falha de conexão.', true); reativar(); } });
+  o.devolver = true; aviso('Salvando…'); document.body.classList.add('atualizando');
+  return chamar(o).then(function(r){
+    document.body.classList.remove('atualizando');
+    if(!r.ok){ aviso(r.msg || 'Não deu certo.', true); reativar(); return; }
+    aviso(typeof ok === 'function' ? ok(r) : ok); if(depois) depois(r);
+    if(r.dados && r.dados.ok){ D = r.dados; ls(K_DADOS, r.dados); montar(); return; }   // base já veio na resposta
+    return carregar(false);
+  }).catch(function(e){ document.body.classList.remove('atualizando'); if(e.message !== 'sessão'){ aviso('Falha de conexão.', true); reativar(); } });
 }
 function reativar(){ [].forEach.call(document.querySelectorAll('#tela button[disabled]'), function(b){ b.disabled = false; }); }
 
