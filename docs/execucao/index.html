@@ -77,6 +77,11 @@ tr.click{cursor:pointer}tr.click:hover td{background:#f6faf3}
 .st-DEVOLVIDO{background:var(--vermbg);color:var(--vermelho)}
 .motivo{display:block;color:var(--vermelho);font-size:12.5px;margin-top:3px}
 tr.dev td{background:#fdf3f2}
+.resumos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 12px}
+.res{background:#fff;border:1px solid #dfe7e1;border-radius:10px;padding:10px 14px;text-align:left;cursor:pointer;font:inherit}
+.res span{display:block;font-size:12.5px;color:var(--mudo)}.res b{display:block;font-size:22px;font-family:"Barlow Semi Condensed"}.res small{display:block;font-size:11.5px;color:var(--mudo)}
+.res.on{border:2px solid #1f6b3a;background:#eef6f0}.res.al b{color:var(--vermelho)}.res.av b{color:var(--ambar)}
+table.lista td{vertical-align:middle}
 .filtro-orc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .filtro-orc label{font-size:13px;font-weight:600;color:#3d5a4b;display:flex;flex-direction:column;gap:4px}
 .abas{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 14px}
@@ -444,6 +449,7 @@ function semEmpenho(i, c){ return /^(contrato de repasse|conv[eê]nio|termo de f
 function uniq(a){ var o = {}; a.forEach(function(x){ if(x) o[x] = 1; }); return Object.keys(o).sort(); }
 
 /* ---------- Orçamento: chegada do processo → analista → financeiro ---------- */
+var IL = {res: 'ativos', ug: '', ord: 'num'};
 var FO = {cnpj: '', contrato: '', entidade: '', instrumento: '', proposta: '', ne: '', ug: ''};
 var ORC = {aba: '', comp: '', atras: true, lim: 80, todas: false};
 function chefeOrc(){ return D.eu.perfil === 'ADMIN' || D.eu.perfil === 'CHEFE_ORCAMENTO'; }
@@ -637,10 +643,36 @@ function telaFila(){
 function telaInstrumentos(){
   if(EDITAR) return formInstrumento(EDITAR === 'novo' ? {} : inst(EDITAR));
   if(FICHA) return fichaInst(inst(FICHA));
-  var todos = D.instrumentos.filter(function(i){ return bate(i, F.busca); }), lst = todos.slice(0, F.lim);
   var dir = cadastra() ? '<button class="bt" type="button" data-editar="novo">+ Novo instrumento</button>' : '';
-  return cab('Instrumentos', F.busca ? 'Resultado para “' + esc(F.busca) + '” — busca por contrato, nº do instrumento, proposta, processo raiz ou de pagamento, CNPJ, favorecido, sigla ou NE.' : 'Use a busca no topo: contrato, nº do instrumento, proposta, processo raiz ou de pagamento, CNPJ, favorecido, sigla ou NE.', dir) +
-    '<div class="lista-inst">' + lst.map(function(i){ var c = calc(i); return '<button class="inst" type="button" data-ficha="' + esc(i.id) + '"><b>' + esc(i.favorecido || '—') + '</b><span>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · ' + esc(i.orcamento || '') + '</span><span>Raiz ' + esc(i.processo_raiz) + '</span><span class="tags"><span class="tag">' + c.nes.length + ' NE</span><span class="tag">prev. ' + brlc(c.previsaoAno) + '</span>' + (Math.abs(c.ajustar) > 1 ? '<span class="tag aj">ajustar ' + brlc(c.ajustar) + '</span>' : '') + (c.deficit < 0 ? '<span class="tag neg">déficit ' + brlc(c.deficit) + '</span>' : '') + (i.origem === 'TESTE' ? '<span class="tag">TESTE</span>' : '') + (i.origem === 'ROBÔ' ? '<span class="tag">automático</span>' : '') + (i.situacao_cadastro === 'ENCERRADO' ? '<span class="tag neg">encerrado</span>' : '') + (i.situacao_cadastro === 'VENCIDO_COM_NE' ? '<span class="tag aj">vencido · RAP</span>' : '') + '</span></button>'; }).join('') + '</div>' + (todos.length ? (todos.length > lst.length ? '<div class="acoes" style="justify-content:center"><button class="bt sec" type="button" data-mais>Mostrar mais (' + (todos.length - lst.length) + ')</button></div>' : '') : '<div class="vazio">Nada encontrado.</div>');
+  var base = D.instrumentos.filter(function(i){ return bate(i, F.busca) && (!IL.ug || String(i.ug) === IL.ug); });
+  var info = base.map(function(i){ var c = calc(i), fim = String(i.vigencia_fim || '').slice(0, 10), dv = /^\d{4}-\d{2}-\d{2}$/.test(fim) && fim < '2099' ? Math.ceil((new Date(fim + 'T23:59:59') - new Date()) / 864e5) : null; return {i: i, c: c, fim: fim, dv: dv, falta: Math.max(0, -c.deficit)}; });
+  var ativo = function(x){ return x.i.situacao_cadastro !== 'ENCERRADO'; };
+  var RES = [
+    ['ativos', 'Instrumentos ativos', function(x){ return ativo(x); }, function(l){ return 'de ' + base.length.toLocaleString('pt-BR') + ' · ' + (base.length - l.length) + ' encerrados'; }],
+    ['contratos', 'Contratos', function(x){ return ativo(x) && /^CTR/.test(x.i.chave || '') || ativo(x) && !x.i.chave && /^(contrato|ata|n[aã]o contratual)/i.test(x.i.formalizacao || ''); }, function(l){ return l.filter(function(x){ return x.i.situacao_cadastro === 'VENCIDO_COM_NE'; }).length + ' vencidos com NE'; }],
+    ['parcerias', 'Parcerias', function(x){ return ativo(x) && /^(contrato de repasse|conv[eê]nio|termo de fomento|termo de colabora)/i.test(x.i.formalizacao || ''); }, function(l){ return l.filter(function(x){ return num(x.i.a_desembolsar) > 0; }).length.toLocaleString('pt-BR') + ' com a desembolsar'; }],
+    ['ted', 'TED', function(x){ return ativo(x) && /^TED/i.test(x.i.formalizacao || ''); }, function(){ return 'enviados em execução'; }],
+    ['vence', 'Vencem em 90 dias', function(x){ return ativo(x) && x.dv != null && x.dv >= 0 && x.dv <= 90; }, function(){ return 'até ' + dt(new Date(Date.now() + 90 * 864e5).toISOString()).slice(0, 10); }, 'av'],
+    ['semne', 'Sem NE ligada', function(x){ return ativo(x) && !x.c.nes.length && x.c.previsaoAno > 0; }, function(){ return 'com previsão e sem empenho'; }, 'al'],
+    ['falta', 'Falta empenhar', function(x){ return ativo(x) && x.falta > 0.01; }, function(l){ return brl(l.reduce(function(a, x){ return a + x.falta; }, 0)); }, 'al'],
+    ['manual', 'Cadastrados à mão', function(x){ return ativo(x) && x.i.origem === 'PAINEL'; }, function(){ return 'origem: painel'; }]
+  ];
+  var grupos = {}; RES.forEach(function(r){ grupos[r[0]] = info.filter(r[2]); });
+  if(!grupos[IL.res]) IL.res = 'ativos';
+  var lst = grupos[IL.res].slice();
+  var ord = {nome: function(a, b){ return String(a.i.favorecido).localeCompare(String(b.i.favorecido)); }, dias: function(a, b){ return (a.dv == null ? 1e9 : a.dv) - (b.dv == null ? 1e9 : b.dv); }, falta: function(a, b){ return b.falta - a.falta; }, prev: function(a, b){ return b.c.previsaoAno - a.c.previsaoAno; }}[IL.ord];
+  if(ord) lst.sort(ord);
+  var cards = '<div class="resumos">' + RES.map(function(r){ var l = grupos[r[0]]; return '<button type="button" class="res ' + (r[4] || '') + (IL.res === r[0] ? ' on' : '') + '" data-il-res="' + r[0] + '"><span>' + r[1] + '</span><b>' + l.length.toLocaleString('pt-BR') + '</b><small>' + r[3](l) + '</small></button>'; }).join('') + '</div>';
+  var ugs = '<div class="abas"><button type="button" class="chip' + (!IL.ug ? ' on' : '') + '" data-il-ug="">Todas as UGs</button>' + LISTAS.ug.map(function(u){ return '<button type="button" class="chip' + (IL.ug === u ? ' on' : '') + '" data-il-ug="' + u + '">' + u + '</button>'; }).join('') +
+    '<label class="chk" style="margin-left:auto">Ordenar<select class="mini" id="il-ord">' + [['num', 'Nº (ordem da base)'], ['nome', 'Favorecido'], ['dias', 'Dias a vencer'], ['falta', 'Falta empenhar'], ['prev', 'Previsão do ano']].map(function(o){ return '<option value="' + o[0] + '"' + (IL.ord === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>';
+  var mostra = lst.slice(0, F.lim);
+  var tabela = '<div class="card rolar"><h3>' + RES.filter(function(r){ return r[0] === IL.res; })[0][1] + ' <small>' + lst.length.toLocaleString('pt-BR') + (F.busca ? ' · busca “' + esc(F.busca) + '”' : '') + '</small></h3>' +
+    (mostra.length ? '<table class="lista"><tr><th class="n">Nº</th><th>UG</th><th>Sigla</th><th>Departamento</th><th>Favorecido</th><th>Formalização</th><th>Nº contrato / instr.</th><th>Fim da vigência</th><th class="n">Dias</th><th class="n">Previsão do ano</th><th class="n">Falta empenhar</th></tr>' +
+      mostra.map(function(x, k){ var i = x.i; return '<tr class="click" data-ficha="' + esc(i.id) + '"><td class="n mudo">' + (k + 1) + '</td><td><b>' + esc(i.ug) + '</b></td><td>' + esc(i.sigla || '—') + '</td><td>' + esc(i.orcamento || '—') + '</td><td>' + esc(i.favorecido || '—') + '<span class="s">Raiz ' + esc(i.processo_raiz || '—') + '</span></td><td>' + esc(i.formalizacao || '—') + (i.situacao_cadastro === 'VENCIDO_COM_NE' ? '<span class="s neg">vencido · RAP</span>' : '') + '</td><td>' + esc(i.numero || i.instrumento || '—') + '</td><td>' + (x.fim && x.fim < '2099' ? dt(x.fim).slice(0, 10) : 'indeterminada') + '</td>' +
+        '<td class="n' + (x.dv != null && x.dv < 0 ? ' neg' : (x.dv != null && x.dv <= 90 ? ' alerta-txt' : '')) + '">' + (x.dv == null ? '—' : (x.dv < 0 ? 'vencido' : x.dv)) + '</td><td class="n">' + (x.c.previsaoAno ? brl(x.c.previsaoAno) : '—') + '</td><td class="n' + (x.falta > 0.01 ? ' neg' : '') + '">' + (x.falta > 0.01 ? brl(x.falta) : '—') + '</td></tr>'; }).join('') + '</table>' +
+      (lst.length > mostra.length ? '<div class="acoes" style="justify-content:center"><button class="bt sec" type="button" data-mais>Mostrar mais (' + (lst.length - mostra.length).toLocaleString('pt-BR') + ')</button></div>' : '')
+      : '<div class="vazio">Nada nesse resumo' + (F.busca ? ' com a busca “' + esc(F.busca) + '”' : '') + '.</div>') + '</div>';
+  return cab('Instrumentos', 'Clique num resumo para filtrar a lista e na linha para abrir a ficha. A busca do topo vale para tudo: contrato, nº do instrumento, proposta, processo, CNPJ, favorecido, sigla ou NE.', dir) + cards + ugs + tabela;
 }
 function fichaInst(i){
   var c = calc(i), lv = function(l, v, cls){ return '<div class="' + (cls || '') + '"><span>' + l + '</span><b>' + v + '</b></div>'; };
@@ -731,6 +763,8 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-importar]'))){ x.disabled = true; x.textContent = 'Importando…'; acao({acao: 'importar'}, function(r){ return r.msg; }); return; }
   if((x = t.closest('[data-simular]'))){ x.disabled = true; acao({acao: 'simular'}, function(r){ return r.msg + ' ' + r.confirmados + ' confirmado(s).'; }); return; }
   if(t.closest('[data-mais]')){ F.lim += 120; desenhar(); return; }
+  if((x = t.closest('[data-il-res]'))){ IL.res = x.dataset.ilRes; F.lim = 60; desenhar(); return; }
+  if((x = t.closest('[data-il-ug]'))){ IL.ug = x.dataset.ilUg; F.lim = 60; desenhar(); return; }
   if((x = t.closest('[data-rec]'))){ F.rec = x.dataset.rec; desenhar(); return; }
   if((x = t.closest('[data-prev-salvar]'))){ var gr = document.querySelector('[data-prev="' + x.dataset.prevSalvar + '"]'); var its = [].map.call(gr.querySelectorAll('input'), function(inp){ return {competencia: inp.name, valor: Math.abs(num(inp.value))}; }).filter(function(it){ var c = calc(inst(x.dataset.prevSalvar)); return it.valor || c.prev[it.competencia]; }); x.disabled = true; acao({acao: 'previsao', instrumento_id: x.dataset.prevSalvar, itens: its}, 'Previsão salva.'); return; }
   if((x = t.closest('[data-tes-buscar]'))){ buscarTesouro($('tes-busca').value); return; }
@@ -759,6 +793,7 @@ $('tela').addEventListener('change', function(e){
   var t = e.target;
   if(t.dataset.f){ F[t.dataset.f] = t.value; desenhar(); }
   if(t.id === 'fila-todas'){ FILA_TODAS = t.checked; desenhar(); }
+  if(t.id === 'il-ord'){ IL.ord = t.value; desenhar(); }
   if(t.id === 'orc-todas'){ ORC.todas = t.checked; desenhar(); }
   if(t.id === 'orc-atras'){ ORC.atras = t.checked; desenhar(); }
   if(t.id === 'orc-comp'){ ORC.comp = t.value; desenhar(); }
