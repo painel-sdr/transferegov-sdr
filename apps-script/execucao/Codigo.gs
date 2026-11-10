@@ -440,7 +440,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10 · RAP + produção';
+const VERSAO = '2026-11-10b · importação rápida';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
@@ -776,7 +776,8 @@ function excluirLinha(n, id) { const s = sh(n), v = s.getDataRange().getValues()
 function hist(u, acao, ref, det) { anexar('HISTORICO', { quando: agora(), email: u.email, acao: acao, ref: ref, detalhe: det }); }
 function getConfig(k) { const c = lerTudo('CONFIG').find(x => x.chave === k); return c ? c.valor : ''; }
 function setConfig(k, v) { if (!atualizar('CONFIG', k, { valor: v })) anexar('CONFIG', { chave: k, valor: v }); }
-function ano() { return Number(getConfig('ANO')) || 2027; }
+let ANO_EXEC = null;   // lido uma vez por execução (antes: uma leitura da aba CONFIG por instrumento estourava o tempo na importação)
+function ano() { if (ANO_EXEC === null) ANO_EXEC = Number(getConfig('ANO')) || 2027; return ANO_EXEC; }
 function agora() { return Utilities.formatDate(new Date(), 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss"); }
 function igual(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
 function normalizar(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
