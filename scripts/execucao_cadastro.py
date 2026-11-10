@@ -129,17 +129,24 @@ def contratos(saida):
 
 
 # planilha de controle das parcerias (a mesma do Painel SDR): a coluna DEPARTAMENTO vale primeiro
-PLANILHA_PARCERIAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRyLjeoCobYSRx7o3tiZ7fvj4-FhvKnGiSVxoA8l6yD2CqfJsUidxWN00jLuFpBMrFL6MesSdYuWnrb/pub?gid=964146132&single=true&output=csv'
+PLANILHAS_PARCERIAS = ['https://docs.google.com/spreadsheets/d/1T1iWn9lg-WR2RBKKc27xjYh2lvp7wQRzKYbj3zxMmLg/gviz/tq?tqx=out:csv&gid=273934927&range=A:AZ&headers=1',
+                       'https://docs.google.com/spreadsheets/d/e/2PACX-1vRPg0j1OKTCJGdpnRYo-hNqXqTaDnpTso9I_DEG08cCjaoFLmT5VsMkdWi9iO26gnsZ24L40glpTWAF/pub?gid=273934927&single=true&output=csv']   # as mesmas do Painel SDR (Parceria SDR)
 
 
 def dep_planilha():
     """Nº do instrumento → DEPARTAMENTO da planilha BASE GERAL Convênio e Termo (vazio ou '-' não conta)."""
     sa = lambda x: ''.join(c for c in unicodedata.normalize('NFD', str(x or '')) if unicodedata.category(c) != 'Mn').upper().strip()
-    try:
-        with urllib.request.urlopen(urllib.request.Request(PLANILHA_PARCERIAS, headers={'User-Agent': 'painel-sdr-mapa/1.0'}), timeout=90) as r:
-            rows = list(csv.reader(io.StringIO(r.read().decode('utf-8', 'ignore'))))
-    except Exception as e:
-        print(f'  planilha de parcerias: não li ({e}); departamento pela regra de UG/ação', flush=True)
+    rows, erro = [], ''
+    for url in PLANILHAS_PARCERIAS:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'painel-sdr-mapa/1.0'}), timeout=90) as r:
+                rows = list(csv.reader(io.StringIO(r.read().decode('utf-8', 'ignore'))))
+            if rows:
+                break
+        except Exception as e:
+            erro = str(e)
+    if not rows:
+        print(f'  planilha de parcerias: não li ({erro}); departamento pela regra de UG/ação', flush=True)
         return {}
     hi = next((i for i, r in enumerate(rows[:30]) if 'DEPARTAMENTO' in [sa(c) for c in r] and any('INSTRUMENTO' in sa(c) for c in r)), -1)
     if hi < 0:
