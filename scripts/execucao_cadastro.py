@@ -13,7 +13,7 @@ Quem entra:
   TED        enviados pelas UGs da SDR, em execução.
 Uso: python scripts/execucao_cadastro.py PASTA   (ANO do exercício: variável EXECUCAO_ANO, padrão 2027)
 """
-import csv, os, re, sys, time
+import csv, io, unicodedata, urllib.request, os, re, sys, time
 
 PASTA = sys.argv[1] if len(sys.argv) > 1 else 'saida'
 ANO = int(os.environ.get('EXECUCAO_ANO', '2027'))
@@ -128,6 +128,35 @@ def contratos(saida):
     print('    previsão: ' + ' · '.join(f'{k}: {v}' for k, v in n.items() if k not in ('VIGENTE', 'VENCIDO_COM_NE')))
 
 
+# planilha de controle das parcerias (a mesma do Painel SDR): a coluna DEPARTAMENTO vale primeiro
+PLANILHA_PARCERIAS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRyLjeoCobYSRx7o3tiZ7fvj4-FhvKnGiSVxoA8l6yD2CqfJsUidxWN00jLuFpBMrFL6MesSdYuWnrb/pub?gid=964146132&single=true&output=csv'
+
+
+def dep_planilha():
+    """Nº do instrumento → DEPARTAMENTO da planilha BASE GERAL Convênio e Termo (vazio ou '-' não conta)."""
+    sa = lambda x: ''.join(c for c in unicodedata.normalize('NFD', str(x or '')) if unicodedata.category(c) != 'Mn').upper().strip()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(PLANILHA_PARCERIAS, headers={'User-Agent': 'painel-sdr-mapa/1.0'}), timeout=90) as r:
+            rows = list(csv.reader(io.StringIO(r.read().decode('utf-8', 'ignore'))))
+    except Exception as e:
+        print(f'  planilha de parcerias: não li ({e}); departamento pela regra de UG/ação', flush=True)
+        return {}
+    hi = next((i for i, r in enumerate(rows[:30]) if 'DEPARTAMENTO' in [sa(c) for c in r] and any('INSTRUMENTO' in sa(c) for c in r)), -1)
+    if hi < 0:
+        print('  planilha de parcerias: coluna DEPARTAMENTO não encontrada', flush=True)
+        return {}
+    H = [sa(c) for c in rows[hi]]
+    iD = H.index('DEPARTAMENTO')
+    iN = next((i for i, h in enumerate(H) if re.match(r'^N\S*\s+INSTRUMENTO$', h) or h in ('NO INSTRUMENTO', 'N INSTRUMENTO')), next((i for i, h in enumerate(H) if 'INSTRUMENTO' in h), -1))
+    out = {}
+    for r in rows[hi + 1:]:
+        n, d = (r[iN] if iN < len(r) else '').strip(), (r[iD] if iD < len(r) else '').strip().upper()
+        if n and d and d != '-':
+            out[re.sub(r'\D', '', n)] = d
+    print(f'  planilha de parcerias: departamento de {len(out)} instrumento(s)', flush=True)
+    return out
+
+
 def dep_por_po(chave_instrumento):
     """Departamento pela ação + PO dos empenhos do instrumento (PTRES → ação/PO pela base de orçamento)."""
     po = {}
@@ -158,7 +187,7 @@ def parcerias(saida, prev):
     for r in ler('planilha_parcerias.csv'):
         if r.get('Nº Instrumento') in crono:
             extra[r['Nº Instrumento']] = r
-    dpo = dep_por_po('nr_instrumento')
+    dpo, dpl = dep_por_po('nr_instrumento'), dep_planilha()
     forma = {'CONVENIO': 'Convênio', 'CONTRATO DE REPASSE': 'Contrato de Repasse', 'TERMO DE FOMENTO': 'Termo de fomento', 'TERMO DE COLABORACAO': 'Termo de colaboração'}
     n = 0
     for r in inst:
@@ -166,7 +195,7 @@ def parcerias(saida, prev):
         x, ug, acao = extra.get(nr, {}), r['ug_emitente'], (r.get('acao_orcamentaria') or '')[-4:]
         uf = (r.get('uf') or '').strip()
         saida.append({'chave': 'TGV' + nr, 'condicao': 'VIGENTE', 'formalizacao': forma.get((r.get('modalidade') or '').upper(), (r.get('modalidade') or '').title()),
-                      'orcamento': DEP_UG.get(ug) or dpo.get(nr) or DEP_ACAO.get(acao, ''), 'ug': ug, 'instrumento': nr, 'proposta': x.get('Nº Proposta', ''),
+                      'orcamento': dpl.get(re.sub(r'\D', '', nr)) or DEP_UG.get(ug) or dpo.get(nr) or DEP_ACAO.get(acao, ''), 'ug': ug, 'instrumento': nr, 'proposta': x.get('Nº Proposta', ''),
                       'processo_raiz': processo(r.get('nr_processo')), 'favorecido': r.get('proponente', ''), 'cnpj': cnpj(x.get('CNPJ', '')),
                       'modalidade': (r.get('modalidade') or '').title(), 'objeto': (r.get('objeto') or '').strip(),
                       'vigencia_ini': iso(x.get('Data Início de Vigência Conv.', '')), 'vigencia_fim': iso(r.get('fim_vigencia')),
