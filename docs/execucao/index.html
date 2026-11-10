@@ -61,7 +61,8 @@ h1,h2,h3{font-family:"Barlow Semi Condensed",Barlow,sans-serif;margin:0}
 .card h3 small{font-family:Barlow;font-weight:500;font-size:13px;color:var(--mudo)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .kpi{background:#fff;border:1px solid var(--linha);border-radius:14px;padding:12px 16px}
-.kpi span{font-size:13px;color:var(--mudo)}.kpi b{display:block;font-size:24px;font-family:"Barlow Semi Condensed";margin-top:2px}.kpi small{color:var(--mudo);font-size:12px}
+.kpi span{font-size:13px;color:var(--mudo)}.kpi b{display:block;font-size:21px;font-family:"Barlow Semi Condensed";margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mudo{color:var(--mudo)}.kpi small{color:var(--mudo);font-size:12px}
 .kpi.neg b{color:var(--vermelho)}.kpi.pos b{color:var(--verde2)}
 .rolar{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
@@ -393,6 +394,7 @@ function telaGeral(){
     return true;
   });
   var tot = {prev: 0, liq: 0, inf: 0, aj: 0, def: 0, saldo: 0}, pagoM = {}, apagarM = {};
+  var nLin = 0;
   var linhas = lst.map(function(i){
     var c = calc(i);
     tot.prev += c.previsaoAno; tot.liq += c.liqAno; tot.inf += c.informado; tot.aj += Math.abs(c.ajustar) > 1 ? c.ajustar : 0; tot.saldo += c.saldo; if(c.deficit < 0) tot.def += c.deficit;
@@ -410,7 +412,7 @@ function telaGeral(){
       return '<td class="m ' + cls + '" title="' + comp(m) + ' · previsto ' + brl(c.prev[m] || 0) + '">' + txt + '</td>';
     }).join('');
     var fim = String(i.vigencia_fim || '').slice(0, 10), dv = /^\d{4}-\d{2}-\d{2}$/.test(fim) && fim < '2099' ? Math.ceil((new Date(fim + 'T23:59:59') - new Date()) / 86400000) : null;
-    return '<tr class="click" data-ficha="' + esc(i.id) + '"><td><b>' + esc(i.ug) + '</b></td><td>' + esc(i.sigla || '—') + '</td><td>' + esc(i.orcamento || '—') + '</td><td>' + esc(i.processo_raiz) + '</td><td>' + esc(i.favorecido) + '</td><td>' + esc(i.formalizacao || '—') + '</td><td>' + (fim && fim < '2099' ? dt(fim).slice(0, 10) : 'indeterminada') + '</td>' +
+    return '<tr class="click" data-ficha="' + esc(i.id) + '"><td class="n mudo">' + (++nLin) + '</td><td><b>' + esc(i.ug) + '</b></td><td>' + esc(i.sigla || '—') + '</td><td>' + esc(i.orcamento || '—') + '</td><td>' + esc(i.processo_raiz) + '</td><td>' + esc(i.favorecido) + '</td><td>' + esc(i.formalizacao || '—') + '</td><td>' + (fim && fim < '2099' ? dt(fim).slice(0, 10) : 'indeterminada') + '</td>' +
       '<td class="n' + (dv != null && dv < 0 ? ' neg' : (dv != null && dv <= 90 ? ' alerta-txt' : '')) + '">' + (dv == null ? '—' : (dv < 0 ? 'vencido' : dv)) + '</td><td>' + esc(i.numero || i.instrumento || '—') + '</td>' +
       '<td class="m' + (Math.abs(c.ajustar) > 1 ? ' c-AJUSTAR' : '') + '">' + (Math.abs(c.ajustar) > 1 ? brlc(c.ajustar) : '—') + '</td>' + meses + '<td class="def' + (c.deficit >= 0 ? ' ok' : '') + '">' + brlc(c.deficit) + '</td></tr>';
   }).join('');
@@ -418,7 +420,7 @@ function telaGeral(){
   var dir = admin() ? '<div class="acoes"><button class="bt sec" type="button" data-importar title="Contratos, parcerias e TED vigentes gerados pelo robô">Importar vigentes</button><button class="bt" type="button" data-tesouro>Ler Tesouro e conferir</button>' + (temTeste() ? '<button class="bt sec" type="button" data-simular>Simular liquidação (teste)</button><button class="bt alerta" type="button" data-limpar-teste>Apagar dados de teste</button>' : '') + '</div>' : '';
   var orcs = uniq(D.instrumentos.map(function(i){ return i.orcamento; })), forms = uniq(D.instrumentos.map(function(i){ return i.formalizacao; }));
   return cab('Visão geral do ano ' + D.ano + ' <small style="font-size:16px;color:var(--mudo)">' + lst.length + ' instrumentos</small>', 'Grade de dez/' + String(D.ano - 1).slice(2) + ' a dez/' + String(D.ano).slice(2) + ': o valor informado em cada competência, colorido pela situação. Em vermelho claro e negativo, o que está previsto e ainda não foi pago. As duas primeiras linhas somam, mês a mês, o que foi pago e o que falta pagar (com os filtros escolhidos). Clique na linha para abrir a ficha.', dir) +
-    '<div class="kpis">' + k('Previsão do ano', brlc(tot.prev), 'soma das competências') + k('Liquidado no ano', brlc(tot.liq), 'Tesouro, desde a entrada da NE', 'pos') + k('Informado pelos executores', brlc(tot.inf), 'pagamentos lançados') + k('Ajustar', brlc(tot.aj), 'liquidado − informado', Math.abs(tot.aj) > 1 ? 'neg' : '') + k('Saldo de empenho', brlc(tot.saldo), 'EXE + RAP vinculados') + k('Déficit do ano', brlc(tot.def), 'soma dos instrumentos com déficit', tot.def < 0 ? 'neg' : 'pos') + '</div>' +
+    '<div class="kpis">' + k('Previsão do ano', brlk(tot.prev), 'soma das competências') + k('Liquidado no ano', brlk(tot.liq), 'Tesouro, desde a entrada da NE', 'pos') + k('Informado pelos executores', brlk(tot.inf), 'pagamentos lançados') + k('Ajustar', brlk(tot.aj), 'liquidado − informado', Math.abs(tot.aj) > 1 ? 'neg' : '') + k('Saldo de empenho', brlk(tot.saldo), 'EXE + RAP vinculados') + k('Déficit do ano', brlk(tot.def), 'soma dos instrumentos com déficit', tot.def < 0 ? 'neg' : 'pos') + '</div>' +
     '<div class="card"><div class="filtros">' +
       '<label>Orçamento<select class="mini" data-f="orc">' + opts(orcs, F.orc, 'Todos') + '</select></label>' +
       '<label>UG<select class="mini" data-f="ug">' + opts(LISTAS.ug, F.ug, 'Todas') + '</select></label>' +
@@ -428,11 +430,12 @@ function telaGeral(){
       '<div style="display:flex;gap:6px"><button type="button" class="chip' + (!F.rec ? ' on' : '') + '" data-rec="">Todos</button><button type="button" class="chip' + (F.rec === 'EXE001' ? ' on' : '') + '" data-rec="EXE001">EXE</button><button type="button" class="chip' + (F.rec === 'RAP001' ? ' on' : '') + '" data-rec="RAP001">RAP</button></div>' +
     '</div></div>' +
     '<div class="card"><div class="legenda" style="margin-bottom:10px"><span><i style="background:#e3f1da"></i>Confirmado pelo Tesouro</span><span><i style="background:#e3edf7"></i>Informado</span><span><i style="background:#fdf0dc"></i>Demanda em andamento</span><span><i style="background:#fdecea"></i>Ajustar</span><span><i style="background:#fff3f1;border:1px solid #f3c7c0"></i>A pagar (previsão, em negativo)</span></div>' +
-    '<div class="rolar" style="max-height:620px;overflow:auto"><table class="grade"><thead><tr><th>UG</th><th>Sigla / unidade</th><th>Departamento</th><th>Processo raiz</th><th>Favorecido</th><th>Formalização</th><th>Fim da vigência</th><th class="n">Dias a vencer</th><th>Contrato / instr.</th><th>Ajustar</th>' + D.competencias.map(function(m){ return '<th class="n">' + comp(m) + '</th>'; }).join('') + '<th class="n">Déficit do ano</th></tr></thead><tbody>' + linhaTotais(pagoM, apagarM) + (linhas || '<tr><td colspan="24" class="vazio">Nada com esse filtro.</td></tr>') + '</tbody></table></div></div>';
+    '<div class="rolar" style="max-height:620px;overflow:auto"><table class="grade"><thead><tr><th class="n">Nº</th><th>UG</th><th>Sigla / unidade</th><th>Departamento</th><th>Processo raiz</th><th>Favorecido</th><th>Formalização</th><th>Fim da vigência</th><th class="n">Dias a vencer</th><th>Contrato / instr.</th><th>Ajustar</th>' + D.competencias.map(function(m){ return '<th class="n">' + comp(m) + '</th>'; }).join('') + '<th class="n">Déficit do ano</th></tr></thead><tbody>' + linhaTotais(pagoM, apagarM) + (linhas || '<tr><td colspan="25" class="vazio">Nada com esse filtro.</td></tr>') + '</tbody></table></div></div>';
 }
+function brlk(v){ return v ? brl(v) : '—'; }   // valor completo nos quadros do topo
 function linhaTotais(pago, apagar){
   var soma = function(o){ return D.competencias.reduce(function(a, m){ return a + (o[m] || 0); }, 0); };
-  var lin = function(cls, rot, o, sinal){ return '<tr class="tot ' + cls + '"><td colspan="10" class="lbl">' + rot + '</td>' + D.competencias.map(function(m){ var v = (o[m] || 0) * sinal; return '<td class="m">' + (v ? brlc(v) : '—') + '</td>'; }).join('') + '<td class="def">' + brlc(soma(o) * sinal) + '</td></tr>'; };
+  var lin = function(cls, rot, o, sinal){ return '<tr class="tot ' + cls + '"><td colspan="11" class="lbl">' + rot + '</td>' + D.competencias.map(function(m){ var v = (o[m] || 0) * sinal; return '<td class="m">' + (v ? brlc(v) : '—') + '</td>'; }).join('') + '<td class="def">' + brlc(soma(o) * sinal) + '</td></tr>'; };
   return lin('pago', 'Total pago (informado)', pago, 1) + lin('apagar', 'Total a pagar (previsto − pago)', apagar, -1);
 }
 function temTeste(){ return D && D.instrumentos.some(function(i){ return i.origem === 'TESTE'; }); }
