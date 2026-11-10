@@ -215,7 +215,7 @@ var LISTAS = {
 
 /* ---------- utilitários ---------- */
 function ls(k, v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(k) || 'null'); if(v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
-function api(){ var q = new URLSearchParams(location.search).get('api'); if(q) ls(K_API, q); var g = ls(K_API); if(g && API_PADRAO && g.indexOf('AKfycbxbC5T9') >= 0){ ls(K_API, null); g = null; } return g || API_PADRAO || ''; }
+function api(){ var q = new URLSearchParams(location.search).get('api'); if(ls(K_API)) ls(K_API, null); return q || API_PADRAO || ''; }   // vale sempre o link publicado no painel (?api= só para teste)
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function num(v){ if(typeof v === 'number') return v; var s = String(v || '').replace(/R\$|\s/g, ''); if(!s) return 0; if(s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.'); var n = parseFloat(s); return isNaN(n) ? 0 : n; }
 function brl(v){ return (Number(v) || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); }
