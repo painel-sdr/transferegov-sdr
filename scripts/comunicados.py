@@ -25,6 +25,7 @@ FONTES = [
 ]
 CMO = 'https://www.congressonacional.leg.br/web/cmo/comunicados'
 DEBUG = []
+BRUTO = {}   # HTML/JSON devolvido por cada fonte (gravado comprimido, para ajustar a leitura)
 
 
 def baixar(url, json_=False, tempo=40):
@@ -75,27 +76,52 @@ def listar_plone(url):
     """devolve [{titulo, link, data, tipo_plone}] de tudo o que está abaixo da pasta (documentos e arquivos)"""
     q = 'sort_on=effective&sort_order=reverse&b_size=500&metadata_fields=effective&metadata_fields=created&metadata_fields=modified'
     erros = []
-    for u in (f'{url}/@search?{q}', f'{url}/++api++/@search?{q}', url):
+    pu = urllib.parse.urlparse(url)
+    partes = pu.path.strip('/').split('/')
+    raiz, resto = f'{pu.scheme}://{pu.netloc}/{partes[0]}', '/' + '/'.join(partes[1:])
+    api = [f'{raiz}/++api++{resto}/@search?{q}', f'{raiz}/++api++{resto}', f'{pu.scheme}://{pu.netloc}/++api++{pu.path}/@search?{q}', f'{url}/@search?{q}', url]
+    for u in api:
         try:
             j = baixar(u, json_=True)
             itens = j.get('items') or []
-            DEBUG.append(f'[{url}] JSON {u[len(url):] or "(pasta)"} -> {len(itens)} itens; chaves {sorted(j.keys())[:12]}')
+            DEBUG.append(f'[{url}] JSON {u} -> {len(itens)} itens; chaves {sorted(j.keys())[:12]}')
+            BRUTO[u] = json.dumps(j, ensure_ascii=False)[:3000000]
             out = []
             for it in itens:
                 tp = it.get('@type', '')
-                if tp in ('Folder', 'Collection', 'Link') and u.endswith(q):
+                if tp in ('Folder', 'Collection', 'Link') and '@search' in u:
                     continue
                 out.append({'titulo': limpa(it.get('title')), 'link': it.get('@id', ''), 'data': data_iso(it.get('effective')) or data_iso(it.get('created')),
                             'descricao': limpa(it.get('description'))[:300], 'tipo_plone': tp})
             if out:
-                return out, 'api ' + (u[len(url):].split('?')[0] or 'pasta')
+                return out, 'api ' + u.split('?')[0]
         except Exception as e:
-            erros.append(f'{u[len(url):].split("?")[0] or "pasta"}: {str(e)[:120]}')
+            erros.append(f'{u.split("?")[0]}: {str(e)[:120]}')
     # HTML: links para dentro da pasta
     t = baixar(url)
-    DEBUG.append(f'[{url}] HTML {len(t)} bytes; erros JSON: {" | ".join(erros)}\n{t[:1500]}')
+    BRUTO[url] = t
+    DEBUG.append(f'[{url}] HTML {len(t)} bytes; __data {t.count("__data")} · @id {t.count(chr(34)+"@id"+chr(34))} · href {t.count("href=")}; erros JSON: {" | ".join(erros)}')
     caminho = urllib.parse.urlparse(url).path.rstrip('/')
     vistos, out = set(), []
+    tj = t.replace('\\u002F', '/').replace('\\/', '/')
+    for m in re.finditer(r'"@id"\s*:\s*"(https?://[^"]+)"', tj):
+        href = m.group(1)
+        p = urllib.parse.urlparse(href).path.rstrip('/')
+        if not p.startswith(caminho + '/') or href in vistos or '/@@' in href or '/++' in href:
+            continue
+        janela = tj[m.end():m.end() + 2500]
+        ti = re.search(r'"title"\s*:\s*"((?:[^"\\]|\\.)*)"', janela)
+        if not ti:
+            continue
+        ef = re.search(r'"(?:effective|created)"\s*:\s*"([^"]+)"', janela)
+        tp = re.search(r'"@type"\s*:\s*"([^"]+)"', janela)
+        vistos.add(href)
+        try:
+            titulo = json.loads('"' + ti.group(1) + '"')
+        except Exception:
+            titulo = ti.group(1)
+        out.append({'titulo': limpa(titulo), 'link': href, 'data': data_iso(ef.group(1)) if ef else '', 'descricao': '', 'tipo_plone': tp.group(1) if tp else 'json-html'})
+    out = [o for o in out if o['tipo_plone'] not in ('Folder', 'Collection', 'Link')] or out
     for m in re.finditer(r'<a[^>]+href="([^"#?]+)"[^>]*>(.*?)</a>', t, re.S | re.I):
         href, txt = urllib.parse.urljoin(url, m.group(1)), limpa(m.group(2))
         p = urllib.parse.urlparse(href).path.rstrip('/')
@@ -199,7 +225,8 @@ def conteudo(link):
 # ---------------------------------------------------------------- CMO (Liferay)
 def cmo():
     t = baixar(CMO)
-    DEBUG.append(f'[{CMO}] HTML {len(t)} bytes\n{t[:1200]}')
+    BRUTO[CMO] = t
+    DEBUG.append(f'[{CMO}] HTML {len(t)} bytes · /-/blogs/ {t.count("/-/blogs/")} · href {t.count("href=")}')
     vistos, out = set(), []
     for m in re.finditer(r'<a[^>]+href="([^"]*?/web/cmo/comunicados/-/blogs/[^"?#]+)[^"]*"[^>]*>(.*?)</a>', t, re.S | re.I):
         href, txt = urllib.parse.urljoin(CMO, html.unescape(m.group(1))), limpa(m.group(2))
@@ -276,6 +303,9 @@ def main(saida):
         json.dump(res, fh, ensure_ascii=False, indent=1)
     with open(os.path.join(saida, 'comunicados', 'comunicados_debug.txt'), 'w', encoding='utf-8') as fh:
         fh.write('\n\n'.join(DEBUG))
+    import gzip
+    with gzip.open(os.path.join(saida, 'comunicados', 'comunicados_bruto.json.gz'), 'wt', encoding='utf-8') as fh:
+        json.dump(BRUTO, fh, ensure_ascii=False)
     print(f"Comunicados: {len(res['comunicados'])} no total · {len(res['prazos'])} prazos lidos dos cronogramas", flush=True)
 
 
