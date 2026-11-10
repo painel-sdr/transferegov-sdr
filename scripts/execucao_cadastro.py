@@ -26,7 +26,7 @@ REGIAO = {**dict.fromkeys('AC AM AP PA RO RR TO'.split(), 'Norte'), **dict.fromk
           **dict.fromkeys('DF GO MS MT'.split(), 'Centro-Oeste'), **dict.fromkeys('ES MG RJ SP'.split(), 'Sudeste'), **dict.fromkeys('PR RS SC'.split(), 'Sul')}
 MES = {m: i + 1 for i, m in enumerate('JAN FEV MAR ABR MAI JUN JUL AGO SET OUT NOV DEZ'.split())}
 COLS = ['chave', 'condicao', 'formalizacao', 'orcamento', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj',
-        'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'nes', 'uf', 'regiao', 'acao', 'a_desembolsar']
+        'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'nes', 'uf', 'regiao', 'acao', 'a_desembolsar', 'sigla']
 
 
 def ler(nome):
@@ -97,24 +97,29 @@ def contratos(saida):
     nes = {}
     for e in emp:
         ne = (e.get('Nota de empenho') or '').strip().upper()
-        if ne and e.get('UG da NE') == e.get('UG contrato') and ne[:4].isdigit() and int(ne[:4]) >= ANO - 3:
-            nes.setdefault(e['ID contrato (API)'], []).append(ne)
+        if ne and (e.get('UG da NE') == e.get('UG contrato') or e.get('UG da NE') in UGS) and ne[:4].isdigit() and int(ne[:4]) >= ANO - 3:
+            nes.setdefault(e['ID contrato (API)'], []).append((ne, e.get('UG da NE')))
     tipo = {'Contrato': 'Contrato', 'Empenho': 'Não contratual', 'Outros': 'Não contratual'}
     n = {'VIGENTE': 0, 'VENCIDO_COM_NE': 0}
     for c in ctr:
         ug = c.get('UG atual', '')
-        if ug not in UGS or c.get('Situação') != 'Ativo' or 'ACT' in c.get('Tipo', '') or 'Cooperação' in c.get('Tipo', ''):
+        da_base = c.get('Na Base Contratos') == 'SIM'   # unidade (ex.: CEPLAC regional) sob o nosso controle, pela planilha Base Contratos
+        if (ug not in UGS and not da_base) or c.get('Situação') != 'Ativo' or 'ACT' in c.get('Tipo', '') or 'Cooperação' in c.get('Tipo', ''):
             continue
+        pares = nes.get(c['ID contrato (API)'], [])
+        if ug not in UGS:   # contrato na UG da unidade: no painel fica a UG que paga (a da NE), se for uma das nossas
+            ugs_ne = [u for _, u in pares if u in UGS]
+            ug = ugs_ne[0] if ugs_ne else ug
         fim = iso(c.get('Fim vigência'))
         cond = 'VIGENTE' if not fim or fim >= HOJE else 'VENCIDO_COM_NE'
-        lst = sorted(set(nes.get(c['ID contrato (API)'], [])))
+        lst = sorted({ne for ne, u in pares if u == ug})
         if cond == 'VENCIDO_COM_NE' and not lst:
             continue
         n[cond] += 1
         parcela, base = previsao_contrato(c)
         n[base] = n.get(base, 0) + 1
         saida.append({'chave': 'CTR' + c['ID contrato (API)'], 'condicao': cond, 'formalizacao': tipo.get(c.get('Tipo'), 'Contrato'),
-                      'orcamento': DEP_UG.get(ug, ''), 'ug': ug, 'numero': c.get('Nº contrato', ''), 'processo_raiz': c.get('Processo', ''),
+                      'orcamento': DEP_UG.get(ug, '') or ('CEPLAC' if 'CEPLAC' in (c.get('Nome UG origem') or '').upper() else ''), 'ug': ug, 'sigla': c.get('Unidade (Base)', ''), 'numero': c.get('Nº contrato', ''), 'processo_raiz': c.get('Processo', ''),
                       'favorecido': c.get('Fornecedor', ''), 'cnpj': c.get('CNPJ/CPF', ''), 'modalidade': c.get('Modalidade', ''),
                       'objeto': (c.get('Objeto') or '').strip(), 'vigencia_ini': iso(c.get('Início vigência')), 'vigencia_fim': fim,
                       'valor_global': num(c.get('Valor global')), 'valor_parcela': parcela, 'base_previsao': base, 'nes': ','.join(lst)})

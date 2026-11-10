@@ -370,12 +370,13 @@ function importarCadastro(u) {
     if (r) {
       AUTO.forEach(c => { if (n[c] !== '' && n[c] !== undefined) put(r, c, n[c]); });
       if (!g(r, 'orcamento') && n.orcamento) put(r, 'orcamento', n.orcamento);
+      if (!g(r, 'sigla') && n.sigla) put(r, 'sigla', n.sigla);   // unidade da Base Contratos (não apaga o que foi digitado)
       const juntas = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean); nes.forEach(x => { if (juntas.indexOf(x) < 0) juntas.push(x); });
       put(r, 'nes', juntas.join(',')); put(r, 'chave', n.chave); put(r, 'situacao_cadastro', n.condicao); put(r, 'sincronizado_em', agora_);
       atualizados++;
     } else {
       r = cab.map(() => '');
-      AUTO.concat(['orcamento']).forEach(c => put(r, c, n[c] === undefined ? '' : n[c]));
+      AUTO.concat(['orcamento', 'sigla']).forEach(c => put(r, c, n[c] === undefined ? '' : n[c]));
       put(r, 'id', n.chave); put(r, 'nes', nes.join(',')); put(r, 'chave', n.chave); put(r, 'situacao_cadastro', n.condicao); put(r, 'sincronizado_em', agora_);
       put(r, 'prorrogacao_prevista', 'NÃO'); put(r, 'origem', 'ROBÔ'); put(r, 'criado_em', agora_); put(r, 'criado_por', 'robô');
       linhas.push(r); porChave[n.chave] = r; criados++;
@@ -441,7 +442,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10c · previsão dos contratos';
+const VERSAO = '2026-11-10d · contratos das unidades';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {

@@ -3,7 +3,7 @@ Grava em PASTA (branch dados): contratos_api_ctr.csv, contratos_api_emp.csv, con
 (mesmas colunas da planilha "Base API Contratos"). Consulta a API uma vez por dia; nas outras rodadas reaproveita os arquivos do dia.
 Os valores financeiros da API NÃO são usados (não batem com o SIAFI): o painel usa o EXE/RAP do Tesouro.
 Uso: python scripts/contratos_api.py PASTA_SAIDA"""
-import csv, json, os, re, shutil, sys, time, urllib.request, urllib.parse, urllib.error
+import csv, io, json, os, re, shutil, sys, time, unicodedata, urllib.request, urllib.parse, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
 BASE = 'https://contratos.comprasnet.gov.br'
@@ -11,9 +11,51 @@ UGS = ['130010', '130141', '130255', '135098', '420013']
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'saida'
 ANT = os.environ.get('CONTRATOS_ANTERIOR', '')   # pasta com os arquivos da rodada anterior
 HOJE = time.strftime('%d/%m/%Y')
+# planilha de controle "Base Contratos" (a mesma do Painel SDR): diz quais contratos das unidades da CEPLAC estão sob o nosso controle
+BASE_CONTRATOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRyLjeoCobYSRx7o3tiZ7fvj4-FhvKnGiSVxoA8l6yD2CqfJsUidxWN00jLuFpBMrFL6MesSdYuWnrb/pub?gid=668450794&single=true&output=csv'
+
+
+def _sem_acento(x):
+    return ''.join(c for c in unicodedata.normalize('NFD', str(x or '')) if unicodedata.category(c) != 'Mn').upper().strip()
+
+
+def chave_num(n):
+    """00012/2025 · 12/2025 · CT 012/2025 → 12/2025"""
+    m = re.search(r'(\d+)\D+(\d{4})', str(n or ''))
+    return f'{int(m.group(1))}/{m.group(2)}' if m else ''
+
+
+def base_contratos():
+    """Lê a Base Contratos publicada: números, processos, UGs citadas e a unidade (sigla) de cada contrato."""
+    out = {'nums': {}, 'procs': {}, 'ugs': set()}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(BASE_CONTRATOS, headers={'User-Agent': 'painel-sdr-mapa/1.0'}), timeout=90) as r:
+            rows = list(csv.reader(io.StringIO(r.read().decode('utf-8', 'ignore'))))
+    except Exception as e:
+        print(f'  Base Contratos: não li ({e})', flush=True)
+        return out
+    hi = next((i for i, r in enumerate(rows[:30]) if any('NUMERO DO CONTRATO' in _sem_acento(c) for c in r)), -1)
+    if hi < 0:
+        print('  Base Contratos: cabeçalho "Número do Contrato" não encontrado', flush=True)
+        return out
+    H = [_sem_acento(c) for c in rows[hi]]
+    ach = lambda f: next((i for i, h in enumerate(H) if f(h)), -1)
+    iN, iP, iU = ach(lambda h: 'NUMERO DO CONTRATO' in h), ach(lambda h: 'PROCESSO' in h), ach(lambda h: h == 'UNIDADE')
+    iUG = [i for i, h in enumerate(H) if 'UNIDADE GESTORA' in h or 'UNIDADE DA COMPRA' in h or h in ('UG', 'UG RESPONSAVEL')]
+    for r in rows[hi + 1:]:
+        g = lambda i: (r[i] if 0 <= i < len(r) else '').strip()
+        k, pr, un = chave_num(g(iN)), re.sub(r'\D', '', g(iP)), g(iU)
+        if not k and not pr:
+            continue
+        if k: out['nums'][k] = un
+        if len(pr) >= 15: out['procs'][pr] = un
+        for i in iUG:
+            out['ugs'].update(re.findall(r'\b(1[0-9]{5})\b', g(i)))
+    print(f"  Base Contratos: {len(out['nums'])} contratos · UGs citadas: {', '.join(sorted(out['ugs']))}", flush=True)
+    return out
 ARQ = {
     'ctr': ['ID contrato (API)', 'UG atual', 'UG de origem', 'Nome UG origem', 'Nº contrato', 'Tipo', 'Categoria', 'Modalidade', 'Situação', 'Fornecedor', 'CNPJ/CPF',
-            'Processo', 'Objeto', 'Início vigência', 'Fim vigência', 'Valor inicial', 'Valor global', 'Valor acumulado', 'Nº parcelas', 'Valor parcela', 'Link transparência', 'Consultado em'],
+            'Processo', 'Objeto', 'Início vigência', 'Fim vigência', 'Valor inicial', 'Valor global', 'Valor acumulado', 'Nº parcelas', 'Valor parcela', 'Link transparência', 'Consultado em', 'Na Base Contratos', 'Unidade (Base)'],
     'emp': ['ID contrato (API)', 'UG contrato', 'Nº contrato', 'UG da NE', 'Nota de empenho', 'Plano interno', 'Data emissão'],
     'fat': ['ID contrato (API)', 'UG contrato', 'Nº contrato', 'Nº fatura', 'Emissão', 'Vencimento', 'Valor (− glosa)', 'Situação', 'Data liquidação', 'NP / documento SIAFI'],
     'his': ['ID contrato (API)', 'UG contrato', 'Nº contrato', 'Tipo do termo', 'Nº do termo', 'Data assinatura', 'Fim vigência', 'Valor global (novo)', 'Observação',
@@ -168,6 +210,8 @@ def reaproveitar():
         return False   # arquivo novo (ex.: arquivos do contrato) ainda não existe: consulta a API de novo
     if sum(1 for _ in open(os.path.join(ANT, 'contratos_api_pag.csv'), encoding='utf-8')) < 2:
         return False   # página dos contratos ainda não lida (postos, PNCP)
+    if 'Na Base Contratos' not in open(p, encoding='utf-8').readline():
+        return False   # coluna nova (contratos das unidades pela Base Contratos)
     if 'Link edital PNCP' not in open(os.path.join(ANT, 'contratos_api_pag.csv'), encoding='utf-8').readline():
         return False   # coluna nova (edital no PNCP)
     pg = list(csv.DictReader(open(os.path.join(ANT, 'contratos_api_pag.csv'), encoding='utf-8')))
@@ -269,7 +313,18 @@ def main():
             l = get(cam) or []
             for c in l if isinstance(l, list) else []:
                 c['_ug'] = ug; c['_ativo'] = ativo; cs.append(c)
-    print(f'Contratos.gov.br: {len(cs)} contratos', flush=True)
+    # contratos das unidades (ex.: CEPLAC regionais) que estão na Base Contratos: busca na UG da unidade e fica só com os da Base
+    bc = base_contratos()
+    na_base = lambda c: chave_num(c.get('numero')) in bc['nums'] or re.sub(r'\D', '', str(c.get('processo') or '')) in bc['procs']
+    unid = lambda c: bc['nums'].get(chave_num(c.get('numero'))) or bc['procs'].get(re.sub(r'\D', '', str(c.get('processo') or ''))) or ''
+    for c in cs:
+        c['_base'], c['_unid'] = na_base(c), unid(c)
+    ja = {c['id'] for c in cs}; extra = 0
+    for ug in sorted(bc['ugs'] - set(UGS)):
+        for c in (get(f'/api/contrato/ug/{ug}') or []):
+            if isinstance(c, dict) and c.get('id') not in ja and na_base(c):
+                c['_ug'], c['_ativo'], c['_base'], c['_unid'] = ug, 1, True, unid(c); cs.append(c); ja.add(c['id']); extra += 1
+    print(f'Contratos.gov.br: {len(cs)} contratos ({extra} das unidades, pela Base Contratos)', flush=True)
 
     def det(c):
         i = c['id']
@@ -285,7 +340,7 @@ def main():
         L['ctr'].append([c['id'], c['_ug'], o.get('codigo'), o.get('nome_resumido'), c.get('numero'), c.get('tipo'), c.get('categoria'), c.get('modalidade'), c.get('situacao'),
                          c['fornecedor'].get('nome'), c['fornecedor'].get('cnpj_cpf_idgener'), c.get('processo'), (c.get('objeto') or '').strip(), c.get('vigencia_inicio'), c.get('vigencia_fim'),
                          br(num(c.get('valor_inicial'))), br(num(c.get('valor_global'))), br(num(c.get('valor_acumulado'))), c.get('num_parcelas'), br(num(c.get('valor_parcela'))),
-                         f"https://contratos.comprasnet.gov.br/transparencia/contratos/{c['id']}", HOJE])
+                         f"https://contratos.comprasnet.gov.br/transparencia/contratos/{c['id']}", HOJE, 'SIM' if c.get('_base') else '', c.get('_unid', '')])
         for e in d['empenhos'] if isinstance(d['empenhos'], list) else []:
             L['emp'].append(ch + [e.get('unidade_gestora'), e.get('numero'), (e.get('planointerno') or '')[:60], e.get('data_emissao')])
         for f in d['faturas'] if isinstance(d['faturas'], list) else []:
