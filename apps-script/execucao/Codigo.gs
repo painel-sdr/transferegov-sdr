@@ -164,7 +164,10 @@ function configurarRap() {
 function carregarTesouro() {
   try { configurarRap(); } catch (e) { }
   const fontes = lerTudo('FONTES').filter(f => String(f.ativo).toUpperCase() === 'SIM' && /^https?:/.test(f.url));
-  const antes = {}; lerTudo('TESOURO_NE').forEach(t => antes[t.ne + '|' + t.ug] = t);
+  const antes = {};
+  const reinicia = getConfig('LEITURA_TESOURO') !== 'mensal';   // a leitura antiga somava os meses: a base da conferência é refeita uma vez
+  if (!reinicia) lerTudo('TESOURO_NE').forEach(t => antes[t.ne + '|' + t.ug] = t);
+  else lerTudo('TESOURO_NE').forEach(t => { if (t.origem === 'TESTE') antes[t.ne + '|' + t.ug] = t; });
   const porNe = {}, log = [];
   fontes.forEach(f => {
     try {
@@ -172,7 +175,8 @@ function carregarTesouro() {
       if (r.getResponseCode() !== 200 || /<html/i.test(r.getContentText().slice(0, 300))) r = UrlFetchApp.fetch(f.url, { muteHttpExceptions: true, followRedirects: true, headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
       if (r.getResponseCode() !== 200) throw new Error('HTTP ' + r.getResponseCode());
       const txt = r.getContentText('UTF-8'), tipo = String(f.tipo || 'EXE').toUpperCase();
-      const n = tipo === 'RAP' ? lerRapMensal(txt, porNe) : lerRelatorioTesouro(txt, tipo, porNe);
+      let n = tipo === 'RAP' ? lerRapMensal(txt, porNe) : lerExeMensal(txt, porNe);
+      if (n < 0) n = lerRelatorioTesouro(txt, tipo, porNe);   // relatório sem Ano/Mês de lançamento: soma as linhas, como antes
       log.push(f.nome + ': ' + n + ' linhas');
     } catch (e) { log.push(f.nome + ': ERRO ' + e.message); }
   });
@@ -190,6 +194,7 @@ function carregarTesouro() {
   if (s.getLastRow() > 1) s.getRange(2, 1, s.getLastRow() - 1, s.getLastColumn()).clearContent();
   if (linhas.length) s.getRange(2, 1, linhas.length, ABAS.TESOURO_NE.length).setValues(linhas.map(o => ABAS.TESOURO_NE.map(c => o[c] === undefined ? '' : o[c])));
   limparCacheTesouro();
+  if (reinicia) setConfig('LEITURA_TESOURO', 'mensal');
   setConfig('ULTIMA_CARGA', agora_ + ' · ' + log.join(' · '));
   toast('Tesouro: ' + log.join(' · '));
   return { ok: true, log: log, nes: linhas.length };
@@ -230,6 +235,52 @@ function lerRelatorioTesouro(txt, tipo, porNe) {
  * o processado já veio liquidado do ano anterior, então o que mexe nele em 2027 é o pagamento.
  * Uma NE que já veio de uma aba anterior não é somada de novo (a aba OUTRAS AÇÕES só completa).
  */
+/**
+ * EXE do Tesouro Gerencial por mês de lançamento (BASE EXE 2026 do Painel SDR): uma linha por NE e mês, com a posição acumulada.
+ * Fica só o último mês de cada NE + UG (antes as linhas de todos os meses eram somadas e a NE aparecia multiplicada).
+ * Saldo para pagar = empenhado − pago. Devolve −1 se o relatório não tiver Ano/Mês (aí vale a leitura antiga).
+ */
+function lerExeMensal(txt, porNe) {
+  const L = Utilities.parseCsv(txt);
+  const hi = L.findIndex(l => l.some(c => { const h = normalizar(c); return h === 'NE CCOR' || h.indexOf('NUM. PROCESSO') >= 0 || h.indexOf('NUM PROCESSO') >= 0; }));
+  if (hi < 0) return -1;
+  const L1 = L[hi].map(c => normalizar(c)), L2 = (L[hi + 1] || []).map(c => normalizar(c));
+  const duplo = L2.some(h => h.indexOf('PROVISAO RECEBIDA') >= 0 || h === 'CONTRATO' || h === 'FORMALIZACAO' || h.indexOf('DESPESAS') >= 0);
+  const H = L1.map((h, i) => duplo ? (h + ' ' + (L2[i] || '')).trim() : h);
+  const ach = f => H.findIndex(f), tem = t => h => h.indexOf(t) >= 0, ex = n => H.findIndex(h => h === n || h.replace(/^\d+\s+/, '') === n);
+  const ix = { ano: ach(tem('ANO LANCAMENTO')), mes: ach(tem('MES LANCAMENTO')), ug: ach(tem('UG EXECUTORA')), acao: ach(tem('ACAO GOVERNO')), pi: ex('PI'),
+    fonte: ach(tem('FONTE RECURSOS')), nd: ach(tem('NATUREZA DESPESA DETALHADA')), favC: ach(tem('NE CCOR - FAVORECIDO')),
+    ne: ex('NE CCOR'), proc: ach(h => h.indexOf('NUM. PROCESSO') >= 0 || h.indexOf('NUM PROCESSO') >= 0),
+    emp: ach(tem('DESPESAS EMPENHADAS')), liq: ach(h => h.indexOf('DESPESAS LIQUIDADAS') >= 0 && h.indexOf('A PAGAR') < 0), pago: ach(tem('DESPESAS PAGAS')) };
+  if (ix.ano < 0 || ix.mes < 0 || ix.emp < 0) return -1;
+  if (ix.ne < 0) {   // cabeçalho "NE CCor" em branco: acha a coluna pelos valores
+    const cont = {}; L.slice(hi + 1, hi + 3000).forEach(r => r.forEach((c, i) => { if (/\d{4}NE\d{6}$/.test(String(c || '').trim())) cont[i] = (cont[i] || 0) + 1; }));
+    const m = Object.keys(cont).sort((a, b) => cont[b] - cont[a])[0]; if (m === undefined) return -1; ix.ne = +m;
+  }
+  const g = (r, i) => i < 0 ? '' : String(r[i] || '').trim(), n = (r, i) => i < 0 ? 0 : num(r[i]);
+  const MES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+  const ult = {}, linhas = [], vistos = {};
+  for (let i = hi + (duplo ? 2 : 1); i < L.length; i++) {
+    const r = L[i], fp = r.join('|'); if (vistos[fp]) continue; vistos[fp] = 1;   // linha repetida no relatório
+    const m = g(r, ix.ne).toUpperCase().match(/(\d{4}NE\d{6})$/); if (!m) continue;
+    const ugM = g(r, ix.ug).match(/\d{6}/), ug = ugM ? ugM[0] : (g(r, ix.ne).match(/^\d{6}/) || [''])[0];
+    const mt = normalizar(g(r, ix.mes)), mes = parseInt(mt, 10) || (MES.indexOf(mt.slice(0, 3)) + 1), rank = (parseInt(g(r, ix.ano), 10) || 0) * 100 + Math.max(0, mes);
+    const k = m[1] + '|' + ug; linhas.push({ k: k, ne: m[1], ug: ug, rank: rank, r: r });
+    if (!(k in ult) || rank > ult[k]) ult[k] = rank;
+  }
+  const novos = {}; let cont = 0;
+  linhas.forEach(x => {
+    if (x.rank !== ult[x.k]) return;
+    if (porNe[x.k] && !novos[x.k]) return;   // já veio de outro relatório
+    const r = x.r, emp = n(r, ix.emp), liq = n(r, ix.liq), pago = n(r, ix.pago);
+    const t = porNe[x.k] || (porNe[x.k] = novos[x.k] = { ne: x.ne, tipo: 'EXE', ug: x.ug, processo: g(r, ix.proc), favorecido: mascarar(ix.favC >= 0 ? (g(r, ix.favC + 1) || g(r, ix.favC)) : ''),
+      acao: g(r, ix.acao), fonte: g(r, ix.fonte), pi: g(r, ix.pi), nd: g(r, ix.nd), desc_nd: ix.nd >= 0 ? g(r, ix.nd + 1) : '', empenhado: 0, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 0 });
+    t.empenhado += emp; t.liquidado += liq; t.pago += pago; t.saldo += Math.max(0, emp - pago);
+    ['processo', 'acao', 'fonte', 'pi', 'nd'].forEach(c => { if (!t[c]) t[c] = g(r, ix[{ processo: 'proc' }[c] || c]); });
+    cont++;
+  });
+  return cont;
+}
 function lerRapMensal(txt, porNe) {
   const L = Utilities.parseCsv(txt);
   const hi = L.findIndex(l => l.some(c => normalizar(c) === 'NE CCOR' || /(^| )NE CCOR$/.test(normalizar(c))));
@@ -442,7 +493,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10d · contratos das unidades';
+const VERSAO = '2026-11-10e · EXE pelo último mês';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
