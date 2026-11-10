@@ -440,7 +440,8 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-function doGet() { return json({ ok: true, servico: 'execucao', versao: 2, hora: new Date().toISOString() }); }
+const VERSAO = '2026-11-10 · RAP + produção';
+function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
