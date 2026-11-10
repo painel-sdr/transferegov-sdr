@@ -8,7 +8,8 @@ Lê o que o robô já gerou na pasta (contratos da API Contratos.gov.br, parceri
 Quem entra:
   Contratos  situação Ativo na API. Vigentes → condicao VIGENTE. Vencidos → VENCIDO_COM_NE (o Apps Script só importa
              se alguma NE do contrato ainda tiver saldo no Tesouro). ACT fica de fora (não tem pagamento).
-  Parcerias  "Em execução", com valor a desembolsar e parcela do concedente prevista entre dez/(ANO-1) e dez/ANO.
+  Parcerias  "Em execução", com valor a desembolsar (inclusive as de parcela atrasada, de anos anteriores).
+             A previsão do ano é o a desembolsar, limitado ao saldo das NEs, em jul/ANO (o Apps Script aplica o limite).
   TED        enviados pelas UGs da SDR, em execução.
 Uso: python scripts/execucao_cadastro.py PASTA   (ANO do exercício: variável EXECUCAO_ANO, padrão 2027)
 """
@@ -25,7 +26,7 @@ REGIAO = {**dict.fromkeys('AC AM AP PA RO RR TO'.split(), 'Norte'), **dict.fromk
           **dict.fromkeys('DF GO MS MT'.split(), 'Centro-Oeste'), **dict.fromkeys('ES MG RJ SP'.split(), 'Sudeste'), **dict.fromkeys('PR RS SC'.split(), 'Sul')}
 MES = {m: i + 1 for i, m in enumerate('JAN FEV MAR ABR MAI JUN JUL AGO SET OUT NOV DEZ'.split())}
 COLS = ['chave', 'condicao', 'formalizacao', 'orcamento', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj',
-        'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'nes', 'uf', 'regiao', 'acao']
+        'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'nes', 'uf', 'regiao', 'acao', 'a_desembolsar']
 
 
 def ler(nome):
@@ -140,8 +141,6 @@ def parcerias(saida, prev):
     n = 0
     for r in inst:
         nr = r['nr_instrumento']
-        if nr not in crono:
-            continue
         x, ug, acao = extra.get(nr, {}), r['ug_emitente'], (r.get('acao_orcamentaria') or '')[-4:]
         uf = (r.get('uf') or '').strip()
         saida.append({'chave': 'TGV' + nr, 'condicao': 'VIGENTE', 'formalizacao': forma.get((r.get('modalidade') or '').upper(), (r.get('modalidade') or '').title()),
@@ -149,13 +148,13 @@ def parcerias(saida, prev):
                       'processo_raiz': processo(r.get('nr_processo')), 'favorecido': r.get('proponente', ''), 'cnpj': cnpj(x.get('CNPJ', '')),
                       'modalidade': (r.get('modalidade') or '').title(), 'objeto': (r.get('objeto') or '').strip(),
                       'vigencia_ini': iso(x.get('Data Início de Vigência Conv.', '')), 'vigencia_fim': iso(r.get('fim_vigencia')),
-                      'valor_global': num(r.get('valor_global')), 'valor_parcela': 0, 'base_previsao': 'cronograma de desembolso (Transferegov)',
+                      'valor_global': num(r.get('valor_global')), 'valor_parcela': 0, 'base_previsao': 'a desembolsar (Transferegov), limitado ao saldo das NEs, em julho',
                       'nes': ','.join(sorted({n.strip().upper() for n in re.split(r'[,;\s]+', r.get('notas_empenho') or '') if n.strip()})),
-                      'uf': uf, 'regiao': REGIAO.get(uf, ''), 'acao': acao})
-        for comp, v in sorted(crono[nr].items()):
+                      'uf': uf, 'regiao': REGIAO.get(uf, ''), 'acao': acao, 'a_desembolsar': round(num(r.get('valor_a_desembolsar')), 2)})
+        for comp, v in sorted(crono.get(nr, {}).items()):
             prev.append({'chave': 'TGV' + nr, 'competencia': comp, 'valor': round(v, 2)})
         n += 1
-    print(f'  parcerias: {n} com parcela prevista entre {INI} e {FIM} (de {len(inst)} em execução com saldo a desembolsar)')
+    print(f'  parcerias: {n} em execução com saldo a desembolsar ({len(crono)} com parcela no cronograma entre {INI} e {FIM})')
 
 
 def teds(saida, prev):
