@@ -489,10 +489,11 @@ function telaOrcamento(){
   if(!ORC.aba || !abas.some(function(a){ return a[0] === ORC.aba; })) ORC.aba = chefe ? 'prev' : 'mesa';
   var campo = function(k, rot, ph){ return '<label>' + rot + '<input class="mini" data-fo="' + k + '" value="' + esc(FO[k]) + '" placeholder="' + ph + '" autocomplete="off"></label>'; };
   var form = '';
-  if(ABERTO && ABERTO.chegou) form = formChegou(inst(ABERTO.chegou), ABERTO.comp);
+  if(ABERTO && ABERTO.nova) form = formNovaDemanda();
+  else if(ABERTO && ABERTO.chegou) form = formChegou(inst(ABERTO.chegou), ABERTO.comp);
   else if(ABERTO && ABERTO.inst) form = formDemanda(inst(ABERTO.inst), ABERTO.pag ? D.pagamentos.filter(function(p){ return p.id === ABERTO.pag; })[0] : null);
   var corpo = {prev: abaPrevistas, dist: abaDistOrc, mesa: abaMesa, refo: abaMesa, env: abaEnviadas, falta: abaFalta}[ORC.aba]({prev: prevs, dist: dist, mesa: mesa, refo: refo, env: env, falta: falta}[ORC.aba]);
-  return cab('Orçamento', chefe ? 'O processo chega pelo SEI: registre a chegada e distribua ao analista. O analista escolhe a NE, confirma o saldo e envia ao financeiro (ou pede reforço).' : 'Processos que o responsável do orçamento distribuiu para você: escolha a NE, confirme o saldo e envie ao financeiro, ou peça reforço.') +
+  return cab('Orçamento', chefe ? 'O processo chega pelo SEI: registre a chegada e distribua ao analista. O analista escolhe a NE, confirma o saldo e envia ao financeiro (ou pede reforço).' : 'Processos que o responsável do orçamento distribuiu para você: escolha a NE, confirme o saldo e envie ao financeiro, ou peça reforço.', chefe ? '<button class="bt" type="button" data-nova-dem>+ Nova demanda</button>' : '') +
     '<div class="card"><h3>Buscar</h3><div class="filtro-orc">' + campo('cnpj', 'CNPJ', '00.000.000/0001-00') + campo('contrato', 'Contrato', '12/2025') + campo('entidade', 'Entidade / favorecido', 'nome') + campo('instrumento', 'Instrumento', '945123/2025') + campo('proposta', 'Proposta', '012345/2025') + campo('ne', 'Nota de empenho', '2027NE000123') +
     '<label>UG<select class="mini" data-fo="ug">' + opts(LISTAS.ug, FO.ug, 'Todas') + '</select></label></div>' + (filtroAtivo() ? '<div class="acoes" style="margin-top:8px"><button class="lk" type="button" data-fo-limpar>Limpar busca</button></div>' : '') + '</div>' +
     form +
@@ -544,6 +545,13 @@ function abaEnviadas(lst){
 function motivoDev(p){ return p.situacao === 'DEVOLVIDO' || (p.situacao === 'RECEBIDO' && p.motivo_devolucao) ? '<span class="motivo"><b>Devolvido por ' + esc(nomeDe(p.devolvido_por)) + ' em ' + dt(p.devolvido_em).slice(0, 10) + ':</b> ' + esc(p.motivo_devolucao) + '</span>' : ''; }
 var DEV = null;
 function linhaDevolver(p, cols){ return DEV === p.id ? '<tr class="dev"><td colspan="' + cols + '"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;left:0;max-width:min(980px,calc(100vw - 300px))"><b>Devolver ao orçamento · motivo</b><input class="mini" id="dev-motivo" style="flex:1 1 320px" placeholder="NE errada, valor diverge da nota, falta certidão…"><button class="bt sec peq" type="button" data-dev-cancelar>Cancelar</button><button class="bt alerta peq" type="button" data-dev-confirmar="' + esc(p.id) + '">Confirmar devolução</button></div></td></tr>' : ''; }
+/* + Nova demanda: uma busca só (qualquer número ou nome) → escolhe a despesa → registra a chegada do processo */
+function formNovaDemanda(){
+  var q = ABERTO.q || '', achados = q.trim() ? D.instrumentos.filter(function(i){ return i.situacao_cadastro !== 'ENCERRADO' && bate(i, q); }).slice(0, 15) : [];
+  return '<div class="card"><h3>Nova demanda · qual é a despesa?</h3><div class="form"><label class="campo tudo">Buscar por contrato, nº do instrumento, proposta, processo, CNPJ, favorecido ou NE<input id="nd-busca" value="' + esc(q) + '" placeholder="ex.: 00012/2025, 945123, 21000.012345/2026-00, nome da empresa" autocomplete="off"></label></div>' +
+    (q.trim() ? (achados.length ? '<table style="margin-top:10px"><tr><th>Despesa</th><th>UG</th><th>Formalização</th><th>Processo raiz</th><th></th></tr>' + achados.map(function(i){ return '<tr><td>' + linhaInst(i) + '</td><td>' + esc(i.ug) + '</td><td>' + esc(i.formalizacao || '—') + '</td><td>' + esc(i.processo_raiz) + '</td><td><button class="bt peq" type="button" data-chegou="' + esc(i.id) + '" data-comp="' + compAtual() + '">Selecionar</button></td></tr>'; }).join('') + '</table>' : '<div class="vazio">Nada encontrado no painel com “' + esc(q) + '”.</div>') : '<p class="rodape" style="margin:8px 0 0">Digite para procurar entre as despesas já cadastradas.</p>') +
+    '<div class="acoes" style="margin-top:12px"><button class="bt sec" type="button" data-fechar-dem>Cancelar</button><button class="bt sec" type="button" data-editar="novo">Cadastrar despesa nova (não está no painel)</button></div></div>';
+}
 function formChegou(i, m){
   var c = calc(i), parceria = /fomento|colabora|conv[eê]nio|repasse|TED/i.test(i.formalizacao), v = c.prev[m] || 0;
   return '<form class="card" data-chegou-form="' + esc(i.id) + '"><h3>Chegou processo · ' + esc(i.favorecido) + ' <small>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · raiz ' + esc(i.processo_raiz) + '</small></h3><div class="form">' +
@@ -691,6 +699,7 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-devolver]'))){ DEV = x.dataset.devolver; desenhar(); var mi = $('dev-motivo'); if(mi) mi.focus(); return; }
   if(t.closest('[data-dev-cancelar]')){ DEV = null; desenhar(); return; }
   if((x = t.closest('[data-dev-confirmar]'))){ var mot = ($('dev-motivo') || {}).value || ''; if(mot.trim().length < 5) return aviso('Escreva o motivo da devolução.', true); x.disabled = true; DEV = null; acao({acao: 'devolver', id: x.dataset.devConfirmar, motivo: mot.trim()}, 'Devolvido ao orçamento.'); return; }
+  if(t.closest('[data-nova-dem]')){ ABERTO = {nova: true, q: ''}; desenhar(); var nb = $('nd-busca'); if(nb) nb.focus(); window.scrollTo(0, 0); return; }
   if((x = t.closest('[data-chegou]'))){ ABERTO = {chegou: x.dataset.chegou, comp: x.dataset.comp}; VIEW = 'orcamento'; FICHA = null; desenhar(); window.scrollTo(0, 0); return; }
   if((x = t.closest('[data-chegou-salvar]'))){
     var fc = x.closest('form'), oc = {acao: 'receber', instrumento_id: fc.dataset.chegouForm, processo: fc.processo.value.trim(), competencia: fc.competencia.value, valor: num(fc.valor.value), area: fc.area.value.trim(), analista: fc.analista.value};
@@ -758,6 +767,7 @@ $('tela').addEventListener('change', function(e){
 });
 $('tela').addEventListener('input', function(e){
   var t = e.target;
+  if(t.id === 'nd-busca' && ABERTO && ABERTO.nova){ ABERTO.q = t.value; clearTimeout(window._nd); window._nd = setTimeout(function(){ desenhar(); var b = $('nd-busca'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 300); }
   if(t.tagName === 'INPUT' && t.dataset.fo){ FO[t.dataset.fo] = t.value; var k = t.dataset.fo; clearTimeout(window._bf); window._bf = setTimeout(function(){ desenhar(); var b = document.querySelector('input[data-fo="' + k + '"]'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 300); }
   if(t.id === 'dem-busca'){ F.dem = t.value; clearTimeout(window._bd); window._bd = setTimeout(function(){ desenhar(); var b = $('dem-busca'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 250); }
   if(t.matches && t.matches('textarea[data-auto]')) autoAltura(t);
