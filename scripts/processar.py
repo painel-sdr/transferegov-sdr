@@ -153,8 +153,9 @@ def main(saida):
     cab, it = linhas('siconv_programa')
     progs_acao = set()
     for r in it:
-        if (r.get('COD_ORGAO_SUP_PROGRAMA') or '').strip() == ORGAO_MAPA:
-            acoes = set(re.findall(r'\b[0-9A-Z]{4}\b', (r.get('ACAO_ORCAMENTARIA') or '').upper()))
+        if (r.get('COD_ORGAO_SUP_PROGRAMA') or '').strip().startswith(ORGAO_MAPA):
+            # no Transferegov a ação vem junto com o programa do PPA: "114420ZV" = programa 1144 + ação 20ZV
+            acoes = {a.strip().upper()[-4:] for a in re.split(r'[|,;/]', r.get('ACAO_ORCAMENTARIA') or '') if len(a.strip()) >= 4}
             if acoes & ACOES_SDR:
                 progs_acao.add(r.get('ID_PROGRAMA'))
     log(f'programas do MAPA com ação da SDR ({", ".join(sorted(ACOES_SDR))}): {len(progs_acao)}')
