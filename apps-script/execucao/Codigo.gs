@@ -38,14 +38,14 @@ const ABAS = {
   INSTRUMENTOS: ['id', 'formalizacao', 'orcamento', 'ug', 'sigla', 'atividade', 'natureza', 'numero', 'instrumento', 'proposta',
     'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'prorrogacao_prevista',
     'valor_global', 'valor_parcela', 'executado_anteriores', 'nes', 'regiao', 'uf', 'origem', 'criado_em', 'criado_por', 'alterado_em', 'alterado_por', 'justificativa',
-    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao', 'a_desembolsar', 'a_desembolsar_futuro'],
+    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao', 'a_desembolsar', 'a_desembolsar_futuro', 'orcamento_robo'],
   PREVISAO: ['instrumento_id', 'competencia', 'valor', 'alterado_por', 'alterado_em'],
   PAGAMENTOS: ['id', 'instrumento_id', 'competencia', 'processo_pagamento', 'area_demandante', 'valor', 'ne', 'recurso', 'fonte',
     'obs_orcamento', 'orcamento_por', 'orcamento_em', 'situacao', 'executor', 'distribuido_por', 'distribuido_em',
     'obs', 'informado_por', 'informado_em', 'conferido_em',
     'analista', 'recebido_por', 'recebido_em', 'dist_orc_por', 'dist_orc_em', 'devolvido_por', 'devolvido_em', 'motivo_devolucao'],
   DDO: ['id', 'instrumento_id', 'data', 'processo', 'valor', 'situacao', 'ne', 'objeto', 'periodo', 'por', 'em'],
-  TESOURO_NE: ['ne', 'tipo', 'ug', 'processo', 'favorecido', 'acao', 'fonte', 'pi', 'nd', 'desc_nd', 'empenhado', 'liquidado', 'em_liquidacao', 'pago', 'saldo', 'base_liquidado', 'carga', 'origem'],
+  TESOURO_NE: ['ne', 'tipo', 'ug', 'processo', 'favorecido', 'acao', 'fonte', 'pi', 'nd', 'desc_nd', 'empenhado', 'liquidado', 'em_liquidacao', 'pago', 'saldo', 'base_liquidado', 'carga', 'origem', 'po'],
   HISTORICO: ['quando', 'email', 'acao', 'ref', 'detalhe'],
   SESSOES: ['token', 'email', 'exp']
 };
@@ -250,7 +250,7 @@ function lerExeMensal(txt, porNe) {
   const H = L1.map((h, i) => duplo ? (h + ' ' + (L2[i] || '')).trim() : h);
   const ach = f => H.findIndex(f), tem = t => h => h.indexOf(t) >= 0, ex = n => H.findIndex(h => h === n || h.replace(/^\d+\s+/, '') === n);
   const ix = { ano: ach(tem('ANO LANCAMENTO')), mes: ach(tem('MES LANCAMENTO')), ug: ach(tem('UG EXECUTORA')), acao: ach(tem('ACAO GOVERNO')), pi: ex('PI'),
-    fonte: ach(tem('FONTE RECURSOS')), nd: ach(tem('NATUREZA DESPESA DETALHADA')), favC: ach(tem('NE CCOR - FAVORECIDO')),
+    fonte: ach(tem('FONTE RECURSOS')), nd: ach(tem('NATUREZA DESPESA DETALHADA')), favC: ach(tem('NE CCOR - FAVORECIDO')), po: ach(h => h.indexOf('PLANO ORCAMENTARIO') >= 0 || h === 'PO'),
     ne: ex('NE CCOR'), proc: ach(h => h.indexOf('NUM. PROCESSO') >= 0 || h.indexOf('NUM PROCESSO') >= 0),
     emp: ach(tem('DESPESAS EMPENHADAS')), liq: ach(h => h.indexOf('DESPESAS LIQUIDADAS') >= 0 && h.indexOf('A PAGAR') < 0), pago: ach(tem('DESPESAS PAGAS')) };
   if (ix.ano < 0 || ix.mes < 0 || ix.emp < 0) return -1;
@@ -275,7 +275,8 @@ function lerExeMensal(txt, porNe) {
     if (porNe[x.k] && !novos[x.k]) return;   // já veio de outro relatório
     const r = x.r, emp = n(r, ix.emp), liq = n(r, ix.liq), pago = n(r, ix.pago);
     const t = porNe[x.k] || (porNe[x.k] = novos[x.k] = { ne: x.ne, tipo: 'EXE', ug: x.ug, processo: g(r, ix.proc), favorecido: mascarar(ix.favC >= 0 ? (g(r, ix.favC + 1) || g(r, ix.favC)) : ''),
-      acao: g(r, ix.acao), fonte: g(r, ix.fonte), pi: g(r, ix.pi), nd: g(r, ix.nd), desc_nd: ix.nd >= 0 ? g(r, ix.nd + 1) : '', empenhado: 0, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 0 });
+      acao: g(r, ix.acao), fonte: g(r, ix.fonte), pi: g(r, ix.pi), nd: g(r, ix.nd), desc_nd: ix.nd >= 0 ? g(r, ix.nd + 1) : '', empenhado: 0, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 0,
+      po: ((ix.po >= 0 ? g(r, ix.po) : (ix.pi > 1 ? g(r, ix.pi - 2) : '')).match(/^\d{4}/) || [''])[0] });   // PO: coluna própria ou duas antes do PI (como no Painel SDR)
     t.empenhado += emp; t.liquidado += liq; t.pago += pago; t.saldo += Math.max(0, emp - pago);
     ['processo', 'acao', 'fonte', 'pi', 'nd'].forEach(c => { if (!t[c]) t[c] = g(r, ix[{ processo: 'proc' }[c] || c]); });
     cont++;
@@ -411,24 +412,30 @@ function importarCadastro(u) {
   const dig = x => String(x || '').replace(/\D/g, '');
   const porChave = {}, porProc = {};
   linhas.forEach(r => { if (g(r, 'chave')) porChave[g(r, 'chave')] = r; porProc[dig(g(r, 'processo_raiz')) + '|' + g(r, 'ug') + '|' + String(g(r, 'numero') || g(r, 'instrumento'))] = r; });
+  // departamento pela ação + PO das NEs ligadas (ex.: 215A PO 0005 = DEFLO), antes da regra por ação
+  const DEP_ACAO_PO = { '215A|0005': 'DEFLO' }, depNe = {};
+  tesouroEmCache().forEach(t => { const d = DEP_ACAO_PO[String(t.acao || '').slice(-4).toUpperCase() + '|' + String(t.po || '')]; if (d) depNe[t.ne + '|' + t.ug] = d; });
   const AUTO = ['formalizacao', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'uf', 'regiao', 'acao', 'a_desembolsar', 'a_desembolsar_futuro'];
   const agora_ = agora(), vistos = {}, tocados = [];
   let criados = 0, atualizados = 0, encerrados = 0, semSaldo = 0;
   novos.forEach(n => {
     const nes = String(n.nes || '').split(',').filter(Boolean);
+    if (!/^(CGPI|PROMAQ|CEPLAC)$/.test(n.orcamento || '')) { const d = nes.map(ne => depNe[ne + '|' + n.ug]).filter(Boolean)[0]; if (d) n.orcamento = d; }
     if (n.condicao === 'VENCIDO_COM_NE' && !nes.some(ne => (saldoNe[ne + '|' + n.ug] || 0) > 0.01)) { semSaldo++; return; }
     ['valor_global', 'valor_parcela'].forEach(c => n[c] = num(n[c]));
     let r = porChave[n.chave] || porProc[dig(n.processo_raiz) + '|' + n.ug + '|' + String(n.numero || n.instrumento)];
     if (r) {
       AUTO.forEach(c => { if (n[c] !== '' && n[c] !== undefined) put(r, c, n[c]); });
-      if (!g(r, 'orcamento') && n.orcamento) put(r, 'orcamento', n.orcamento);
+      // departamento: segue a regra do robô (ex.: 215A PO 0005 → DEFLO), salvo se alguém trocou à mão
+      if (n.orcamento && (!g(r, 'orcamento') || !g(r, 'orcamento_robo') || g(r, 'orcamento') === g(r, 'orcamento_robo'))) put(r, 'orcamento', n.orcamento);
+      if (n.orcamento) put(r, 'orcamento_robo', n.orcamento);
       if (!g(r, 'sigla') && n.sigla) put(r, 'sigla', n.sigla);   // unidade da Base Contratos (não apaga o que foi digitado)
       const juntas = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean); nes.forEach(x => { if (juntas.indexOf(x) < 0) juntas.push(x); });
       put(r, 'nes', juntas.join(',')); put(r, 'chave', n.chave); put(r, 'situacao_cadastro', n.condicao); put(r, 'sincronizado_em', agora_);
       atualizados++;
     } else {
       r = cab.map(() => '');
-      AUTO.concat(['orcamento', 'sigla']).forEach(c => put(r, c, n[c] === undefined ? '' : n[c]));
+      AUTO.concat(['orcamento', 'sigla']).forEach(c => put(r, c, n[c] === undefined ? '' : n[c])); put(r, 'orcamento_robo', n.orcamento || '');
       put(r, 'id', n.chave); put(r, 'nes', nes.join(',')); put(r, 'chave', n.chave); put(r, 'situacao_cadastro', n.condicao); put(r, 'sincronizado_em', agora_);
       put(r, 'prorrogacao_prevista', 'NÃO'); put(r, 'origem', 'ROBÔ'); put(r, 'criado_em', agora_); put(r, 'criado_por', 'robô');
       linhas.push(r); porChave[n.chave] = r; criados++;
@@ -495,7 +502,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10f · falta empenhar';
+const VERSAO = '2026-11-10g · DEFLO (215A PO 0005)';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
