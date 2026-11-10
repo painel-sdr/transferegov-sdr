@@ -15,6 +15,8 @@ import csv, gzip, io, json, os, sys, time, urllib.request, zipfile, datetime, re
 BASE = 'https://api-publica.transferegov.gestao.gov.br/downloads/dadosgov/'
 ORGAO_MAPA = '22000'
 UGS_SDR = ['130010', '130141', '135098', '420013', '130255']
+# ações da SDR: programa do Transferegov com uma delas entra no escopo de propostas (a 2000 fica de fora: é usada por outras secretarias do MAPA)
+ACOES_SDR = {'20ZV', '8593', '214Z', '00PN', '215A', '8622', '21B6', '8606', '20ZY'}
 ARQUIVOS = ['siconv_convenio', 'siconv_programa_proposta', 'siconv_programa', 'siconv_proposta', 'siconv_emenda',
             'siconv_empenho', 'siconv_desembolso', 'siconv_termo_aditivo', 'siconv_prorroga_oficio', 'data_carga_siconv',
             'siconv_dados_obrasgov_geral', 'siconv_acomp_obras_contratos_medicoes_modulo_empresas', 'siconv_acomp_obras_valores_itens_medicao_modulo_empresas', 'siconv_resumo_fisico_financeiro', 'siconv_historico_situacao', 'siconv_pagamento', 'siconv_cronograma_desembolso', 'siconv_solicitacao_ajuste_pt',
@@ -146,6 +148,16 @@ def main(saida):
     log(f'instrumentos da SDR: {len(conv)}')
 
     # 2. programas usados pela SDR → escopo de propostas
+    #    (a) programas do MAPA cuja ação orçamentária é da SDR (pega programa novo, ainda sem nenhum instrumento celebrado)
+    #    (b) programas que já têm instrumento de uma UG da SDR (regra antiga)
+    cab, it = linhas('siconv_programa')
+    progs_acao = set()
+    for r in it:
+        if (r.get('COD_ORGAO_SUP_PROGRAMA') or '').strip() == ORGAO_MAPA:
+            acoes = set(re.findall(r'\b[0-9A-Z]{4}\b', (r.get('ACAO_ORCAMENTARIA') or '').upper()))
+            if acoes & ACOES_SDR:
+                progs_acao.add(r.get('ID_PROGRAMA'))
+    log(f'programas do MAPA com ação da SDR ({", ".join(sorted(ACOES_SDR))}): {len(progs_acao)}')
     cab, it = linhas('siconv_programa_proposta')
     meta['cabecalhos']['programa_proposta'] = cab
     progs_da_prop, pares = {}, []
@@ -155,6 +167,7 @@ def main(saida):
         if p in prop_do_conv:
             progs_da_prop.setdefault(p, set()).add(g)
     progs_sdr = set(g for gs in progs_da_prop.values() for g in gs)
+    progs_sdr |= progs_acao
     escopo = set(prop_do_conv)
     for p, g in pares:
         if g in progs_sdr:
