@@ -26,7 +26,7 @@ REGIAO = {**dict.fromkeys('AC AM AP PA RO RR TO'.split(), 'Norte'), **dict.fromk
           **dict.fromkeys('DF GO MS MT'.split(), 'Centro-Oeste'), **dict.fromkeys('ES MG RJ SP'.split(), 'Sudeste'), **dict.fromkeys('PR RS SC'.split(), 'Sul')}
 MES = {m: i + 1 for i, m in enumerate('JAN FEV MAR ABR MAI JUN JUL AGO SET OUT NOV DEZ'.split())}
 COLS = ['chave', 'condicao', 'formalizacao', 'orcamento', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj',
-        'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'nes', 'uf', 'regiao', 'acao', 'a_desembolsar', 'sigla']
+        'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'nes', 'uf', 'regiao', 'acao', 'a_desembolsar', 'sigla', 'a_desembolsar_futuro']
 
 
 def ler(nome):
@@ -130,11 +130,13 @@ def contratos(saida):
 def parcerias(saida, prev):
     inst = [r for r in ler('painel_instrumentos.csv') if r.get('ug_emitente') in UGS and r.get('situacao') == 'Em execução' and num(r.get('valor_a_desembolsar')) > 0]
     ids = {r['nr_instrumento'] for r in inst}
-    crono = {}
+    crono, futuro = {}, {}
     for r in ler('cronograma_desembolso.csv'):
         if r.get('TIPO_RESP_CRONO_DESEMBOLSO') != 'Concedente' or r.get('NR_CONVENIO') not in ids:
             continue
         comp = f'{int(r["ANO_CRONO_DESEMBOLSO"]):04d}-{int(r["MES_CRONO_DESEMBOLSO"]):02d}'
+        if comp > FIM:   # parcela programada para depois do exercício: não entra na previsão do ano
+            futuro[r['NR_CONVENIO']] = futuro.get(r['NR_CONVENIO'], 0) + num(r.get('VALOR_PARCELA_CRONO_DESEMBOLSO'))
         if INI <= comp <= FIM:
             k = crono.setdefault(r['NR_CONVENIO'], {})
             k[comp] = k.get(comp, 0) + num(r.get('VALOR_PARCELA_CRONO_DESEMBOLSO'))
@@ -153,9 +155,9 @@ def parcerias(saida, prev):
                       'processo_raiz': processo(r.get('nr_processo')), 'favorecido': r.get('proponente', ''), 'cnpj': cnpj(x.get('CNPJ', '')),
                       'modalidade': (r.get('modalidade') or '').title(), 'objeto': (r.get('objeto') or '').strip(),
                       'vigencia_ini': iso(x.get('Data Início de Vigência Conv.', '')), 'vigencia_fim': iso(r.get('fim_vigencia')),
-                      'valor_global': num(r.get('valor_global')), 'valor_parcela': 0, 'base_previsao': 'a desembolsar (Transferegov), limitado ao saldo das NEs, em julho',
+                      'valor_global': num(r.get('valor_global')), 'valor_parcela': 0, 'base_previsao': 'a desembolsar até o fim do ano (Transferegov), em julho; depois de julho, em dezembro',
                       'nes': ','.join(sorted({n.strip().upper() for n in re.split(r'[,;\s]+', r.get('notas_empenho') or '') if n.strip()})),
-                      'uf': uf, 'regiao': REGIAO.get(uf, ''), 'acao': acao, 'a_desembolsar': round(num(r.get('valor_a_desembolsar')), 2)})
+                      'uf': uf, 'regiao': REGIAO.get(uf, ''), 'acao': acao, 'a_desembolsar': round(num(r.get('valor_a_desembolsar')), 2), 'a_desembolsar_futuro': round(futuro.get(nr, 0), 2)})
         for comp, v in sorted(crono.get(nr, {}).items()):
             prev.append({'chave': 'TGV' + nr, 'competencia': comp, 'valor': round(v, 2)})
         n += 1
