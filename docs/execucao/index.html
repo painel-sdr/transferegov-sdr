@@ -77,6 +77,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:#f6faf3}
 .st-DEVOLVIDO{background:var(--vermbg);color:var(--vermelho)}
 .motivo{display:block;color:var(--vermelho);font-size:12.5px;margin-top:3px}
 tr.dev td{background:#fdf3f2}
+.cab-dir{display:flex;flex-direction:column;align-items:flex-end;gap:8px}.acoes.exp{margin:0}
 .resumos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 12px}
 .res{background:#fff;border:1px solid #dfe7e1;border-radius:10px;padding:10px 14px;text-align:left;cursor:pointer;font:inherit}
 .res span{display:block;font-size:12.5px;color:var(--mudo)}.res b{display:block;font-size:22px;font-family:"Barlow Semi Condensed"}.res small{display:block;font-size:11.5px;color:var(--mudo)}
@@ -274,11 +275,13 @@ function calc(i){
   var s = function(k){ return nes.reduce(function(a, t){ return a + num(t[k]); }, 0); };
   var previsaoAno = D.competencias.reduce(function(a, c){ return a + (prev[c] || 0); }, 0);
   var liqAno = nes.reduce(function(a, t){ return a + num(t.liquidado) - num(t.base_liquidado); }, 0);
-  var faltaAno = Math.max(0, previsaoAno - liqAno);
+  var temBasePago = nes.some(function(t){ return t.base_pago !== undefined && t.base_pago !== ''; });
+  var pagoAno = temBasePago ? nes.reduce(function(a, t){ return a + Math.max(0, num(t.pago) - num(t.base_pago)); }, 0) : liqAno;   // pago no ano pelo Tesouro (antes da base nova: o liquidado)
+  var faltaAno = Math.max(0, previsaoAno - pagoAno);   // a pagar no ano
   var saldo = s('saldo');
   var global = num(i.valor_global), ant = num(i.executado_anteriores);
   var ddo = (IX.ddo[i.id] || []).reduce(function(a, d){ return a + num(d.valor); }, 0);
-  return (i._c = {nes: nes, prev: prev, porMes: porMes, pags: pags, previsaoAno: previsaoAno, liqAno: liqAno, faltaAno: faltaAno, saldo: saldo,
+  return (i._c = {nes: nes, prev: prev, porMes: porMes, pags: pags, previsaoAno: previsaoAno, liqAno: liqAno, pagoAno: pagoAno, faltaAno: faltaAno, aEmpenhar: Math.max(0, faltaAno - saldo), saldo: saldo,
     empenhado: s('empenhado'), pago: s('pago'), deficit: saldo - faltaAno, informado: informado, aberto: aberto,
     ajustar: liqAno - informado, global: global, anteriores: ant, saldoContrato: global ? global - ant - liqAno : 0, ddo: ddo});
 }
@@ -385,7 +388,9 @@ function desenhar(){
   $('tela').innerHTML = h + '<p class="rodape">Site não oficial — controle interno.</p>'; var sl = $('selo-teste'); if(sl) sl.hidden = !temTeste();
   [].forEach.call(document.querySelectorAll('textarea[data-auto]'), autoAltura);
 }
-function cab(t, p, dir){ return '<div class="cab"><div><h2>' + t + '</h2>' + (p ? '<p>' + p + '</p>' : '') + '</div>' + (dir || '') + '</div>'; }
+function exportavel(){ return /^(geral|orcamento|ddo|distribuir|fila|instrumentos)$/.test(VIEW) && !FICHA && !EDITAR; }
+function cab(t, p, dir){ var exp = exportavel() ? '<div class="acoes exp"><button class="bt sec peq" type="button" data-exp="pdf">Exportar PDF</button><button class="bt sec peq" type="button" data-exp="xlsx">Exportar Excel</button></div>' : '';
+  return '<div class="cab"><div><h2>' + t + '</h2>' + (p ? '<p>' + p + '</p>' : '') + '</div><div class="cab-dir">' + exp + (dir || '') + '</div></div>'; }
 function linhaInst(i, extra){ return '<b>' + esc(i.favorecido || '—') + '</b><span class="s">' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + (extra ? ' · ' + extra : '') + '</span>'; }
 function autoAltura(t){ t.style.height = 'auto'; t.style.height = Math.max(64, t.scrollHeight + 4) + 'px'; }
 
@@ -408,18 +413,18 @@ function telaGeral(){
     D.competencias.forEach(function(m){ var v = c.porMes[m] ? c.porMes[m].v : 0; pagoM[m] = (pagoM[m] || 0) + v; apagarM[m] = (apagarM[m] || 0) + Math.max(0, (c.prev[m] || 0) - v); });
     var meses = D.competencias.map(function(m){
       var pm = c.porMes[m], cls, txt;
-      if(pm && F.rec){ var sub = c.pags.filter(function(p){ return p.competencia === m && p.recurso === F.rec && /INFORMADO|CONFIRMADO|AJUSTAR/.test(p.situacao); }); var v = sub.reduce(function(a, p){ return a + num(p.valor); }, 0); return '<td class="m' + (v ? ' c-' + sub[0].situacao : (c.prev[m] ? ' prevneg' : '')) + '">' + (v ? brlc(v) : (c.prev[m] ? brlc(-c.prev[m]) : '')) + '</td>'; }
+      if(pm && F.rec){ var sub = c.pags.filter(function(p){ return p.competencia === m && p.recurso === F.rec && /INFORMADO|CONFIRMADO|AJUSTAR/.test(p.situacao); }); var v = sub.reduce(function(a, p){ return a + num(p.valor); }, 0); return '<td class="m' + (v ? ' c-' + sub[0].situacao : (c.prev[m] ? ' prevneg' : '')) + '" data-v="' + (v || (c.prev[m] ? -c.prev[m] : '')) + '">' + (v ? brlc(v) : (c.prev[m] ? brlc(-c.prev[m]) : '')) + '</td>'; }
       if(pm && pm.v){ cls = 'c-' + (pm.st === 'DISTRIBUIDO' || pm.st === 'SALDO_OK' || pm.st === 'REFORCO' ? 'INFORMADO' : pm.st); txt = brlc(pm.v); }
       else if(pm && pm.aberto){ cls = 'c-ABERTO'; txt = brlc(pm.aberto); }
       else if(c.prev[m]){ cls = 'prevneg'; txt = brlc(-c.prev[m]); }
       else if(m === mesUnico() && semEmpenho(i, c)){ cls = 'prev'; txt = 'sem NE'; }
       else { cls = ''; txt = ''; }
-      return '<td class="m ' + cls + '" title="' + comp(m) + ' · previsto ' + brl(c.prev[m] || 0) + '">' + txt + '</td>';
+      return '<td class="m ' + cls + '" data-v="' + ((pm && pm.v) ? pm.v : (pm && pm.aberto ? pm.aberto : (c.prev[m] ? -c.prev[m] : ''))) + '" title="' + comp(m) + ' · previsto ' + brl(c.prev[m] || 0) + '">' + txt + '</td>';
     }).join('');
     var fim = String(i.vigencia_fim || '').slice(0, 10), dv = /^\d{4}-\d{2}-\d{2}$/.test(fim) && fim < '2099' ? Math.ceil((new Date(fim + 'T23:59:59') - new Date()) / 86400000) : null;
     return '<tr class="click" data-ficha="' + esc(i.id) + '"><td class="n mudo">' + (++nLin) + '</td><td><b>' + esc(i.ug) + '</b></td><td>' + esc(i.sigla || '—') + '</td><td>' + esc(i.orcamento || '—') + '</td><td>' + esc(i.processo_raiz) + '</td><td>' + esc(i.favorecido) + '</td><td>' + esc(i.formalizacao || '—') + '</td><td>' + (fim && fim < '2099' ? dt(fim).slice(0, 10) : 'indeterminada') + '</td>' +
       '<td class="n' + (dv != null && dv < 0 ? ' neg' : (dv != null && dv <= 90 ? ' alerta-txt' : '')) + '">' + (dv == null ? '—' : (dv < 0 ? 'vencido' : dv)) + '</td><td>' + esc(i.numero || i.instrumento || '—') + '</td>' +
-      '<td class="m' + (Math.abs(c.ajustar) > 1 ? ' c-AJUSTAR' : '') + '">' + (Math.abs(c.ajustar) > 1 ? brlc(c.ajustar) : '—') + '</td>' + meses + '<td class="def' + (c.deficit >= 0 ? ' ok' : '') + '">' + brlc(c.deficit) + '</td></tr>';
+      '<td class="m' + (Math.abs(c.ajustar) > 1 ? ' c-AJUSTAR' : '') + '">' + (Math.abs(c.ajustar) > 1 ? brlc(c.ajustar) : '—') + '</td>' + meses + '<td class="def' + (c.deficit >= 0 ? ' ok' : '') + '" data-v="' + c.deficit + '">' + brlc(c.deficit) + '</td></tr>';
   }).join('');
   var k = function(l, v, sub, cls){ return '<div class="kpi ' + (cls || '') + '"><span>' + l + '</span><b>' + v + '</b><small>' + sub + '</small></div>'; };
   var dir = admin() ? '<div class="acoes"><button class="bt sec" type="button" data-importar title="Contratos, parcerias e TED vigentes gerados pelo robô">Importar vigentes</button><button class="bt" type="button" data-tesouro>Ler Tesouro e conferir</button>' + (temTeste() ? '<button class="bt sec" type="button" data-simular>Simular liquidação (teste)</button><button class="bt alerta" type="button" data-limpar-teste>Apagar dados de teste</button>' : '') + '</div>' : '';
@@ -440,7 +445,7 @@ function telaGeral(){
 function brlk(v){ return v ? brl(v) : '—'; }   // valor completo nos quadros do topo
 function linhaTotais(pago, apagar){
   var soma = function(o){ return D.competencias.reduce(function(a, m){ return a + (o[m] || 0); }, 0); };
-  var lin = function(cls, rot, o, sinal){ return '<tr class="tot ' + cls + '"><td colspan="11" class="lbl">' + rot + '</td>' + D.competencias.map(function(m){ var v = (o[m] || 0) * sinal; return '<td class="m">' + (v ? brlc(v) : '—') + '</td>'; }).join('') + '<td class="def">' + brlc(soma(o) * sinal) + '</td></tr>'; };
+  var lin = function(cls, rot, o, sinal){ return '<tr class="tot ' + cls + '"><td colspan="11" class="lbl">' + rot + '</td>' + D.competencias.map(function(m){ var v = (o[m] || 0) * sinal; return '<td class="m" data-v="' + v + '">' + (v ? brlc(v) : '—') + '</td>'; }).join('') + '<td class="def" data-v="' + soma(o) * sinal + '">' + brlc(soma(o) * sinal) + '</td></tr>'; };
   return lin('pago', 'Total pago (informado)', pago, 1) + lin('apagar', 'Total a pagar (previsto − pago)', apagar, -1);
 }
 function temTeste(){ return D && D.instrumentos.some(function(i){ return i.origem === 'TESTE'; }); }
@@ -448,8 +453,111 @@ function mesUnico(){ return D.ano + '-07'; }
 function semEmpenho(i, c){ return /^(contrato de repasse|conv[eê]nio|termo de fomento|termo de colabora)/i.test(i.formalizacao || '') && num(i.a_desembolsar) > 0 && !c.previsaoAno; }
 function uniq(a){ var o = {}; a.forEach(function(x){ if(x) o[x] = 1; }); return Object.keys(o).sort(); }
 
+/* ---------- Exportar PDF e Excel (com a logo), exatamente o que está na tela ---------- */
+var LOGO_URL = new URL('../logo_sdr.jpg', location.href).href;
+function txtCelula(td){
+  var c = td.cloneNode(true);
+  c.querySelectorAll('button').forEach(function(b){ b.remove(); });
+  c.querySelectorAll('select').forEach(function(sl, k){ var o = td.querySelectorAll('select')[k]; c.querySelectorAll('select')[0].replaceWith(document.createTextNode(o && o.selectedOptions[0] ? o.selectedOptions[0].text : '')); });
+  c.querySelectorAll('input').forEach(function(inp, k){ var o = td.querySelectorAll('input')[k]; inp.replaceWith(document.createTextNode(o ? o.value : '')); });
+  c.querySelectorAll('.s').forEach(function(x){ x.insertAdjacentText('beforebegin', ' · '); });
+  return c.textContent.replace(/\s+/g, ' ').replace(/^ · /, '').trim();
+}
+function valorCelula(td){
+  if(td.dataset.v !== undefined && td.dataset.v !== '') { var v = Number(td.dataset.v); if(!isNaN(v)) return v; }
+  var t = txtCelula(td);
+  if(/^-?R\$\s?[\d.]+,\d{2}$/.test(t.replace(/ /g, ' '))) return num(t);
+  return t === '—' ? '' : t;
+}
+function tabelasDaTela(){
+  var out = [];
+  document.querySelectorAll('#tela table').forEach(function(tb){
+    if(tb.closest('form')) return;
+    var card = tb.closest('.card'), h = card && card.querySelector('h3'), nome = h ? h.childNodes[0].textContent.trim() : '';
+    var linhas = [];
+    tb.querySelectorAll('tr').forEach(function(tr){
+      var cel = [], cab = false;
+      tr.querySelectorAll('th,td').forEach(function(td){
+        if(td.tagName === 'TH') cab = true;
+        cel.push(td.tagName === 'TH' ? txtCelula(td) : valorCelula(td));
+        for(var k = 1; k < (+td.getAttribute('colspan') || 1); k++) cel.push('');
+      });
+      if(cel.some(function(x){ return x !== ''; })) linhas.push({cab: cab, cel: cel, tot: tr.classList.contains('tot')});
+    });
+    if(linhas.length > 1) out.push({nome: nome || 'Lista', linhas: linhas});
+  });
+  return out;
+}
+function filtrosDaTela(){
+  var f = [];
+  document.querySelectorAll('#tela label').forEach(function(l){
+    if(l.closest('form') || l.closest('table')) return;
+    var sl = l.querySelector('select'), inp = l.querySelector('input:not([type=checkbox])'), ck = l.querySelector('input[type=checkbox]');
+    var rot = (l.childNodes[0] && l.childNodes[0].nodeType === 3 ? l.childNodes[0].textContent : l.textContent).trim();
+    if(sl && sl.value) f.push(rot + ': ' + sl.selectedOptions[0].text);
+    else if(inp && inp.value.trim()) f.push(rot + ': ' + inp.value.trim());
+    else if(ck && ck.checked) f.push(l.textContent.trim());
+  });
+  document.querySelectorAll('#tela .chip.on, #tela .res.on, #tela .seg button.on, #tela [data-rec].on').forEach(function(b){ var t = (b.querySelector('span') || b).textContent.trim(); if(t && !/^Todas/.test(t)) f.push(t); });
+  if(F.busca) f.push('Busca: ' + F.busca);
+  return f;
+}
+function tituloTela(){ var h = document.querySelector('#tela .cab h2'); return h ? (h.childNodes[0].textContent || '').trim() : ''; }
+function nomeArquivo(){ return ('execucao-' + D.ano + '-' + tituloTela()).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '') + '-' + new Date().toISOString().slice(0, 10); }
+function exportarPDF(){
+  var tabs = tabelasDaTela(); if(!tabs.length) return aviso('Nada para exportar nesta tela.', true);
+  var titulo = tituloTela(), filtros = filtrosDaTela();
+  var fmt = function(v){ return typeof v === 'number' ? brl(v) : esc(v); };
+  var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(nomeArquivo()) + '</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,Helvetica,sans-serif;color:#1d2b22;font-size:9.5px}' +
+    'header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #155a30;padding-bottom:8px;margin-bottom:10px}header img{height:46px}header h1{font-size:16px;margin:0;color:#155a30}header p{margin:2px 0 0;color:#555}' +
+    'h2{font-size:12px;color:#155a30;margin:14px 0 6px}table{width:100%;border-collapse:collapse}th{background:#155a30;color:#fff;text-align:left;padding:4px 5px;font-size:9px}td{border-bottom:1px solid #dde4df;padding:3px 5px;vertical-align:top}' +
+    'td.n,th.n{text-align:right;white-space:nowrap}tr.tot td{font-weight:bold;background:#eef3ef}tr{page-break-inside:avoid}.neg{color:#b3261e}footer{margin-top:10px;color:#777;font-size:8.5px}</style></head><body>' +
+    '<header><img src="' + LOGO_URL + '"><div><h1>Painel de Execução Financeira ' + D.ano + ' · ' + esc(titulo) + '</h1><p>SDR · MAPA · gerado em ' + dt(new Date(Date.now() - 3 * 36e5).toISOString()) + ' por ' + esc(D.eu.nome || D.eu.email) + '</p>' + (filtros.length ? '<p><b>Filtros:</b> ' + esc(filtros.join(' · ')) + '</p>' : '') + '</div></header>' +
+    tabs.map(function(t){ var corpo = t.linhas.filter(function(l){ return !l.cab; }); return (tabs.length > 1 || t.nome ? '<h2>' + esc(t.nome) + ' <span style="color:#777;font-weight:normal">(' + corpo.filter(function(l){ return !l.tot; }).length + ' linhas)</span></h2>' : '') + '<table>' + t.linhas.map(function(l){ return '<tr' + (l.tot ? ' class="tot"' : '') + '>' + l.cel.map(function(v){ var tag = l.cab ? 'th' : 'td'; return '<' + tag + (typeof v === 'number' ? ' class="n' + (v < 0 ? ' neg' : '') + '"' : '') + '>' + fmt(v) + '</' + tag + '>'; }).join('') + '</tr>'; }).join('') + '</table>'; }).join('') +
+    '<footer>Site não oficial — controle interno. Valores do Tesouro (EXE/RAP) e das bases Contratos.gov.br e Transferegov.</footer><script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body></html>';
+  var w = window.open('', '_blank'); if(!w) return aviso('O navegador bloqueou a janela. Libere pop-ups para este site e tente de novo.', true);
+  w.document.open(); w.document.write(html); w.document.close();
+  aviso('Na janela que abriu, escolha "Salvar como PDF".');
+}
+var _exceljs = null;
+function carregarExcelJS(){ if(window.ExcelJS) return Promise.resolve(window.ExcelJS); if(_exceljs) return _exceljs;
+  return (_exceljs = new Promise(function(ok, erro){ var s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'; s.onload = function(){ ok(window.ExcelJS); }; s.onerror = function(){ _exceljs = null; erro(new Error('não carregou o ExcelJS')); }; document.head.appendChild(s); })); }
+function exportarExcel(){
+  var tabs = tabelasDaTela(); if(!tabs.length) return aviso('Nada para exportar nesta tela.', true);
+  var titulo = tituloTela(), filtros = filtrosDaTela();
+  aviso('Gerando o Excel…');
+  Promise.all([carregarExcelJS(), fetch(LOGO_URL).then(function(r){ return r.ok ? r.arrayBuffer() : null; }).catch(function(){ return null; })]).then(function(res){
+    var ExcelJS = res[0], logo = res[1], wb = new ExcelJS.Workbook(); wb.creator = 'Painel de Execução Financeira';
+    var usados = {};
+    tabs.forEach(function(t, k){
+      var nome = (t.nome || 'Lista').replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 28).trim() || 'Lista'; while(usados[nome]) nome = nome.slice(0, 26) + ' ' + (++k); usados[nome] = 1;
+      var ws = wb.addWorksheet(nome, {views: [{state: 'frozen', ySplit: 6}], pageSetup: {orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0}});
+      if(logo){ var id = wb.addImage({buffer: logo, extension: 'jpeg'}); ws.addImage(id, {tl: {col: 0, row: 0}, ext: {width: 180, height: 66}}); }
+      ws.getCell('C1').value = 'Painel de Execução Financeira ' + D.ano + ' · ' + titulo + (tabs.length > 1 ? ' · ' + t.nome : ''); ws.getCell('C1').font = {bold: true, size: 14, color: {argb: 'FF155A30'}};
+      ws.getCell('C2').value = 'SDR · MAPA · gerado em ' + dt(new Date(Date.now() - 3 * 36e5).toISOString()) + ' por ' + (D.eu.nome || D.eu.email);
+      ws.getCell('C3').value = filtros.length ? 'Filtros: ' + filtros.join(' · ') : 'Sem filtros';
+      ws.getCell('C4').value = 'Site não oficial — controle interno'; ws.getCell('C4').font = {italic: true, color: {argb: 'FF777777'}};
+      var r0 = 6, largura = [];
+      t.linhas.forEach(function(l, i){
+        var row = ws.getRow(r0 + i);
+        l.cel.forEach(function(v, j){ var c = row.getCell(j + 1); c.value = v === '' ? null : v; largura[j] = Math.max(largura[j] || 8, Math.min(48, String(typeof v === 'number' ? brl(v) : v).length + 2));
+          if(l.cab){ c.font = {bold: true, color: {argb: 'FFFFFFFF'}}; c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF155A30'}}; c.alignment = {vertical: 'middle', wrapText: true}; }
+          else { if(typeof v === 'number') c.numFmt = '"R$" #,##0.00;[Red]-"R$" #,##0.00'; if(l.tot){ c.font = {bold: true}; c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFEEF3EF'}}; } c.alignment = {vertical: 'top', wrapText: typeof v !== 'number'}; } });
+      });
+      largura.forEach(function(w, j){ ws.getColumn(j + 1).width = w; });
+      ws.getRow(1).height = 26; ws.getRow(2).height = 16; ws.getRow(3).height = 16;
+      var cab = t.linhas.findIndex(function(l){ return l.cab; }); if(cab >= 0) ws.autoFilter = {from: {row: r0 + cab, column: 1}, to: {row: r0 + cab, column: t.linhas[cab].cel.length}};
+    });
+    return wb.xlsx.writeBuffer();
+  }).then(function(buf){
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})); a.download = nomeArquivo() + '.xlsx'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    aviso('Excel baixado.');
+  }).catch(function(e){ aviso('Não consegui gerar o Excel (' + e.message + ').', true); });
+}
+
 /* ---------- Orçamento: chegada do processo → analista → financeiro ---------- */
 var IL = {res: 'ativos', ug: '', ord: 'num'};
+var FI = {dep: '', form: '', sigla: '', vig: '', emp: '', rec: ''};
 var FO = {cnpj: '', contrato: '', entidade: '', instrumento: '', proposta: '', ne: '', ug: ''};
 var ORC = {aba: '', comp: '', atras: true, lim: 80, todas: false};
 function chefeOrc(){ return D.eu.perfil === 'ADMIN' || D.eu.perfil === 'CHEFE_ORCAMENTO'; }
@@ -644,8 +752,21 @@ function telaInstrumentos(){
   if(EDITAR) return formInstrumento(EDITAR === 'novo' ? {} : inst(EDITAR));
   if(FICHA) return fichaInst(inst(FICHA));
   var dir = cadastra() ? '<button class="bt" type="button" data-editar="novo">+ Novo instrumento</button>' : '';
-  var base = D.instrumentos.filter(function(i){ return bate(i, F.busca) && (!IL.ug || String(i.ug) === IL.ug); });
-  var info = base.map(function(i){ var c = calc(i), fim = String(i.vigencia_fim || '').slice(0, 10), dv = /^\d{4}-\d{2}-\d{2}$/.test(fim) && fim < '2099' ? Math.ceil((new Date(fim + 'T23:59:59') - new Date()) / 864e5) : null; return {i: i, c: c, fim: fim, dv: dv, falta: Math.max(0, -c.deficit)}; });
+  var info = D.instrumentos.filter(function(i){ return bate(i, F.busca) && (!IL.ug || String(i.ug) === IL.ug) && (!FI.dep || (i.orcamento || '') === FI.dep) && (!FI.form || (i.formalizacao || '') === FI.form) && (!FI.sigla || (i.sigla || '') === FI.sigla); })
+    .map(function(i){ var c = calc(i), fim = String(i.vigencia_fim || '').slice(0, 10), dv = /^\d{4}-\d{2}-\d{2}$/.test(fim) && fim < '2099' ? Math.ceil((new Date(fim + 'T23:59:59') - new Date()) / 864e5) : null; return {i: i, c: c, fim: fim, dv: dv, falta: c.aEmpenhar}; })
+    .filter(function(x){
+      var v = FI.vig, e = FI.emp, r = FI.rec;
+      if(v === 'vencido' && !(x.dv != null && x.dv < 0)) return false;
+      if(/^\d+$/.test(v) && !(x.dv != null && x.dv >= 0 && x.dv <= +v)) return false;
+      if(v === 'indet' && x.dv != null) return false;
+      if(e === 'com' && !x.c.nes.length) return false;
+      if(e === 'sem' && x.c.nes.length) return false;
+      if(e === 'falta' && !(x.falta > 0.01)) return false;
+      if(e === 'sobra' && !(x.c.saldo - x.c.faltaAno > 0.01)) return false;
+      if(r && !x.c.nes.some(function(t){ return t.tipo === r; })) return false;
+      return true;
+    });
+  var base = info;
   var ativo = function(x){ return x.i.situacao_cadastro !== 'ENCERRADO'; };
   var RES = [
     ['ativos', 'Instrumentos ativos', function(x){ return ativo(x); }, function(l){ return 'de ' + base.length.toLocaleString('pt-BR') + ' · ' + (base.length - l.length) + ' encerrados'; }],
@@ -654,25 +775,32 @@ function telaInstrumentos(){
     ['ted', 'TED', function(x){ return ativo(x) && /^TED/i.test(x.i.formalizacao || ''); }, function(){ return 'enviados em execução'; }],
     ['vence', 'Vencem em 90 dias', function(x){ return ativo(x) && x.dv != null && x.dv >= 0 && x.dv <= 90; }, function(){ return 'até ' + dt(new Date(Date.now() + 90 * 864e5).toISOString()).slice(0, 10); }, 'av'],
     ['semne', 'Sem NE ligada', function(x){ return ativo(x) && !x.c.nes.length && x.c.previsaoAno > 0; }, function(){ return 'com previsão e sem empenho'; }, 'al'],
-    ['falta', 'Falta empenhar', function(x){ return ativo(x) && x.falta > 0.01; }, function(l){ return brl(l.reduce(function(a, x){ return a + x.falta; }, 0)); }, 'al'],
+    ['falta', 'A empenhar', function(x){ return ativo(x) && x.falta > 0.01; }, function(l){ return brl(l.reduce(function(a, x){ return a + x.falta; }, 0)); }, 'al'],
     ['manual', 'Cadastrados à mão', function(x){ return ativo(x) && x.i.origem === 'PAINEL'; }, function(){ return 'origem: painel'; }]
   ];
   var grupos = {}; RES.forEach(function(r){ grupos[r[0]] = info.filter(r[2]); });
   if(!grupos[IL.res]) IL.res = 'ativos';
   var lst = grupos[IL.res].slice();
-  var ord = {nome: function(a, b){ return String(a.i.favorecido).localeCompare(String(b.i.favorecido)); }, dias: function(a, b){ return (a.dv == null ? 1e9 : a.dv) - (b.dv == null ? 1e9 : b.dv); }, falta: function(a, b){ return b.falta - a.falta; }, prev: function(a, b){ return b.c.previsaoAno - a.c.previsaoAno; }}[IL.ord];
+  var ord = {pago: function(a, b){ return b.c.pagoAno - a.c.pagoAno; }, apagar: function(a, b){ return b.c.faltaAno - a.c.faltaAno; }, nome: function(a, b){ return String(a.i.favorecido).localeCompare(String(b.i.favorecido)); }, dias: function(a, b){ return (a.dv == null ? 1e9 : a.dv) - (b.dv == null ? 1e9 : b.dv); }, falta: function(a, b){ return b.falta - a.falta; }, prev: function(a, b){ return b.c.previsaoAno - a.c.previsaoAno; }}[IL.ord];
   if(ord) lst.sort(ord);
   var cards = '<div class="resumos">' + RES.map(function(r){ var l = grupos[r[0]]; return '<button type="button" class="res ' + (r[4] || '') + (IL.res === r[0] ? ' on' : '') + '" data-il-res="' + r[0] + '"><span>' + r[1] + '</span><b>' + l.length.toLocaleString('pt-BR') + '</b><small>' + r[3](l) + '</small></button>'; }).join('') + '</div>';
   var ugs = '<div class="abas"><button type="button" class="chip' + (!IL.ug ? ' on' : '') + '" data-il-ug="">Todas as UGs</button>' + LISTAS.ug.map(function(u){ return '<button type="button" class="chip' + (IL.ug === u ? ' on' : '') + '" data-il-ug="' + u + '">' + u + '</button>'; }).join('') +
-    '<label class="chk" style="margin-left:auto">Ordenar<select class="mini" id="il-ord">' + [['num', 'Nº (ordem da base)'], ['nome', 'Favorecido'], ['dias', 'Dias a vencer'], ['falta', 'Falta empenhar'], ['prev', 'Previsão do ano']].map(function(o){ return '<option value="' + o[0] + '"' + (IL.ord === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>';
+    '<label class="chk" style="margin-left:auto">Ordenar<select class="mini" id="il-ord">' + [['num', 'Nº (ordem da base)'], ['nome', 'Favorecido'], ['dias', 'Dias a vencer'], ['prev', 'Previsto ' + D.ano], ['pago', 'Pago'], ['apagar', 'A pagar'], ['falta', 'A empenhar']].map(function(o){ return '<option value="' + o[0] + '"' + (IL.ord === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>';
+  var uq = function(f){ return uniq(D.instrumentos.map(f)).filter(Boolean).sort(); };
+  var sel = function(k, rot, ops){ return '<label>' + rot + '<select class="mini" data-fi="' + k + '"><option value="">Todos</option>' + ops.map(function(o){ o = Array.isArray(o) ? o : [o, o]; return '<option value="' + esc(o[0]) + '"' + (FI[k] === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>'; };
+  var algum = Object.keys(FI).some(function(k){ return FI[k]; }) || IL.ug;
+  var filtros = '<div class="card"><div class="filtros">' + sel('dep', 'Departamento', uq(function(i){ return i.orcamento; })) + sel('form', 'Formalização', uq(function(i){ return i.formalizacao; })) + sel('sigla', 'Sigla / unidade', uq(function(i){ return i.sigla; })) +
+    sel('vig', 'Vigência', [['vencido', 'Vencidos'], ['30', 'Vencem em 30 dias'], ['60', 'Vencem em 60 dias'], ['90', 'Vencem em 90 dias'], ['indet', 'Indeterminada']]) +
+    sel('emp', 'Empenho', [['com', 'Com NE'], ['sem', 'Sem NE'], ['falta', 'A empenhar'], ['sobra', 'Com sobra de empenho']]) + sel('rec', 'Recurso', [['EXE', 'EXE (do ano)'], ['RAP', 'RAP (restos a pagar)']]) +
+    (algum ? '<button class="bt sec" type="button" data-fi-limpar style="align-self:flex-end">Limpar filtros</button>' : '') + '</div></div>';
   var mostra = lst.slice(0, F.lim);
   var tabela = '<div class="card rolar"><h3>' + RES.filter(function(r){ return r[0] === IL.res; })[0][1] + ' <small>' + lst.length.toLocaleString('pt-BR') + (F.busca ? ' · busca “' + esc(F.busca) + '”' : '') + '</small></h3>' +
-    (mostra.length ? '<table class="lista"><tr><th class="n">Nº</th><th>UG</th><th>Sigla</th><th>Departamento</th><th>Favorecido</th><th>Formalização</th><th>Nº contrato / instr.</th><th>Fim da vigência</th><th class="n">Dias</th><th class="n">Previsão do ano</th><th class="n">Falta empenhar</th></tr>' +
+    (mostra.length ? '<table class="lista"><tr><th class="n">Nº</th><th>UG</th><th>Sigla</th><th>Departamento</th><th>Favorecido</th><th>Formalização</th><th>Nº contrato / instr.</th><th>Fim da vigência</th><th class="n">Dias</th><th class="n">Previsto ' + D.ano + '</th><th class="n">Pago</th><th class="n">A pagar</th><th class="n">A empenhar</th></tr>' +
       mostra.map(function(x, k){ var i = x.i; return '<tr class="click" data-ficha="' + esc(i.id) + '"><td class="n mudo">' + (k + 1) + '</td><td><b>' + esc(i.ug) + '</b></td><td>' + esc(i.sigla || '—') + '</td><td>' + esc(i.orcamento || '—') + '</td><td>' + esc(i.favorecido || '—') + '<span class="s">Raiz ' + esc(i.processo_raiz || '—') + '</span></td><td>' + esc(i.formalizacao || '—') + (i.situacao_cadastro === 'VENCIDO_COM_NE' ? '<span class="s neg">vencido · RAP</span>' : '') + '</td><td>' + esc(i.numero || i.instrumento || '—') + '</td><td>' + (x.fim && x.fim < '2099' ? dt(x.fim).slice(0, 10) : 'indeterminada') + '</td>' +
-        '<td class="n' + (x.dv != null && x.dv < 0 ? ' neg' : (x.dv != null && x.dv <= 90 ? ' alerta-txt' : '')) + '">' + (x.dv == null ? '—' : (x.dv < 0 ? 'vencido' : x.dv)) + '</td><td class="n">' + (x.c.previsaoAno ? brl(x.c.previsaoAno) : '—') + '</td><td class="n' + (x.falta > 0.01 ? ' neg' : '') + '">' + (x.falta > 0.01 ? brl(x.falta) : '—') + '</td></tr>'; }).join('') + '</table>' +
+        '<td class="n' + (x.dv != null && x.dv < 0 ? ' neg' : (x.dv != null && x.dv <= 90 ? ' alerta-txt' : '')) + '">' + (x.dv == null ? '—' : (x.dv < 0 ? 'vencido' : x.dv)) + '</td><td class="n" data-v="' + x.c.previsaoAno + '">' + (x.c.previsaoAno ? brl(x.c.previsaoAno) : '—') + '</td><td class="n" data-v="' + x.c.pagoAno + '">' + (x.c.pagoAno ? brl(x.c.pagoAno) : '—') + '</td><td class="n" data-v="' + x.c.faltaAno + '">' + (x.c.faltaAno ? brl(x.c.faltaAno) : '—') + '</td><td class="n' + (x.falta > 0.01 ? ' neg' : '') + '" data-v="' + x.falta + '">' + (x.falta > 0.01 ? brl(x.falta) : '—') + '</td></tr>'; }).join('') + '</table>' +
       (lst.length > mostra.length ? '<div class="acoes" style="justify-content:center"><button class="bt sec" type="button" data-mais>Mostrar mais (' + (lst.length - mostra.length).toLocaleString('pt-BR') + ')</button></div>' : '')
       : '<div class="vazio">Nada nesse resumo' + (F.busca ? ' com a busca “' + esc(F.busca) + '”' : '') + '.</div>') + '</div>';
-  return cab('Instrumentos', 'Clique num resumo para filtrar a lista e na linha para abrir a ficha. A busca do topo vale para tudo: contrato, nº do instrumento, proposta, processo, CNPJ, favorecido, sigla ou NE.', dir) + cards + ugs + tabela;
+  return cab('Instrumentos', 'Clique num resumo para filtrar a lista e na linha para abrir a ficha. A busca do topo vale para tudo: contrato, nº do instrumento, proposta, processo, CNPJ, favorecido, sigla ou NE.', dir) + cards + filtros + ugs + tabela;
 }
 function fichaInst(i){
   var c = calc(i), lv = function(l, v, cls){ return '<div class="' + (cls || '') + '"><span>' + l + '</span><b>' + v + '</b></div>'; };
@@ -681,7 +809,7 @@ function fichaInst(i){
   return cab(esc(i.favorecido || '—'), esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' (' + esc(D.nomeUg[i.ug] || '') + ') · processo raiz ' + esc(i.processo_raiz) + (i.instrumento ? ' · instrumento ' + esc(i.instrumento) : '') + (i.proposta ? ' · proposta ' + esc(i.proposta) : ''), dir) +
     '<div class="blocos">' +
       '<div class="card"><h3>Contrato <small>todo o período</small></h3><div class="linhas-val">' + lv('Valor contratado (global)', brl(c.global)) + (num(i.a_desembolsar) ? lv('A desembolsar (Transferegov)', brl(i.a_desembolsar)) + (num(i.a_desembolsar_futuro) ? lv('Programado para depois de ' + D.ano, brl(i.a_desembolsar_futuro)) : '') : '') + lv('Executado em anos anteriores', brl(c.anteriores)) + lv('Liquidado no ano ' + D.ano, brl(c.liqAno)) + lv('Saldo do contrato', brl(c.saldoContrato), 'total') + '</div></div>' +
-      '<div class="card"><h3>Ano ' + D.ano + ' <small>o que importa para o déficit</small></h3><div class="linhas-val">' + lv('Previsão do ano', brl(c.previsaoAno)) + lv('Liquidado no ano (Tesouro)', brl(c.liqAno)) + lv('Falta pagar no ano', brl(c.faltaAno)) + lv('Saldo de empenho (EXE + RAP)', brl(c.saldo)) + lv(c.deficit < 0 ? 'Déficit do ano' : 'Sobra de empenho', brl(c.deficit), 'total ' + (c.deficit < 0 ? 'neg' : 'pos')) + '</div></div>' +
+      '<div class="card"><h3>Ano ' + D.ano + ' <small>o que importa para o déficit</small></h3><div class="linhas-val">' + lv('Previsto ' + D.ano, brl(c.previsaoAno)) + lv('Pago no ano (Tesouro)', brl(c.pagoAno)) + lv('A pagar', brl(c.faltaAno)) + lv('Saldo de empenho (EXE + RAP)', brl(c.saldo)) + lv(c.aEmpenhar > 0.01 ? 'A empenhar' : 'Sobra de empenho', brl(c.aEmpenhar > 0.01 ? c.aEmpenhar : c.saldo - c.faltaAno), 'total ' + (c.aEmpenhar > 0.01 ? 'neg' : 'pos')) + '</div></div>' +
       '<div class="card"><h3>Conferência <small>informado × Tesouro</small></h3><div class="linhas-val">' + lv('Informado pelos executores', brl(c.informado)) + lv('Liquidado no Tesouro', brl(c.liqAno)) + lv('Em andamento (orçamento / fila)', brl(c.aberto)) + lv('Autorizado no ano (DDO)', brl(c.ddo)) + lv('Ajustar', Math.abs(c.ajustar) > 1 ? brl(c.ajustar) : 'nada a ajustar', 'total ' + (Math.abs(c.ajustar) > 1 ? 'neg' : 'pos')) + '</div><p class="rodape" style="margin:8px 0 0">Ajustar positivo: liquidado sem lançamento no painel. Negativo: informado a mais que o Tesouro.</p></div>' +
     '</div>' +
     '<div class="card"><h3>Dados do cadastro</h3><dl class="dados">' + [['Formalização', i.formalizacao], ['Orçamento', i.orcamento], ['Sigla (serv/aqs)', i.sigla], ['Atividade', i.atividade], ['Natureza da despesa', i.natureza], ['Modalidade', i.modalidade], ['CNPJ/CPF', i.cnpj], ['Vigência', (dt(i.vigencia_ini).slice(0, 10) || '—') + ' a ' + (dt(i.vigencia_fim).slice(0, 10) || '—') + (dias != null ? ' · ' + (dias >= 0 ? dias + ' dias a vencer' : 'vencido') : '')], ['Prorrogação prevista', i.prorrogacao_prevista], ['Valor da parcela', (num(i.valor_parcela) ? brl(i.valor_parcela) : '—') + (i.base_previsao ? ' · ' + i.base_previsao : '')], ['Região / UF', (i.regiao || '—') + ' / ' + (i.uf || '—')], ['Origem', (i.origem || '') + (i.chave ? ' · ' + i.chave : '') + (i.situacao_cadastro ? ' · ' + i.situacao_cadastro : '') + (i.sincronizado_em ? ' · sincronizado ' + dt(i.sincronizado_em) : '')], ['Cadastro', dt(i.criado_em) + ' · ' + (i.criado_por || '')], ['Última alteração', i.alterado_em ? dt(i.alterado_em) + ' · ' + i.alterado_por + ' · ' + i.justificativa : '—']].map(function(x){ return '<div><dt>' + x[0] + '</dt><dd>' + esc(x[1] || '—') + '</dd></div>'; }).join('') + '<div style="grid-column:1/-1"><dt>Objeto</dt><dd style="font-weight:500">' + esc(i.objeto || '—') + '</dd></div></dl></div>' +
@@ -731,6 +859,7 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-devolver]'))){ DEV = x.dataset.devolver; desenhar(); var mi = $('dev-motivo'); if(mi) mi.focus(); return; }
   if(t.closest('[data-dev-cancelar]')){ DEV = null; desenhar(); return; }
   if((x = t.closest('[data-dev-confirmar]'))){ var mot = ($('dev-motivo') || {}).value || ''; if(mot.trim().length < 5) return aviso('Escreva o motivo da devolução.', true); x.disabled = true; DEV = null; acao({acao: 'devolver', id: x.dataset.devConfirmar, motivo: mot.trim()}, 'Devolvido ao orçamento.'); return; }
+  if((x = t.closest('[data-exp]'))){ if(x.dataset.exp === 'pdf') exportarPDF(); else exportarExcel(); return; }
   if(t.closest('[data-nova-dem]')){ ABERTO = {nova: true, q: ''}; desenhar(); var nb = $('nd-busca'); if(nb) nb.focus(); window.scrollTo(0, 0); return; }
   if((x = t.closest('[data-chegou]'))){ ABERTO = {chegou: x.dataset.chegou, comp: x.dataset.comp}; VIEW = 'orcamento'; FICHA = null; desenhar(); window.scrollTo(0, 0); return; }
   if((x = t.closest('[data-chegou-salvar]'))){
@@ -764,6 +893,7 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-simular]'))){ x.disabled = true; acao({acao: 'simular'}, function(r){ return r.msg + ' ' + r.confirmados + ' confirmado(s).'; }); return; }
   if(t.closest('[data-mais]')){ F.lim += 120; desenhar(); return; }
   if((x = t.closest('[data-il-res]'))){ IL.res = x.dataset.ilRes; F.lim = 60; desenhar(); return; }
+  if(t.closest('[data-fi-limpar]')){ Object.keys(FI).forEach(function(k){ FI[k] = ''; }); IL.ug = ''; desenhar(); return; }
   if((x = t.closest('[data-il-ug]'))){ IL.ug = x.dataset.ilUg; F.lim = 60; desenhar(); return; }
   if((x = t.closest('[data-rec]'))){ F.rec = x.dataset.rec; desenhar(); return; }
   if((x = t.closest('[data-prev-salvar]'))){ var gr = document.querySelector('[data-prev="' + x.dataset.prevSalvar + '"]'); var its = [].map.call(gr.querySelectorAll('input'), function(inp){ return {competencia: inp.name, valor: Math.abs(num(inp.value))}; }).filter(function(it){ var c = calc(inst(x.dataset.prevSalvar)); return it.valor || c.prev[it.competencia]; }); x.disabled = true; acao({acao: 'previsao', instrumento_id: x.dataset.prevSalvar, itens: its}, 'Previsão salva.'); return; }
@@ -794,6 +924,7 @@ $('tela').addEventListener('change', function(e){
   if(t.dataset.f){ F[t.dataset.f] = t.value; desenhar(); }
   if(t.id === 'fila-todas'){ FILA_TODAS = t.checked; desenhar(); }
   if(t.id === 'il-ord'){ IL.ord = t.value; desenhar(); }
+  if(t.tagName === 'SELECT' && t.dataset.fi){ FI[t.dataset.fi] = t.value; F.lim = 60; desenhar(); }
   if(t.id === 'orc-todas'){ ORC.todas = t.checked; desenhar(); }
   if(t.id === 'orc-atras'){ ORC.atras = t.checked; desenhar(); }
   if(t.id === 'orc-comp'){ ORC.comp = t.value; desenhar(); }

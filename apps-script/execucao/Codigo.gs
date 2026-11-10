@@ -45,7 +45,7 @@ const ABAS = {
     'obs', 'informado_por', 'informado_em', 'conferido_em',
     'analista', 'recebido_por', 'recebido_em', 'dist_orc_por', 'dist_orc_em', 'devolvido_por', 'devolvido_em', 'motivo_devolucao'],
   DDO: ['id', 'instrumento_id', 'data', 'processo', 'valor', 'situacao', 'ne', 'objeto', 'periodo', 'por', 'em'],
-  TESOURO_NE: ['ne', 'tipo', 'ug', 'processo', 'favorecido', 'acao', 'fonte', 'pi', 'nd', 'desc_nd', 'empenhado', 'liquidado', 'em_liquidacao', 'pago', 'saldo', 'base_liquidado', 'carga', 'origem', 'po'],
+  TESOURO_NE: ['ne', 'tipo', 'ug', 'processo', 'favorecido', 'acao', 'fonte', 'pi', 'nd', 'desc_nd', 'empenhado', 'liquidado', 'em_liquidacao', 'pago', 'saldo', 'base_liquidado', 'carga', 'origem', 'po', 'base_pago'],
   HISTORICO: ['quando', 'email', 'acao', 'ref', 'detalhe'],
   SESSOES: ['token', 'email', 'exp']
 };
@@ -102,7 +102,7 @@ function carregarTeste() {
     { ne: A + 'NE900020', tipo: 'EXE', ug: '130010', processo: '21000.000002/2017-00', favorecido: '[TESTE] DISTRIBUIDORA DE ENERGIA', acao: '20ZY', fonte: '1000000000', pi: 'ADMCEPLAC', nd: '33903943', desc_nd: 'ENERGIA ELÉTRICA', empenhado: 52000, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 52000 },
     { ne: (A - 1) + 'NE900058', tipo: 'RAP', ug: '130010', processo: '21000.000003/2025-00', favorecido: '[TESTE] FORNECEDOR ATA', acao: '2000', fonte: '1000000000', pi: 'ADMCEPLAC', nd: '33903007', desc_nd: 'GÊNEROS DE ALIMENTAÇÃO', empenhado: 23688, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 23688 },
     { ne: (A - 1) + 'NE900071', tipo: 'RAP', ug: '420013', processo: '21000.000004/2026-00', favorecido: '[TESTE] ASSOCIAÇÃO', acao: '215A', fonte: '1000000000', pi: 'SDR', nd: '33504101', desc_nd: 'CONTRIBUIÇÕES', empenhado: 380000, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 380000 }
-  ].forEach(t => { t.base_liquidado = 0; t.carga = agora_; t.origem = 'TESTE'; anexar('TESOURO_NE', t); });
+  ].forEach(t => { t.base_liquidado = 0; t.base_pago = 0; t.carga = agora_; t.origem = 'TESTE'; anexar('TESOURO_NE', t); });
   limparCacheTesouro();
 }
 
@@ -164,6 +164,7 @@ function configurarRap() {
 }
 function carregarTesouro() {
   try { configurarRap(); } catch (e) { }
+  garantirCabecalhos(['TESOURO_NE']);   // colunas novas (po, base_pago) ganham cabeçalho antes de gravar
   const fontes = lerTudo('FONTES').filter(f => String(f.ativo).toUpperCase() === 'SIM' && /^https?:/.test(f.url));
   const antes = {};
   const reinicia = getConfig('LEITURA_TESOURO') !== 'mensal';   // a leitura antiga somava os meses: a base da conferência é refeita uma vez
@@ -187,6 +188,7 @@ function carregarTesouro() {
     if (UGS.indexOf(t.ug) < 0) return;
     const a = antes[k];
     t.base_liquidado = a ? num(a.base_liquidado) : t.liquidado;   // primeira vez que a NE aparece: o que já estava liquidado não entra na conferência
+    t.base_pago = a && a.base_pago !== '' && a.base_pago !== undefined ? num(a.base_pago) : t.pago;   // idem para o pago: "Pago no ano" = pago − base_pago
     t.carga = agora_; t.origem = 'TESOURO';
     linhas.push(t);
   });
@@ -387,7 +389,7 @@ function conferir(u) {
  * Lê o Tesouro do zero (a conferência passa a contar a partir de hoje), importa os vigentes e refaz a previsão.
  */
 function iniciarExercicio() {
-  setConfig('LEITURA_TESOURO', '');   // força refazer a base da conferência (base_liquidado) na próxima leitura
+  setConfig('LEITURA_TESOURO', '');   // força refazer a base da conferência (base_liquidado e base_pago) na próxima leitura
   const t = carregarTesouro();
   const i = importarCadastro(null);
   const c = conferir(null);
@@ -522,7 +524,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10h · previsão refeita + iniciarExercicio';
+const VERSAO = '2026-11-10i · pago no ano';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
