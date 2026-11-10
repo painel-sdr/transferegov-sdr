@@ -381,6 +381,21 @@ function conferir(u) {
   setConfig('ULTIMA_CONFERENCIA', agora());
   return { ok: true, confirmados: conf, ajustar: aj };
 }
+/**
+ * Rodar UMA vez no começo do exercício (ex.: 2 de janeiro de 2027), pelo editor do Apps Script, depois de:
+ *   1. pôr o novo ano em CONFIG › ANO; 2. trocar na aba FONTES os links das bases EXE/RAP do novo ano.
+ * Lê o Tesouro do zero (a conferência passa a contar a partir de hoje), importa os vigentes e refaz a previsão.
+ */
+function iniciarExercicio() {
+  setConfig('LEITURA_TESOURO', '');   // força refazer a base da conferência (base_liquidado) na próxima leitura
+  const t = carregarTesouro();
+  const i = importarCadastro(null);
+  const c = conferir(null);
+  const msg = 'Exercício ' + ano() + ' iniciado · Tesouro: ' + (t.log || []).join(' · ') + ' · Cadastro: ' + (i.msg || '') + ' · Conferência: ' + c.confirmados + ' confirmado(s)';
+  hist({ email: 'apps-script' }, 'exercício iniciado', String(ano()), msg);
+  Logger.log(msg);
+  return msg;
+}
 function rotinaDiaria() { carregarTesouro(); try { importarCadastro(null); } catch (e) { setConfig('ULTIMA_IMPORTACAO', agora() + ' · ERRO ' + e.message); } conferir(null); }
 
 /* ====================== CADASTRO AUTOMÁTICO (robô do GitHub) ====================== */
@@ -461,8 +476,13 @@ function importarCadastro(u) {
   const pvBruto = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, 5).getValues().filter(x => x.join('') !== '') : [];
   const unicoPv = {}; pvBruto.forEach(x => { x[1] = compStr(x[1]); const k = x[0] + '|' + x[1], old = unicoPv[k]; if (!old || String(old[3]) === 'robô' || String(old[3]) === 'teste') unicoPv[k] = x; });   // uma linha por instrumento e mês; a editada à mão vence
   const pv = Object.keys(unicoPv).map(k => unicoPv[k]);
-  const manual = {}; pv.forEach(x => { if (unico[x[0]] && ['robô', 'teste', ''].indexOf(String(x[3])) < 0) manual[x[0]] = 1; });
-  const fica = pv.filter(x => !(unico[x[0]] && !manual[x[0]]));
+  const doRobo = x => ['robô', 'teste', ''].indexOf(String(x[3])) >= 0;
+  const manual = {}; pv.forEach(x => { if (unico[x[0]] && !doRobo(x)) manual[x[0]] = 1; });
+  // contratos e TED importados hoje: a previsão do robô é refeita (parcela ou vigência pode ter mudado); encerrados perdem a previsão do robô.
+  // O que alguém editou à mão fica sempre.
+  const refazer = {}; tocados.forEach(r => refazer[g(r, 'id')] = 1);
+  linhas.forEach(r => { if (g(r, 'situacao_cadastro') === 'ENCERRADO') refazer[g(r, 'id')] = 1; });
+  const fica = pv.filter(x => !(unico[x[0]] && !manual[x[0]]) && !(refazer[x[0]] && !unico[x[0]] && doRobo(x)));
   Object.keys(somaU).forEach(id => { if (!manual[id]) fica.push([id, mesUnico(), Math.round(somaU[id] * 100) / 100, 'robô', agora_]); });
   if (pvBruto.length) ps.getRange(2, 1, pvBruto.length, 5).clearContent();
   if (fica.length) ps.getRange(2, 1, fica.length, 5).setValues(fica);
@@ -502,7 +522,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10g · DEFLO (215A PO 0005)';
+const VERSAO = '2026-11-10h · previsão refeita + iniciarExercicio';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
