@@ -114,12 +114,24 @@ function competenciasDoAno() {
   return out;
 }
 /** Previsão = valor da parcela em cada competência do ano dentro da vigência (até dezembro se prorrogação prevista). */
+/** Ata, compra sem parcela, contrato de repasse, convênio e termos: o valor do ano fica todo em junho (se pagar antes, o executor ajusta). */
+const MES_UNICO_RE = /^(ata|contrato de repasse|conv[eê]nio|termo de fomento|termo de colabora)/i;
+function previsaoMesUnico(i) { return MES_UNICO_RE.test(String(i.formalizacao || '')) || /^compra/i.test(String(i.base_previsao || '')); }
+function mesUnico() { return ano() + '-06'; }
+function saldoDasNes(nes, ug) { const sd = {}; tesouroEmCache().forEach(t => { const k = t.ne + '|' + t.ug; sd[k] = (sd[k] || 0) + num(t.saldo); }); return String(nes || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + (sd[ne + '|' + ug] || 0), 0); }
 function gerarPrevisao(i, por) {
+  const ja = {}; lerTudo('PREVISAO').filter(p => p.instrumento_id === i.id).forEach(p => ja[p.competencia] = 1);
+  if (previsaoMesUnico(i)) {
+    if (Object.keys(ja).length) return;   // já tem previsão: não mexe
+    const v = num(i.valor_parcela) || saldoDasNes(i.nes, i.ug) || num(i.valor_global);
+    if (v) anexarVarios('PREVISAO', [{ instrumento_id: i.id, competencia: mesUnico(), valor: v, alterado_por: por, alterado_em: agora() }]);
+    return;
+  }
   const parcela = num(i.valor_parcela);
   if (!parcela) return;
-  const ini = String(i.vigencia_ini).slice(0, 7);
-  const fim = String(i.prorrogacao_prevista).toUpperCase() === 'SIM' ? '9999-12' : String(i.vigencia_fim).slice(0, 7);
-  const ja = {}; lerTudo('PREVISAO').filter(p => p.instrumento_id === i.id).forEach(p => ja[p.competencia] = 1);
+  const ini = String(i.vigencia_ini || '').slice(0, 7);   // sem início: o ano todo
+  const fimTxt = String(i.vigencia_fim || '').slice(0, 7);
+  const fim = String(i.prorrogacao_prevista).toUpperCase() === 'SIM' || !fimTxt ? '9999-12' : fimTxt;   // sem fim (ex.: diárias e passagens): até dezembro
   const quando = agora(), novas = competenciasDoAno().filter(c => c >= ini && c <= fim && !ja[c]).map(c => ({ instrumento_id: i.id, competencia: c, valor: parcela, alterado_por: por, alterado_em: quando }));
   anexarVarios('PREVISAO', novas);
 }
@@ -305,11 +317,23 @@ function importarCadastro(u) {
   linhas.forEach(r => { const k = g(r, 'chave'); if (k && !vistos[k] && g(r, 'situacao_cadastro') !== 'ENCERRADO') { put(r, 'situacao_cadastro', 'ENCERRADO'); put(r, 'sincronizado_em', agora_); encerrados++; } });
   if (linhas.length) s.getRange(2, 1, linhas.length, cab.length).setValues(linhas);
   // previsão: parcerias/TED pelo cronograma; contratos pela parcela e vigência. Só preenche competência que ainda não existe.
-  const ps = sh('PREVISAO'), ja = {}; lerTudo('PREVISAO').forEach(p => ja[p.instrumento_id + '|' + p.competencia] = 1);
-  const idPorChave = {}; linhas.forEach(r => { if (g(r, 'chave')) idPorChave[g(r, 'chave')] = g(r, 'id'); });
+  const ps = sh('PREVISAO'), idPorChave = {}; linhas.forEach(r => { if (g(r, 'chave')) idPorChave[g(r, 'chave')] = g(r, 'id'); });
+  // mês único (ata, compra, repasse, convênio, termos): soma do ano em junho; refeito a cada importação, salvo se alguém editou à mão
+  const unico = {}; linhas.forEach(r => { if (g(r, 'chave') && previsaoMesUnico({ formalizacao: g(r, 'formalizacao'), base_previsao: g(r, 'base_previsao') })) unico[g(r, 'id')] = r; });
+  const somaU = {};
+  prevs.forEach(p => { const id = idPorChave[p.chave]; if (id && unico[id]) somaU[id] = (somaU[id] || 0) + num(p.valor); });
+  Object.keys(unico).forEach(id => { if (!somaU[id]) { const r = unico[id]; const sd = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + (saldoNe[ne + '|' + g(r, 'ug')] || 0), 0); if (sd > 0.01) somaU[id] = sd; } });
+  const pv = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, 5).getValues().filter(x => x.join('') !== '') : [];
+  const manual = {}; pv.forEach(x => { if (unico[x[0]] && ['robô', 'teste', ''].indexOf(String(x[3])) < 0) manual[x[0]] = 1; });
+  const fica = pv.filter(x => !(unico[x[0]] && !manual[x[0]]));
+  Object.keys(somaU).forEach(id => { if (!manual[id]) fica.push([id, mesUnico(), Math.round(somaU[id] * 100) / 100, 'robô', agora_]); });
+  if (pv.length) ps.getRange(2, 1, pv.length, 5).clearContent();
+  if (fica.length) ps.getRange(2, 1, fica.length, 5).setValues(fica);
+  const ja = {}; fica.forEach(x => ja[x[0] + '|' + x[1]] = 1);
   const novasPrev = [], add = (id, c, val) => { if (!ja[id + '|' + c] && val) { ja[id + '|' + c] = 1; novasPrev.push([id, c, val, 'robô', agora_]); } };
-  prevs.forEach(p => { const id = idPorChave[p.chave]; if (id) add(id, p.competencia, num(p.valor)); });
+  prevs.forEach(p => { const id = idPorChave[p.chave]; if (id && !unico[id]) add(id, p.competencia, num(p.valor)); });
   tocados.forEach(r => {
+    if (unico[g(r, 'id')]) return;
     const parcela = num(g(r, 'valor_parcela')); if (!parcela) return;
     const ini = String(g(r, 'vigencia_ini')).slice(0, 7), fim = String(g(r, 'prorrogacao_prevista')).toUpperCase() === 'SIM' ? '9999-12' : String(g(r, 'vigencia_fim')).slice(0, 7);
     competenciasDoAno().forEach(c => { if (c >= ini && c <= fim) add(g(r, 'id'), c, parcela); });
@@ -497,7 +521,7 @@ function salvarPrevisao(u, p) {
   for (let r = 1; r < v.length; r++) if (v[r][0] === p.instrumento_id) onde[String(v[r][1])] = r;
   let mudou = false;
   (p.itens || []).forEach(it => {
-    const r = onde[it.competencia], val = num(it.valor);
+    const r = onde[it.competencia], val = Math.abs(num(it.valor));   // previsão é sempre despesa: guarda positivo
     if (r !== undefined) { v[r][2] = val; v[r][3] = u.email; v[r][4] = quando; mudou = true; }
     else novas.push({ instrumento_id: p.instrumento_id, competencia: it.competencia, valor: val, alterado_por: u.email, alterado_em: quando });
   });

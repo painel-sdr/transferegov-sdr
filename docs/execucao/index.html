@@ -126,6 +126,12 @@ dl.dados dt{font-size:12.5px;color:var(--mudo)}dl.dados dd{margin:0;font-weight:
 .grade td{padding:6px;border:1px solid #e3e9e4}
 .grade td.m{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;min-width:84px}
 .grade td.prev{color:#9aa79f;font-style:italic}
+.grade td.prevneg{background:#fff3f1;color:#c0392b}
+.grade tr.tot td{background:#f3f6f4;font-weight:700;position:static}
+.grade tr.tot td.lbl{text-align:right;color:#3d5a4b;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+.grade tr.tot.apagar td.m{background:#fff3f1;color:#c0392b}
+.grade tr.tot.pago td.m{background:#e3f1da;color:#1f5d34}
+.prev-grid input.neg{color:#b3261e;background:#fdf3f2}
 .grade td.c-CONFIRMADO{background:#e3f1da;color:#1f5d34;font-weight:700}
 .grade td.c-INFORMADO{background:#e3edf7;color:var(--azul);font-weight:700}
 .grade td.c-AJUSTAR{background:#fdecea;color:var(--vermelho);font-weight:700}
@@ -198,7 +204,7 @@ var $ = function(id){ return document.getElementById(id); };
 var D = null, VIEW = null, FICHA = null, EDITAR = null, ABERTO = null, FILA_TODAS = false, EMAIL = '';
 var F = {orc: '', ug: '', form: '', corrigir: 'TODOS', rec: '', busca: '', dem: '', mostrar: 'ATIVOS', lim: 60};
 var LISTAS = {
-  formalizacao: ['Contrato','Ata','Compartilhamento','Não contratual','Suprimento de fundos','TED','Convênio','Contrato de Repasse','Termo de fomento','Termo de colaboração'],
+  formalizacao: ['Contrato','Ata','Diárias e passagens','Compartilhamento','Não contratual','Suprimento de fundos','TED','Convênio','Contrato de Repasse','Termo de fomento','Termo de colaboração'],
   orcamento: ['CEPLAC','DECAP','DEPROS','DIAGRO','ORGÂNICO','GABINETE','CGPI','PROMAQ','CONTRATO REPASSE','DEFLO'],
   ug: ['130010','420013','130141','130255','135098'],
   atividade: ['Funcionamento','Deslocamento','Outras Despesas'],
@@ -216,7 +222,7 @@ function brl(v){ return (Number(v) || 0).toLocaleString('pt-BR', {style: 'curren
 function brlc(v){ v = Number(v) || 0; if(!v) return '—'; var a = Math.abs(v); var t = a >= 1e6 ? (a/1e6).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + ' mi' : a >= 1e3 ? (a/1e3).toLocaleString('pt-BR', {maximumFractionDigits: 1}) + ' mil' : a.toLocaleString('pt-BR', {maximumFractionDigits: 0}); return (v < 0 ? '− ' : '') + t; }
 function v2(v){ return brl(v); }   // campos de valor já aparecem com R$
 var CAMPO_MOEDA = /^(valor|valor_global|valor_parcela|executado_anteriores|\d{4}-\d{2})$/;
-function mascaraMoeda(el){ var d = el.value.replace(/\D/g, '').replace(/^0+/, ''); el.value = d ? brl(Number(d) / 100) : ''; }
+function mascaraMoeda(el){ var neg = /-/.test(el.value) || /^\d{4}-\d{2}$/.test(el.name), d = el.value.replace(/\D/g, '').replace(/^0+/, ''); el.value = d ? brl((neg ? -1 : 1) * Number(d) / 100) : (/^\s*-\s*$/.test(el.value) ? '-' : ''); }
 var MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 function comp(c){ c = String(c || ''); var m = +c.slice(5,7); return m ? MES[m-1] + '/' + c.slice(2,4) : c; }
 function dt(s){ if(!s) return ''; s = String(s); return s.slice(8,10) + '/' + s.slice(5,7) + '/' + s.slice(0,4) + (s.length > 11 ? ' ' + s.slice(11,16) : ''); }
@@ -383,18 +389,20 @@ function telaGeral(){
     if(F.mostrar === 'ATIVOS') return (i.situacao_cadastro !== 'ENCERRADO' || temPag) && (temPrev || temPag || (i.nes_vinculadas || []).length);
     return true;
   });
-  var tot = {prev: 0, liq: 0, inf: 0, aj: 0, def: 0, saldo: 0};
+  var tot = {prev: 0, liq: 0, inf: 0, aj: 0, def: 0, saldo: 0}, pagoM = {}, apagarM = {};
   var linhas = lst.map(function(i){
     var c = calc(i);
     tot.prev += c.previsaoAno; tot.liq += c.liqAno; tot.inf += c.informado; tot.aj += Math.abs(c.ajustar) > 1 ? c.ajustar : 0; tot.saldo += c.saldo; if(c.deficit < 0) tot.def += c.deficit;
     if(F.corrigir === 'AJUSTAR' && Math.abs(c.ajustar) <= 1) return '';
     if(F.corrigir === 'DEFICIT' && c.deficit >= 0) return '';
+    D.competencias.forEach(function(m){ var v = c.porMes[m] ? c.porMes[m].v : 0; pagoM[m] = (pagoM[m] || 0) + v; apagarM[m] = (apagarM[m] || 0) + Math.max(0, (c.prev[m] || 0) - v); });
     var meses = D.competencias.map(function(m){
       var pm = c.porMes[m], cls, txt;
-      if(pm && F.rec){ var sub = c.pags.filter(function(p){ return p.competencia === m && p.recurso === F.rec && /INFORMADO|CONFIRMADO|AJUSTAR/.test(p.situacao); }); var v = sub.reduce(function(a, p){ return a + num(p.valor); }, 0); return '<td class="m' + (v ? ' c-' + sub[0].situacao : ' prev') + '">' + (v ? brlc(v) : (c.prev[m] ? brlc(c.prev[m]) : '')) + '</td>'; }
+      if(pm && F.rec){ var sub = c.pags.filter(function(p){ return p.competencia === m && p.recurso === F.rec && /INFORMADO|CONFIRMADO|AJUSTAR/.test(p.situacao); }); var v = sub.reduce(function(a, p){ return a + num(p.valor); }, 0); return '<td class="m' + (v ? ' c-' + sub[0].situacao : (c.prev[m] ? ' prevneg' : '')) + '">' + (v ? brlc(v) : (c.prev[m] ? brlc(-c.prev[m]) : '')) + '</td>'; }
       if(pm && pm.v){ cls = 'c-' + (pm.st === 'DISTRIBUIDO' || pm.st === 'SALDO_OK' || pm.st === 'REFORCO' ? 'INFORMADO' : pm.st); txt = brlc(pm.v); }
       else if(pm && pm.aberto){ cls = 'c-ABERTO'; txt = brlc(pm.aberto); }
-      else { cls = 'prev'; txt = c.prev[m] ? brlc(c.prev[m]) : ''; }
+      else if(c.prev[m]){ cls = 'prevneg'; txt = brlc(-c.prev[m]); }
+      else { cls = ''; txt = ''; }
       return '<td class="m ' + cls + '" title="' + comp(m) + ' · previsto ' + brl(c.prev[m] || 0) + '">' + txt + '</td>';
     }).join('');
     return '<tr class="click" data-ficha="' + esc(i.id) + '"><td><b>' + esc(i.ug) + '</b> ' + esc(i.sigla || '') + '<span class="s">' + esc(i.orcamento || '') + '</span></td><td>' + esc(i.processo_raiz) + '<span class="s">' + esc(i.formalizacao) + '</span></td><td>' + esc(i.favorecido) + '</td><td>' + esc(i.numero || i.instrumento || '—') + '</td>' +
@@ -403,7 +411,7 @@ function telaGeral(){
   var k = function(l, v, sub, cls){ return '<div class="kpi ' + (cls || '') + '"><span>' + l + '</span><b>' + v + '</b><small>' + sub + '</small></div>'; };
   var dir = admin() ? '<div class="acoes"><button class="bt sec" type="button" data-importar title="Contratos, parcerias e TED vigentes gerados pelo robô">Importar vigentes</button><button class="bt" type="button" data-tesouro>Ler Tesouro e conferir</button><button class="bt sec" type="button" data-simular>Simular liquidação (teste)</button></div>' : '';
   var orcs = uniq(D.instrumentos.map(function(i){ return i.orcamento; })), forms = uniq(D.instrumentos.map(function(i){ return i.formalizacao; }));
-  return cab('Visão geral do ano ' + D.ano + ' <small style="font-size:16px;color:var(--mudo)">' + lst.length + ' instrumentos</small>', 'Grade de dez/' + String(D.ano - 1).slice(2) + ' a dez/' + String(D.ano).slice(2) + ': o valor informado em cada competência, colorido pela situação. Em cinza, a previsão. Clique na linha para abrir a ficha.', dir) +
+  return cab('Visão geral do ano ' + D.ano + ' <small style="font-size:16px;color:var(--mudo)">' + lst.length + ' instrumentos</small>', 'Grade de dez/' + String(D.ano - 1).slice(2) + ' a dez/' + String(D.ano).slice(2) + ': o valor informado em cada competência, colorido pela situação. Em vermelho claro e negativo, o que está previsto e ainda não foi pago. As duas primeiras linhas somam, mês a mês, o que foi pago e o que falta pagar (com os filtros escolhidos). Clique na linha para abrir a ficha.', dir) +
     '<div class="kpis">' + k('Previsão do ano', brlc(tot.prev), 'soma das competências') + k('Liquidado no ano', brlc(tot.liq), 'Tesouro, desde a entrada da NE', 'pos') + k('Informado pelos executores', brlc(tot.inf), 'pagamentos lançados') + k('Ajustar', brlc(tot.aj), 'liquidado − informado', Math.abs(tot.aj) > 1 ? 'neg' : '') + k('Saldo de empenho', brlc(tot.saldo), 'EXE + RAP vinculados') + k('Déficit do ano', brlc(tot.def), 'soma dos instrumentos com déficit', tot.def < 0 ? 'neg' : 'pos') + '</div>' +
     '<div class="card"><div class="filtros">' +
       '<label>Orçamento<select class="mini" data-f="orc">' + opts(orcs, F.orc, 'Todos') + '</select></label>' +
@@ -413,8 +421,13 @@ function telaGeral(){
       '<label>Corrigir<select class="mini" data-f="corrigir"><option value="TODOS"' + (F.corrigir === 'TODOS' ? ' selected' : '') + '>Mostrar todos</option><option value="AJUSTAR"' + (F.corrigir === 'AJUSTAR' ? ' selected' : '') + '>Com valor a ajustar</option><option value="DEFICIT"' + (F.corrigir === 'DEFICIT' ? ' selected' : '') + '>Só com déficit</option></select></label>' +
       '<div style="display:flex;gap:6px"><button type="button" class="chip' + (!F.rec ? ' on' : '') + '" data-rec="">Todos</button><button type="button" class="chip' + (F.rec === 'EXE001' ? ' on' : '') + '" data-rec="EXE001">EXE</button><button type="button" class="chip' + (F.rec === 'RAP001' ? ' on' : '') + '" data-rec="RAP001">RAP</button></div>' +
     '</div></div>' +
-    '<div class="card"><div class="legenda" style="margin-bottom:10px"><span><i style="background:#e3f1da"></i>Confirmado pelo Tesouro</span><span><i style="background:#e3edf7"></i>Informado</span><span><i style="background:#fdf0dc"></i>Demanda em andamento</span><span><i style="background:#fdecea"></i>Ajustar</span><span><i style="background:#eef2ee"></i><em>previsão</em></span></div>' +
-    '<div class="rolar" style="max-height:620px;overflow:auto"><table class="grade"><thead><tr><th>UG · Serv/Aqs</th><th>Processo raiz</th><th>Favorecido</th><th>Contrato / instr.</th><th>Ajustar</th>' + D.competencias.map(function(m){ return '<th class="n">' + comp(m) + '</th>'; }).join('') + '<th class="n">Déficit do ano</th></tr></thead><tbody>' + (linhas || '<tr><td colspan="19" class="vazio">Nada com esse filtro.</td></tr>') + '</tbody></table></div></div>';
+    '<div class="card"><div class="legenda" style="margin-bottom:10px"><span><i style="background:#e3f1da"></i>Confirmado pelo Tesouro</span><span><i style="background:#e3edf7"></i>Informado</span><span><i style="background:#fdf0dc"></i>Demanda em andamento</span><span><i style="background:#fdecea"></i>Ajustar</span><span><i style="background:#fff3f1;border:1px solid #f3c7c0"></i>A pagar (previsão, em negativo)</span></div>' +
+    '<div class="rolar" style="max-height:620px;overflow:auto"><table class="grade"><thead><tr><th>UG · Serv/Aqs</th><th>Processo raiz</th><th>Favorecido</th><th>Contrato / instr.</th><th>Ajustar</th>' + D.competencias.map(function(m){ return '<th class="n">' + comp(m) + '</th>'; }).join('') + '<th class="n">Déficit do ano</th></tr></thead><tbody>' + linhaTotais(pagoM, apagarM) + (linhas || '<tr><td colspan="19" class="vazio">Nada com esse filtro.</td></tr>') + '</tbody></table></div></div>';
+}
+function linhaTotais(pago, apagar){
+  var soma = function(o){ return D.competencias.reduce(function(a, m){ return a + (o[m] || 0); }, 0); };
+  var lin = function(cls, rot, o, sinal){ return '<tr class="tot ' + cls + '"><td colspan="5" class="lbl">' + rot + '</td>' + D.competencias.map(function(m){ var v = (o[m] || 0) * sinal; return '<td class="m">' + (v ? brlc(v) : '—') + '</td>'; }).join('') + '<td class="def">' + brlc(soma(o) * sinal) + '</td></tr>'; };
+  return lin('pago', 'Total pago (informado)', pago, 1) + lin('apagar', 'Total a pagar (previsto − pago)', apagar, -1);
 }
 function uniq(a){ var o = {}; a.forEach(function(x){ if(x) o[x] = 1; }); return Object.keys(o).sort(); }
 
@@ -606,7 +619,7 @@ function fichaInst(i){
     '</div>' +
     '<div class="card"><h3>Dados do cadastro</h3><dl class="dados">' + [['Formalização', i.formalizacao], ['Orçamento', i.orcamento], ['Sigla (serv/aqs)', i.sigla], ['Atividade', i.atividade], ['Natureza da despesa', i.natureza], ['Modalidade', i.modalidade], ['CNPJ/CPF', i.cnpj], ['Vigência', (dt(i.vigencia_ini).slice(0, 10) || '—') + ' a ' + (dt(i.vigencia_fim).slice(0, 10) || '—') + (dias != null ? ' · ' + (dias >= 0 ? dias + ' dias a vencer' : 'vencido') : '')], ['Prorrogação prevista', i.prorrogacao_prevista], ['Valor da parcela', (num(i.valor_parcela) ? brl(i.valor_parcela) : '—') + (i.base_previsao ? ' · ' + i.base_previsao : '')], ['Região / UF', (i.regiao || '—') + ' / ' + (i.uf || '—')], ['Origem', (i.origem || '') + (i.chave ? ' · ' + i.chave : '') + (i.situacao_cadastro ? ' · ' + i.situacao_cadastro : '') + (i.sincronizado_em ? ' · sincronizado ' + dt(i.sincronizado_em) : '')], ['Cadastro', dt(i.criado_em) + ' · ' + (i.criado_por || '')], ['Última alteração', i.alterado_em ? dt(i.alterado_em) + ' · ' + i.alterado_por + ' · ' + i.justificativa : '—']].map(function(x){ return '<div><dt>' + x[0] + '</dt><dd>' + esc(x[1] || '—') + '</dd></div>'; }).join('') + '<div style="grid-column:1/-1"><dt>Objeto</dt><dd style="font-weight:500">' + esc(i.objeto || '—') + '</dd></div></dl></div>' +
     '<div class="card rolar"><h3>Notas de empenho <small>Tesouro · ' + c.nes.length + '</small></h3>' + (c.nes.length ? '<table><tr><th>NE</th><th>Recurso</th><th>Ação</th><th>Fonte</th><th>PI</th><th>ND</th><th class="n">Empenhado</th><th class="n">Liquidado</th><th class="n">Pago</th><th class="n">Saldo</th></tr>' + c.nes.map(function(t){ return '<tr><td><b>' + esc(t.ne) + '</b>' + (t.origem === 'TESTE' ? '<span class="s">teste</span>' : '') + '</td><td>' + rec(t.tipo === 'RAP' ? 'RAP001' : 'EXE001') + '</td><td>' + esc(t.acao) + '</td><td>' + esc(t.fonte) + '</td><td>' + esc(t.pi) + '</td><td>' + esc(t.nd) + '<span class="s">' + esc(t.desc_nd) + '</span></td><td class="n">' + brl(t.empenhado) + '</td><td class="n">' + brl(t.liquidado) + '</td><td class="n">' + brl(t.pago) + '</td><td class="n">' + brl(t.saldo) + '</td></tr>'; }).join('') + '</table>' : '<div class="vazio">Nenhuma NE encontrada no Tesouro para este instrumento. Vincule no cadastro (campo NEs) ou confira se o processo raiz é o mesmo do empenho.</div>') + '</div>' +
-    '<div class="card"><h3>Previsão do ano por competência <small>editável pelo Orçamento</small></h3><div class="prev-grid" data-prev="' + esc(i.id) + '">' + D.competencias.map(function(m){ return '<label>' + comp(m) + '<input name="' + m + '" value="' + (c.prev[m] ? v2(c.prev[m]) : '') + '"' + (cadastra() ? '' : ' readonly') + '></label>'; }).join('') + '</div>' + (cadastra() ? '<div class="acoes" style="margin-top:10px"><button class="bt sec peq" type="button" data-prev-salvar="' + esc(i.id) + '">Salvar previsão</button></div>' : '') + '</div>' +
+    '<div class="card"><h3>Previsão do ano por competência <small>editável pelo Orçamento</small></h3><div class="prev-grid" data-prev="' + esc(i.id) + '">' + D.competencias.map(function(m){ return '<label>' + comp(m) + '<input class="neg" name="' + m + '" value="' + (c.prev[m] ? v2(-c.prev[m]) : '') + '"' + (cadastra() ? '' : ' readonly') + '></label>'; }).join('') + '</div>' + (cadastra() ? '<div class="acoes" style="margin-top:10px"><button class="bt sec peq" type="button" data-prev-salvar="' + esc(i.id) + '">Salvar previsão</button></div>' : '') + '</div>' +
     '<div class="card rolar"><h3>Pagamentos <small>' + c.pags.length + '</small></h3>' + (c.pags.length ? '<table><tr><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>NE</th><th>Executor</th><th>Situação</th><th>Observação</th></tr>' + c.pags.slice().sort(function(a, b){ return a.competencia.localeCompare(b.competencia); }).map(function(p){ return '<tr><td><b>' + comp(p.competencia) + '</b></td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + esc(p.ne) + ' ' + rec(p.recurso) + '</td><td>' + esc(p.executor ? nomeDe(p.executor) : '—') + '</td><td>' + st(p.situacao) + '</td><td>' + esc(p.obs || p.obs_orcamento || '—') + '</td></tr>'; }).join('') + '</table>' : '<div class="vazio">Nenhum pagamento ainda.</div>') + '</div>';
 }
 function formInstrumento(i){
@@ -682,7 +695,7 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-simular]'))){ x.disabled = true; acao({acao: 'simular'}, function(r){ return r.msg + ' ' + r.confirmados + ' confirmado(s).'; }); return; }
   if(t.closest('[data-mais]')){ F.lim += 120; desenhar(); return; }
   if((x = t.closest('[data-rec]'))){ F.rec = x.dataset.rec; desenhar(); return; }
-  if((x = t.closest('[data-prev-salvar]'))){ var gr = document.querySelector('[data-prev="' + x.dataset.prevSalvar + '"]'); var its = [].map.call(gr.querySelectorAll('input'), function(inp){ return {competencia: inp.name, valor: num(inp.value)}; }).filter(function(it){ var c = calc(inst(x.dataset.prevSalvar)); return it.valor || c.prev[it.competencia]; }); x.disabled = true; acao({acao: 'previsao', instrumento_id: x.dataset.prevSalvar, itens: its}, 'Previsão salva.'); return; }
+  if((x = t.closest('[data-prev-salvar]'))){ var gr = document.querySelector('[data-prev="' + x.dataset.prevSalvar + '"]'); var its = [].map.call(gr.querySelectorAll('input'), function(inp){ return {competencia: inp.name, valor: Math.abs(num(inp.value))}; }).filter(function(it){ var c = calc(inst(x.dataset.prevSalvar)); return it.valor || c.prev[it.competencia]; }); x.disabled = true; acao({acao: 'previsao', instrumento_id: x.dataset.prevSalvar, itens: its}, 'Previsão salva.'); return; }
   if((x = t.closest('[data-tes-buscar]'))){ buscarTesouro($('tes-busca').value); return; }
   if((x = t.closest('[data-tes-usar]'))){
     var marc = [].slice.call(document.querySelectorAll('[data-tes-ne]:checked')); if(!marc.length) return aviso('Marque ao menos uma NE.', true);
