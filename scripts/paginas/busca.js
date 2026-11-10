@@ -9,7 +9,8 @@ var BM = window.BM || (function(){
       .map(t => ({txt: t, partes: t.split('+').map(p => p.trim()).filter(Boolean).map(p => ({n: norm(p), c: comp(p)}))}))
       .filter(t => t.partes.length);
   }
-  const bateParte = (p, N, C) => N.includes(p.n) || (p.c.length >= 4 && C.includes(p.c));
+  const semZero = s => s.replace(/(^|[^0-9])0+(?=[0-9])/g, '$1');   // 000724/2026 = 724/2026
+  const bateParte = (p, N, C) => N.includes(p.n) || (p.c.length >= 4 && C.includes(p.c)) || (/[0-9]/.test(p.n) && semZero(N).includes(semZero(p.n)));
   function quais(T, texto){ const N = norm(texto), C = N.replace(/[^A-Z0-9]/g, ''); const r = []; T.forEach((t, i) => { if(t.partes.every(p => bateParte(p, N, C))) r.push(i); }); return r; }
   // filtra a lista pelo texto da busca; textoFn(o) devolve o texto pesquisável da linha
   function filtrar(id, txt, L, textoFn){
