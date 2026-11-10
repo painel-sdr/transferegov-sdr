@@ -72,6 +72,15 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 tr.click{cursor:pointer}tr.click:hover td{background:#f6faf3}
 .st{display:inline-block;font-size:12.5px;font-weight:700;border-radius:999px;padding:4px 10px;white-space:nowrap}
 .st-REFORCO{background:var(--ambarbg);color:var(--ambar)}
+.st-RECEBIDO,.st-NO_ORCAMENTO{background:#efe9f7;color:#5b3d8a}
+.filtro-orc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.filtro-orc label{font-size:13px;font-weight:600;color:#3d5a4b;display:flex;flex-direction:column;gap:4px}
+.abas{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 14px}
+.abas small{opacity:.75;margin-left:4px}
+.chk{display:flex;gap:8px;align-items:center;font-weight:600;font-size:13px}
+.chk input{width:17px;height:17px;accent-color:#1f6b3a}
+.filtros label.chk{flex-direction:row;align-self:center;margin-top:20px}
+.neg{color:var(--vermelho)}
 .st-SALDO_OK{background:var(--azulbg);color:var(--azul)}
 .st-DISTRIBUIDO{background:var(--ambarbg);color:#8a4c08}
 .st-INFORMADO{background:var(--azulbg);color:var(--azul)}
@@ -209,7 +218,7 @@ var MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','de
 function comp(c){ c = String(c || ''); var m = +c.slice(5,7); return m ? MES[m-1] + '/' + c.slice(2,4) : c; }
 function dt(s){ if(!s) return ''; s = String(s); return s.slice(8,10) + '/' + s.slice(5,7) + '/' + s.slice(0,4) + (s.length > 11 ? ' ' + s.slice(11,16) : ''); }
 function norm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
-var ST = {REFORCO: 'Reforço de NE', SALDO_OK: 'Saldo confirmado', DISTRIBUIDO: 'A pagar', INFORMADO: 'Informado · aguarda Tesouro', CONFIRMADO: 'Confirmado pelo Tesouro', AJUSTAR: 'Ajustar'};
+var ST = {RECEBIDO: 'Aguardando analista', NO_ORCAMENTO: 'Com o analista', REFORCO: 'Reforço de NE', SALDO_OK: 'Saldo confirmado', DISTRIBUIDO: 'A pagar', INFORMADO: 'Informado · aguarda Tesouro', CONFIRMADO: 'Confirmado pelo Tesouro', AJUSTAR: 'Ajustar'};
 function st(s){ return '<span class="st st-' + esc(s) + '">' + esc(ST[s] || s) + '</span>'; }
 function rec(r){ return r ? '<span class="rec rec-' + esc(r) + '">' + esc(r) + '</span>' : '—'; }
 function opts(lista, sel, vazio){ return (vazio != null ? '<option value="">' + vazio + '</option>' : '') + lista.map(function(o){ return '<option' + (String(o) === String(sel) ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join(''); }
@@ -240,8 +249,8 @@ function calc(i){
   pags.forEach(function(p){
     var m = porMes[p.competencia] || (porMes[p.competencia] = {v: 0, st: ''});
     if(/INFORMADO|CONFIRMADO|AJUSTAR/.test(p.situacao)){ informado += num(p.valor); m.v += num(p.valor); }
-    else if(/DISTRIBUIDO|SALDO_OK|REFORCO/.test(p.situacao)){ aberto += num(p.valor); if(!m.v) m.aberto = (m.aberto || 0) + num(p.valor); }
-    var ord = {AJUSTAR: 5, INFORMADO: 4, DISTRIBUIDO: 3, SALDO_OK: 3, REFORCO: 3, CONFIRMADO: 2};
+    else if(/DISTRIBUIDO|SALDO_OK|REFORCO|RECEBIDO|NO_ORCAMENTO/.test(p.situacao)){ aberto += num(p.valor); if(!m.v) m.aberto = (m.aberto || 0) + num(p.valor); }
+    var ord = {AJUSTAR: 5, INFORMADO: 4, DISTRIBUIDO: 3, SALDO_OK: 3, REFORCO: 3, NO_ORCAMENTO: 3, RECEBIDO: 3, CONFIRMADO: 2};
     if((ord[p.situacao] || 0) > (ord[m.st] || 0)) m.st = p.situacao;
   });
   var s = function(k){ return nes.reduce(function(a, t){ return a + num(t[k]); }, 0); };
@@ -319,8 +328,8 @@ function carregar(primeira){
 }
 function montar(){
     $('t-ano').textContent = D.ano;
-    $('eu-nome').textContent = D.eu.nome; $('eu-perfil').textContent = {ADMIN: 'Coordenação · distribui', ORCAMENTO: 'Orçamento', EXECUTOR: 'Executor'}[D.eu.perfil] || D.eu.perfil;
-    if(!VIEW || !permitido(VIEW)) VIEW = {ADMIN: 'geral', ORCAMENTO: 'orcamento', EXECUTOR: 'fila'}[D.eu.perfil] || 'fila';
+    $('eu-nome').textContent = D.eu.nome; $('eu-perfil').textContent = {ADMIN: 'Coordenação financeira', CHEFE_ORCAMENTO: 'Responsável do orçamento', ORCAMENTO: 'Analista do orçamento', EXECUTOR: 'Executor'}[D.eu.perfil] || D.eu.perfil;
+    if(!VIEW || !permitido(VIEW)) VIEW = {ADMIN: 'geral', CHEFE_ORCAMENTO: 'orcamento', ORCAMENTO: 'orcamento', EXECUTOR: 'fila'}[D.eu.perfil] || 'fila';
     desenhar();
 }
 function acao(o, ok, depois){
@@ -337,12 +346,12 @@ function reativar(){ [].forEach.call(document.querySelectorAll('#tela button[dis
 
 /* ---------- menu ---------- */
 var TELAS = [
-  {id: 'geral', nome: 'Visão geral do ano', perfis: ['ADMIN','ORCAMENTO']},
-  {id: 'orcamento', nome: 'Orçamento — demandas', perfis: ['ADMIN','ORCAMENTO'], n: function(){ return D.pagamentos.filter(function(p){ return p.situacao === 'REFORCO'; }).length; }},
-  {id: 'ddo', nome: 'Autorizações (DDO)', perfis: ['ADMIN','ORCAMENTO']},
+  {id: 'geral', nome: 'Visão geral do ano', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO']},
+  {id: 'orcamento', nome: 'Orçamento', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO'], n: function(){ return D.pagamentos.filter(function(p){ return chefeOrc() ? p.situacao === 'RECEBIDO' : (p.situacao === 'NO_ORCAMENTO' && String(p.analista || '').toLowerCase() === D.eu.email); }).length; }},
+  {id: 'ddo', nome: 'Autorizações (DDO)', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO']},
   {id: 'distribuir', nome: 'Distribuir', perfis: ['ADMIN'], n: function(){ return D.pagamentos.filter(function(p){ return p.situacao === 'SALDO_OK'; }).length; }},
   {id: 'fila', nome: 'Minha fila', perfis: ['ADMIN','EXECUTOR'], n: function(){ return D.pagamentos.filter(function(p){ return p.executor === D.eu.email && /DISTRIBUIDO|AJUSTAR/.test(p.situacao); }).length; }},
-  {id: 'instrumentos', nome: 'Instrumentos', perfis: ['ADMIN','ORCAMENTO','EXECUTOR']}
+  {id: 'instrumentos', nome: 'Instrumentos', perfis: ['ADMIN','CHEFE_ORCAMENTO','ORCAMENTO','EXECUTOR']}
 ];
 function permitido(v){ return TELAS.some(function(t){ return t.id === v && t.perfis.indexOf(D.eu.perfil) >= 0; }); }
 function desenharMenu(){
@@ -406,17 +415,98 @@ function telaGeral(){
 }
 function uniq(a){ var o = {}; a.forEach(function(x){ if(x) o[x] = 1; }); return Object.keys(o).sort(); }
 
-/* ---------- Orçamento: demandas ---------- */
+/* ---------- Orçamento: chegada do processo → analista → financeiro ---------- */
+var FO = {cnpj: '', contrato: '', entidade: '', instrumento: '', proposta: '', ne: '', ug: ''};
+var ORC = {aba: '', comp: '', atras: true, lim: 80, todas: false};
+function chefeOrc(){ return D.eu.perfil === 'ADMIN' || D.eu.perfil === 'CHEFE_ORCAMENTO'; }
+function nomeOrc(email){ var p = (D.equipeOrc || []).concat(D.equipe).filter(function(x){ return x.email === String(email || '').toLowerCase(); })[0]; return p ? p.nome : (email || '—'); }
+function filtroAtivo(){ return Object.keys(FO).some(function(k){ return String(FO[k]).trim(); }); }
+function bateFO(i, p){
+  var dg = function(x){ return String(x || '').replace(/\D/g, ''); }, tem = function(alvo, q){ q = String(q).trim(); if(!q) return true; var d = dg(q); if(d.length >= 3 && dg(alvo).indexOf(d) >= 0) return true; return norm(q).split(/\s+/).every(function(w){ return norm(alvo).indexOf(w) >= 0; }); };
+  if(FO.ug && String(i.ug) !== FO.ug) return false;
+  if(!tem(i.cnpj, FO.cnpj)) return false;
+  if(!tem(i.numero, FO.contrato)) return false;
+  if(!tem(i.favorecido, FO.entidade)) return false;
+  if(!tem(i.instrumento, FO.instrumento)) return false;
+  if(!tem(i.proposta, FO.proposta)) return false;
+  if(String(FO.ne).trim()){ var nes = (i.nes_vinculadas || []).concat(String(i.nes || '').split(/[,;\s]+/), p ? [p.ne] : []).join(' '); if(!tem(nes, FO.ne)) return false; }
+  return true;
+}
+function compAtual(){
+  if(ORC.comp) return ORC.comp;
+  var h = new Date(), m = h.getFullYear() + '-' + ('0' + (h.getMonth() + 1)).slice(-2), cs = D.competencias;
+  return m < cs[0] ? cs[0] : (m > cs[cs.length - 1] ? cs[cs.length - 1] : m);
+}
+function neSugerida(i, valor){ var c = calc(i); return c.nes.filter(function(t){ return num(t.saldo) >= (valor || 0.01); })[0]; }
+function previstasSemProcesso(){
+  var alvo = compAtual(), cs = D.competencias.filter(function(m){ return ORC.atras ? m <= alvo : m === alvo; }), out = [];
+  D.instrumentos.forEach(function(i){
+    if(i.situacao_cadastro === 'ENCERRADO' || !bateFO(i)) return;
+    var c = calc(i), tem = {}; c.pags.forEach(function(p){ tem[p.competencia] = 1; });
+    cs.forEach(function(m){ if(c.prev[m] && !tem[m]) out.push({i: i, m: m, v: c.prev[m]}); });
+  });
+  return out.sort(function(a, b){ return a.m.localeCompare(b.m) || String(a.i.favorecido).localeCompare(String(b.i.favorecido)); });
+}
+function pagsOrc(re, meus){
+  return D.pagamentos.filter(function(p){ if(!re.test(p.situacao)) return false; if(meus && !(ORC.todas && chefeOrc()) && String(p.analista || '').toLowerCase() !== D.eu.email) return false; return bateFO(inst(p.instrumento_id), p); })
+    .sort(function(a, b){ return String(a.competencia).localeCompare(String(b.competencia)); });
+}
 function telaOrcamento(){
-  var abertas = D.pagamentos.filter(function(p){ return /REFORCO|SALDO_OK/.test(p.situacao); });
-  var achados = F.dem ? D.instrumentos.filter(function(i){ return bate(i, F.dem); }).slice(0, 8) : [];
+  var chefe = chefeOrc();
+  var prevs = chefe ? previstasSemProcesso() : [];
+  var dist = chefe ? pagsOrc(/^(RECEBIDO|NO_ORCAMENTO)$/) : [];
+  var mesa = pagsOrc(/^NO_ORCAMENTO$/, true), refo = pagsOrc(/^REFORCO$/, !chefe), env = pagsOrc(/^(SALDO_OK|DISTRIBUIDO)$/, !chefe);
+  var abas = (chefe ? [['prev', 'Previstas sem processo', prevs.length], ['dist', 'A distribuir no orçamento', dist.filter(function(p){ return p.situacao === 'RECEBIDO'; }).length]] : []).concat([['mesa', chefe && ORC.todas ? 'Com os analistas' : 'Na minha mesa', mesa.length], ['refo', 'Reforço de NE', refo.length], ['env', 'Enviadas ao financeiro', env.length]]);
+  if(!ORC.aba || !abas.some(function(a){ return a[0] === ORC.aba; })) ORC.aba = chefe ? 'prev' : 'mesa';
+  var campo = function(k, rot, ph){ return '<label>' + rot + '<input class="mini" data-fo="' + k + '" value="' + esc(FO[k]) + '" placeholder="' + ph + '" autocomplete="off"></label>'; };
   var form = '';
-  if(ABERTO && ABERTO.inst){ form = formDemanda(inst(ABERTO.inst), ABERTO.pag ? D.pagamentos.filter(function(p){ return p.id === ABERTO.pag; })[0] : null); }
-  return cab('Orçamento — demandas recebidas', 'A área demandante envia o processo pelo SEI. Ache o instrumento por qualquer número (contrato, instrumento, proposta, processo, CNPJ, NE), informe o processo de pagamento, escolha a NE e confirme o saldo.') +
-    '<div class="card"><h3>Nova demanda</h3><label class="campo" style="margin:0">Buscar instrumento<input id="dem-busca" value="' + esc(F.dem) + '" placeholder="contrato, nº instrumento, proposta, processo raiz, CNPJ, NE…" autocomplete="off"></label>' +
-    (F.dem ? '<div class="lista-inst" style="margin-top:12px">' + (achados.length ? achados.map(cartaoInst).join('') : '<div class="vazio">Nenhum instrumento encontrado. Cadastre em Instrumentos › Novo instrumento.</div>') + '</div>' : '') + '</div>' +
+  if(ABERTO && ABERTO.chegou) form = formChegou(inst(ABERTO.chegou), ABERTO.comp);
+  else if(ABERTO && ABERTO.inst) form = formDemanda(inst(ABERTO.inst), ABERTO.pag ? D.pagamentos.filter(function(p){ return p.id === ABERTO.pag; })[0] : null);
+  var corpo = {prev: abaPrevistas, dist: abaDistOrc, mesa: abaMesa, refo: abaMesa, env: abaEnviadas}[ORC.aba]({prev: prevs, dist: dist, mesa: mesa, refo: refo, env: env}[ORC.aba]);
+  return cab('Orçamento', chefe ? 'O processo chega pelo SEI: registre a chegada e distribua ao analista. O analista escolhe a NE, confirma o saldo e envia ao financeiro (ou pede reforço).' : 'Processos que o responsável do orçamento distribuiu para você: escolha a NE, confirme o saldo e envie ao financeiro, ou peça reforço.') +
+    '<div class="card"><h3>Buscar</h3><div class="filtro-orc">' + campo('cnpj', 'CNPJ', '00.000.000/0001-00') + campo('contrato', 'Contrato', '12/2025') + campo('entidade', 'Entidade / favorecido', 'nome') + campo('instrumento', 'Instrumento', '945123/2025') + campo('proposta', 'Proposta', '012345/2025') + campo('ne', 'Nota de empenho', '2027NE000123') +
+    '<label>UG<select class="mini" data-fo="ug">' + opts(LISTAS.ug, FO.ug, 'Todas') + '</select></label></div>' + (filtroAtivo() ? '<div class="acoes" style="margin-top:8px"><button class="lk" type="button" data-fo-limpar>Limpar busca</button></div>' : '') + '</div>' +
     form +
-    '<div class="card rolar"><h3>Demandas no orçamento <small>' + abertas.length + '</small></h3>' + (abertas.length ? '<table><tr><th>Instrumento</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>NE</th><th>Situação</th><th></th></tr>' + abertas.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + esc(p.ne) + ' ' + rec(p.recurso) + '</td><td>' + st(p.situacao) + '</td><td><button class="bt sec peq" type="button" data-rever="' + esc(p.id) + '">Rever</button></td></tr>'; }).join('') + '</table>' : '<div class="vazio">Nenhuma demanda parada no orçamento.</div>') + '</div>';
+    '<div class="abas">' + abas.map(function(a){ return '<button type="button" class="chip' + (ORC.aba === a[0] ? ' on' : '') + '" data-orc-aba="' + a[0] + '">' + a[1] + ' <small>' + a[2] + '</small></button>'; }).join('') +
+    (chefe ? '<label class="chk"><input type="checkbox" id="orc-todas"' + (ORC.todas ? ' checked' : '') + '> Ver de todos os analistas</label>' : '') + '</div>' + corpo;
+}
+function abaPrevistas(lst){
+  var alvo = compAtual();
+  var topo = '<div class="filtros" style="margin-bottom:10px"><label>Competência<select class="mini" id="orc-comp">' + D.competencias.map(function(m){ return '<option value="' + m + '"' + (m === alvo ? ' selected' : '') + '>' + comp(m) + '</option>'; }).join('') + '</select></label><label class="chk" style="margin:0 0 8px"><input type="checkbox" id="orc-atras"' + (ORC.atras ? ' checked' : '') + '> Incluir meses anteriores sem processo</label></div>';
+  var avulsos = '';
+  if(filtroAtivo()){
+    var achados = D.instrumentos.filter(function(i){ return bateFO(i); }).slice(0, 12);
+    avulsos = '<div class="card rolar"><h3>Instrumentos encontrados <small>' + achados.length + '</small></h3><p class="rodape" style="margin:0 0 8px">Para processo fora da previsão (eventual, ajuste, parcela adiantada).</p>' + (achados.length ? '<table><tr><th>Despesa</th><th>UG</th><th>Processo raiz</th><th>NE com saldo</th><th></th></tr>' + achados.map(function(i){ var t = neSugerida(i); return '<tr><td>' + linhaInst(i) + '</td><td>' + esc(i.ug) + '</td><td>' + esc(i.processo_raiz) + '</td><td>' + (t ? esc(t.ne) + '<span class="s">' + brl(t.saldo) + '</span>' : '<span class="neg">Sem NE com saldo</span>') + '</td><td><button class="bt sec peq" type="button" data-chegou="' + esc(i.id) + '" data-comp="' + alvo + '">Chegou processo</button></td></tr>'; }).join('') + '</table>' : '<div class="vazio">Nada encontrado. Cadastre em Instrumentos › Novo instrumento.</div>') + '</div>';
+  }
+  var mostra = lst.slice(0, ORC.lim);
+  return avulsos + '<div class="card rolar"><h3>Previstas sem processo <small>' + lst.length + ' · ' + brl(lst.reduce(function(a, x){ return a + x.v; }, 0)) + '</small></h3>' + topo +
+    (mostra.length ? '<table><tr><th>Despesa</th><th>UG</th><th>Comp.</th><th class="n">Previsto</th><th>NE com saldo</th><th></th></tr>' + mostra.map(function(x){ var t = neSugerida(x.i, x.v); return '<tr><td>' + linhaInst(x.i) + '<span class="s">Raiz ' + esc(x.i.processo_raiz) + '</span></td><td>' + esc(x.i.ug) + '</td><td>' + comp(x.m) + (x.m < alvo ? '<span class="s neg">atrasado</span>' : '') + '</td><td class="n">' + brl(x.v) + '</td><td>' + (t ? esc(t.ne) + '<span class="s">' + brl(t.saldo) + '</span>' : '<span class="neg">Sem NE com saldo</span>') + '</td><td><button class="bt sec peq" type="button" data-chegou="' + esc(x.i.id) + '" data-comp="' + x.m + '">Chegou processo</button></td></tr>'; }).join('') + '</table>' +
+      (lst.length > mostra.length ? '<div class="acoes" style="justify-content:center"><button class="bt sec" type="button" data-orc-mais>Mostrar mais (' + (lst.length - mostra.length) + ')</button></div>' : '')
+      : '<div class="vazio">Nenhuma despesa prevista sem processo ' + (ORC.atras ? 'até ' : 'em ') + comp(alvo) + (filtroAtivo() ? ' com essa busca' : '') + '.</div>') + '</div>';
+}
+function selAnalista(p){ return '<select class="mini" data-analista="' + esc(p.id) + '"><option value="">Escolher analista</option>' + (D.equipeOrc || []).map(function(x){ return '<option value="' + esc(x.email) + '"' + (String(p.analista || '').toLowerCase() === x.email ? ' selected' : '') + '>' + esc(x.nome) + '</option>'; }).join('') + '</select>'; }
+function abaDistOrc(lst){
+  return '<div class="card rolar"><h3>A distribuir no orçamento</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>Chegou em</th><th>Analista</th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + dt(p.recebido_em) + '</td><td>' + selAnalista(p) + (p.situacao === 'NO_ORCAMENTO' ? '<span class="s">com ' + esc(nomeOrc(p.analista)) + ' desde ' + dt(p.dist_orc_em).slice(0, 10) + '</span>' : '') + '</td></tr>'; }).join('') + '</table><div class="acoes"><button class="bt" type="button" data-orc-distribuir>Confirmar distribuição</button></div>'
+    : '<div class="vazio">Nenhum processo aguardando analista.</div>') + '</div>';
+}
+function abaMesa(lst){
+  var refo = ORC.aba === 'refo';
+  return '<div class="card rolar"><h3>' + (refo ? 'Reforço de NE' : (chefeOrc() && ORC.todas ? 'Com os analistas' : 'Na minha mesa')) + '</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>' + (refo ? 'NE' : 'Analista') + '</th><th>Situação</th><th></th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + (refo ? esc(p.ne) + ' ' + rec(p.recurso) + '<span class="s">' + esc(nomeOrc(p.analista)) + '</span>' : esc(nomeOrc(p.analista))) + '</td><td>' + st(p.situacao) + '</td><td><button class="bt peq" type="button" data-rever="' + esc(p.id) + '">' + (refo ? 'Rever' : 'Tratar') + '</button></td></tr>'; }).join('') + '</table>'
+    : '<div class="vazio">' + (refo ? 'Nenhuma demanda parada em reforço.' : 'Nada na mesa.') + '</div>') + '</div>';
+}
+function abaEnviadas(lst){
+  return '<div class="card rolar"><h3>Enviadas ao financeiro</h3>' + (lst.length ? '<table><tr><th>Despesa</th><th>Comp.</th><th>Processo SEI</th><th class="n">Valor</th><th>NE</th><th>Analista</th><th>Situação</th></tr>' + lst.map(function(p){ var i = inst(p.instrumento_id); return '<tr><td>' + linhaInst(i) + '</td><td>' + comp(p.competencia) + '</td><td>' + esc(p.processo_pagamento) + '</td><td class="n">' + brl(p.valor) + '</td><td>' + esc(p.ne) + ' ' + rec(p.recurso) + '</td><td>' + esc(nomeOrc(p.analista)) + '<span class="s">' + dt(p.orcamento_em) + '</span></td><td>' + st(p.situacao) + (p.executor ? '<span class="s">' + esc(nomeDe(p.executor)) + '</span>' : '') + '</td></tr>'; }).join('') + '</table>'
+    : '<div class="vazio">Nada enviado ao financeiro ainda.</div>') + '</div>';
+}
+function formChegou(i, m){
+  var c = calc(i), parceria = /fomento|colabora|conv[eê]nio|repasse|TED/i.test(i.formalizacao), v = c.prev[m] || 0;
+  return '<form class="card" data-chegou-form="' + esc(i.id) + '"><h3>Chegou processo · ' + esc(i.favorecido) + ' <small>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · raiz ' + esc(i.processo_raiz) + '</small></h3><div class="form">' +
+    '<label class="campo">Processo SEI do pagamento' + (parceria ? ' (o do instrumento)' : '') + '<input name="processo" value="' + esc(parceria ? i.processo_raiz : '') + '" placeholder="21000.______/' + D.ano + '-__"></label>' +
+    '<label class="campo">Competência<select name="competencia">' + D.competencias.map(function(x){ return '<option value="' + x + '"' + (x === m ? ' selected' : '') + '>' + comp(x) + (c.prev[x] ? ' · prev. ' + brlc(c.prev[x]) : '') + '</option>'; }).join('') + '</select></label>' +
+    '<label class="campo">Valor (bruto)<input name="valor" value="' + (v ? v2(v) : '') + '" placeholder="R$ 0,00" inputmode="numeric"></label>' +
+    '<label class="campo">Área demandante<input name="area"></label>' +
+    '<label class="campo">Analista do orçamento<select name="analista"><option value="">Distribuir depois</option>' + (D.equipeOrc || []).map(function(x){ return '<option value="' + esc(x.email) + '">' + esc(x.nome) + '</option>'; }).join('') + '</select></label>' +
+    '<div class="acoes tudo"><button class="bt sec" type="button" data-fechar-dem>Cancelar</button><button class="bt" type="button" data-chegou-salvar>Registrar chegada</button></div></div></form>';
 }
 function cartaoInst(i){
   var c = calc(i);
@@ -425,7 +515,7 @@ function cartaoInst(i){
 function proximaComp(i){ var c = calc(i); var lanc = {}; c.pags.forEach(function(p){ lanc[p.competencia] = 1; }); return D.competencias.filter(function(m){ return c.prev[m] && !lanc[m]; })[0] || D.competencias[0]; }
 function formDemanda(i, p){
   var c = calc(i), comp_ = p ? p.competencia : proximaComp(i), valor = p ? num(p.valor) : (c.prev[comp_] || 0);
-  var sel = p ? p.ne : (c.nes.filter(function(t){ return num(t.saldo) >= valor; })[0] || c.nes[0] || {}).ne;
+  var sel = p && p.ne ? p.ne : (c.nes.filter(function(t){ return num(t.saldo) >= valor; })[0] || c.nes[0] || {}).ne;
   var parceria = /fomento|colabora|conv[eê]nio|repasse|TED/i.test(i.formalizacao);
   return '<form class="card" data-demanda="' + esc(i.id) + '" data-pag="' + esc(p ? p.id : '') + '"><h3>' + esc(i.favorecido) + ' <small>' + esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' · raiz ' + esc(i.processo_raiz) + '</small></h3><div class="form">' +
     '<label class="campo">Processo SEI do pagamento' + (parceria ? ' (o do instrumento)' : '') + '<input name="processo" value="' + esc(p ? p.processo_pagamento : (parceria ? i.processo_raiz : '')) + '" placeholder="21000.______/' + D.ano + '-__"></label>' +
@@ -433,7 +523,7 @@ function formDemanda(i, p){
     '<label class="campo">Valor (bruto)<input name="valor" value="' + v2(valor) + '"></label>' +
     '<label class="campo">Área demandante<input name="area" value="' + esc(p ? p.area_demandante : '') + '"></label>' +
     '<div class="tudo"><div style="font-size:13px;font-weight:600;color:#3d5a4b;margin:4px 0 8px">NE para o pagamento · saldo do Tesouro</div>' +
-    (c.nes.length ? c.nes.map(function(t){ var falta = num(t.saldo) < valor; return '<label class="ne' + (t.ne === sel ? ' sel' : '') + '"><input type="radio" name="ne" value="' + esc(t.ne) + '"' + (t.ne === sel ? ' checked' : '') + '><span><b>' + esc(t.ne) + '</b> ' + rec(t.tipo === 'RAP' ? 'RAP001' : 'EXE001') + '<span class="s">Fonte ' + esc(t.fonte) + ' · ' + esc(t.acao) + ' · ND ' + esc(t.nd) + ' · PI ' + esc(t.pi) + '</span></span><span class="v"><b style="color:' + (falta ? 'var(--vermelho)' : 'inherit') + '">' + brl(t.saldo) + '</b><span class="s">' + (falta ? 'insuficiente' : 'saldo') + '</span></span></label>'; }).join('') : '<div class="msg aviso">Nenhuma NE vinculada a este instrumento. Vincule em Instrumentos › Editar (campo NEs ou processo raiz igual ao do empenho).</div>') + '</div>' +
+    (c.nes.length ? c.nes.map(function(t){ var falta = num(t.saldo) < valor; return '<label class="ne' + (t.ne === sel ? ' sel' : '') + '"><input type="radio" name="ne" value="' + esc(t.ne) + '"' + (t.ne === sel ? ' checked' : '') + '><span><b>' + esc(t.ne) + '</b> ' + rec(t.tipo === 'RAP' ? 'RAP001' : 'EXE001') + '<span class="s">Fonte ' + esc(t.fonte) + ' · ' + esc(t.acao) + ' · ND ' + esc(t.nd) + ' · PI ' + esc(t.pi) + '</span></span><span class="v"><b style="color:' + (falta ? 'var(--vermelho)' : 'inherit') + '">' + brl(t.saldo) + '</b><span class="s"> ' + (falta ? 'insuficiente' : 'saldo') + '</span></span></label>'; }).join('') : '<div class="msg aviso">Nenhuma NE vinculada a este instrumento. Vincule em Instrumentos › Editar (campo NEs ou processo raiz igual ao do empenho).</div>') + '</div>' +
     '<label class="campo tudo">Observação do orçamento<input name="obs" value="' + esc(p ? p.obs_orcamento : '') + '" placeholder="opcional"></label>' +
     '<div class="acoes tudo"><button class="bt sec" type="button" data-fechar-dem>Cancelar</button><button class="bt alerta" type="button" data-saldo="0">Saldo insuficiente — pedir reforço</button><button class="bt" type="button" data-saldo="1">Saldo confirmado — enviar ao financeiro</button></div></div></form>';
 }
@@ -501,7 +591,7 @@ function telaInstrumentos(){
 function fichaInst(i){
   var c = calc(i), lv = function(l, v, cls){ return '<div class="' + (cls || '') + '"><span>' + l + '</span><b>' + v + '</b></div>'; };
   var dias = i.vigencia_fim ? Math.ceil((new Date(String(i.vigencia_fim).slice(0, 10) + 'T00:00:00') - new Date()) / 864e5) : null;
-  var dir = '<div class="acoes"><button class="bt sec" type="button" data-ficha="">← Voltar</button>' + (cadastra() ? '<button class="bt sec" type="button" data-editar="' + esc(i.id) + '">Editar cadastro</button><button class="bt" type="button" data-dem="' + esc(i.id) + '">Registrar demanda</button>' : '') + '</div>';
+  var dir = '<div class="acoes"><button class="bt sec" type="button" data-ficha="">← Voltar</button>' + (cadastra() ? '<button class="bt sec" type="button" data-editar="' + esc(i.id) + '">Editar cadastro</button>' + (chefeOrc() ? '<button class="bt" type="button" data-chegou="' + esc(i.id) + '" data-comp="' + compAtual() + '">Chegou processo</button>' : '') : '') + '</div>';
   return cab(esc(i.favorecido || '—'), esc(titulo(i)) + ' · UG ' + esc(i.ug) + ' (' + esc(D.nomeUg[i.ug] || '') + ') · processo raiz ' + esc(i.processo_raiz) + (i.instrumento ? ' · instrumento ' + esc(i.instrumento) : '') + (i.proposta ? ' · proposta ' + esc(i.proposta) : ''), dir) +
     '<div class="blocos">' +
       '<div class="card"><h3>Contrato <small>todo o período</small></h3><div class="linhas-val">' + lv('Valor contratado (global)', brl(c.global)) + lv('Executado em anos anteriores', brl(c.anteriores)) + lv('Liquidado no ano ' + D.ano, brl(c.liqAno)) + lv('Saldo do contrato', brl(c.saldoContrato), 'total') + '</div></div>' +
@@ -551,6 +641,20 @@ $('tela').addEventListener('click', function(e){
   if((x = t.closest('[data-dem]'))){ ABERTO = {inst: x.dataset.dem}; VIEW = 'orcamento'; FICHA = null; desenhar(); var fm = document.querySelector('form[data-demanda]'); if(fm) fm.scrollIntoView({behavior: 'smooth'}); return; }
   if((x = t.closest('[data-rever]'))){ var p = D.pagamentos.filter(function(q){ return q.id === x.dataset.rever; })[0]; ABERTO = {inst: p.instrumento_id, pag: p.id}; desenhar(); document.querySelector('form[data-demanda]').scrollIntoView({behavior: 'smooth'}); return; }
   if(t.closest('[data-fechar-dem]')){ ABERTO = null; desenhar(); return; }
+  if((x = t.closest('[data-chegou]'))){ ABERTO = {chegou: x.dataset.chegou, comp: x.dataset.comp}; VIEW = 'orcamento'; FICHA = null; desenhar(); window.scrollTo(0, 0); return; }
+  if((x = t.closest('[data-chegou-salvar]'))){
+    var fc = x.closest('form'), oc = {acao: 'receber', instrumento_id: fc.dataset.chegouForm, processo: fc.processo.value.trim(), competencia: fc.competencia.value, valor: num(fc.valor.value), area: fc.area.value.trim(), analista: fc.analista.value};
+    if(!oc.processo) return aviso('Informe o processo SEI.', true);
+    x.disabled = true; ABERTO = null; ORC.aba = oc.analista ? 'mesa' : 'dist'; acao(oc, oc.analista ? 'Processo registrado e entregue ao analista.' : 'Processo registrado. Distribua ao analista.'); return;
+  }
+  if((x = t.closest('[data-orc-aba]'))){ ORC.aba = x.dataset.orcAba; ORC.lim = 80; ABERTO = null; desenhar(); return; }
+  if(t.closest('[data-orc-mais]')){ ORC.lim += 120; desenhar(); return; }
+  if(t.closest('[data-fo-limpar]')){ Object.keys(FO).forEach(function(k){ FO[k] = ''; }); desenhar(); return; }
+  if((x = t.closest('[data-orc-distribuir]'))){
+    var its = [].map.call(document.querySelectorAll('select[data-analista]'), function(sl){ return {id: sl.dataset.analista, analista: sl.value}; }).filter(function(it){ var p = D.pagamentos.filter(function(q){ return q.id === it.id; })[0]; return it.analista && p && String(p.analista || '').toLowerCase() !== it.analista; });
+    if(!its.length) return aviso('Escolha o analista de pelo menos um processo.', true);
+    x.disabled = true; acao({acao: 'distribuirOrc', itens: its}, function(r){ return (r.n || its.length) + ' processo(s) distribuído(s) no orçamento.'; }); return;
+  }
   if((x = t.closest('.ne'))){ var f0 = x.closest('form'); [].forEach.call(f0.querySelectorAll('.ne'), function(n){ n.classList.toggle('sel', n === x); }); return; }
   if((x = t.closest('[data-saldo]'))){
     var fm2 = x.closest('form'), ne = fm2.querySelector('input[name=ne]:checked');
@@ -558,7 +662,7 @@ $('tela').addEventListener('click', function(e){
     if(!o.processo) return aviso('Informe o processo SEI do pagamento.', true);
     if(!o.ne) return aviso('Escolha a NE.', true);
     if(!(o.valor > 0)) return aviso('Informe o valor.', true);
-    x.disabled = true; ABERTO = null; F.dem = ''; acao(o, o.saldoOk ? 'Saldo confirmado — enviado ao financeiro.' : 'Reforço de NE registrado.'); return;
+    x.disabled = true; ABERTO = null; F.dem = ''; ORC.aba = o.saldoOk ? 'env' : 'refo'; acao(o, o.saldoOk ? 'Saldo confirmado — enviado ao financeiro.' : 'Reforço de NE registrado.'); return;
   }
   if(t.id === 'bt-distribuir'){ var itens = [].map.call(document.querySelectorAll('[data-exec]'), function(s){ return {id: s.dataset.exec, executor: s.value}; }).filter(function(i){ return i.executor; }); if(!itens.length) return aviso('Escolha o executor de pelo menos um item.', true); t.disabled = true; acao({acao: 'distribuir', itens: itens}, function(r){ return r.n + ' item(ns) distribuído(s).'; }); return; }
   if((x = t.closest('[data-pago]'))){ var tr = x.closest('tr'), g = function(n){ return tr.querySelector('[name=' + n + ']').value.trim(); }; var pg = {acao: 'pago', id: x.dataset.pago, processo: g('processo'), competencia: g('competencia'), valor: num(g('valor')), recurso: g('recurso'), obs: g('obs')}; if(!pg.processo) return aviso('Informe o processo SEI do pagamento.', true); if(!(pg.valor > 0)) return aviso('Informe o valor liquidado bruto.', true); x.disabled = true; acao(pg, 'Pagamento informado. A contraprova com o Tesouro confirma depois.'); return; }
@@ -596,10 +700,15 @@ $('tela').addEventListener('change', function(e){
   var t = e.target;
   if(t.dataset.f){ F[t.dataset.f] = t.value; desenhar(); }
   if(t.id === 'fila-todas'){ FILA_TODAS = t.checked; desenhar(); }
+  if(t.id === 'orc-todas'){ ORC.todas = t.checked; desenhar(); }
+  if(t.id === 'orc-atras'){ ORC.atras = t.checked; desenhar(); }
+  if(t.id === 'orc-comp'){ ORC.comp = t.value; desenhar(); }
+  if(t.tagName === 'SELECT' && t.dataset.fo){ FO[t.dataset.fo] = t.value; desenhar(); }
   if(t.closest('form[data-demanda]') && t.name === 'competencia'){ var fm = t.closest('form'), c = calc(inst(fm.dataset.demanda)); if(c.prev[t.value]) fm.valor.value = v2(c.prev[t.value]); }
 });
 $('tela').addEventListener('input', function(e){
   var t = e.target;
+  if(t.tagName === 'INPUT' && t.dataset.fo){ FO[t.dataset.fo] = t.value; var k = t.dataset.fo; clearTimeout(window._bf); window._bf = setTimeout(function(){ desenhar(); var b = document.querySelector('input[data-fo="' + k + '"]'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 300); }
   if(t.id === 'dem-busca'){ F.dem = t.value; clearTimeout(window._bd); window._bd = setTimeout(function(){ desenhar(); var b = $('dem-busca'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 250); }
   if(t.matches && t.matches('textarea[data-auto]')) autoAltura(t);
   if(t.tagName === 'INPUT' && CAMPO_MOEDA.test(t.name) && !t.readOnly) mascaraMoeda(t);

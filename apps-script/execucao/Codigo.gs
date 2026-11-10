@@ -19,7 +19,10 @@
  * ABAS
  *  CONFIG        ano do exercício
  *  FONTES        links dos CSVs publicados do Tesouro (EXE/RAP) — ficam só aqui, não vão para a página
- *  USUARIOS      email · nome · perfil (ADMIN | ORCAMENTO | EXECUTOR) · ativo
+ *  USUARIOS      email · nome · perfil (ADMIN | CHEFE_ORCAMENTO | ORCAMENTO | EXECUTOR) · ativo
+ *                ADMIN = coordenador e chefe de divisão financeiro (distribuem o pagamento); CHEFE_ORCAMENTO = responsável
+ *                do orçamento (registra a chegada do processo e distribui ao analista); ORCAMENTO = analista do orçamento
+ *                (NE e saldo); EXECUTOR = equipe financeira (paga e informa).
  *  INSTRUMENTOS  cadastro (contrato, ata, parceria, TED, suprimento…) com o processo raiz
  *  PREVISAO      previsão de gasto por competência do ano (gerada pela parcela e vigência; editável)
  *  PAGAMENTOS    cada processo de pagamento: demanda → saldo → distribuição → informado → conferido
@@ -39,13 +42,14 @@ const ABAS = {
   PREVISAO: ['instrumento_id', 'competencia', 'valor', 'alterado_por', 'alterado_em'],
   PAGAMENTOS: ['id', 'instrumento_id', 'competencia', 'processo_pagamento', 'area_demandante', 'valor', 'ne', 'recurso', 'fonte',
     'obs_orcamento', 'orcamento_por', 'orcamento_em', 'situacao', 'executor', 'distribuido_por', 'distribuido_em',
-    'obs', 'informado_por', 'informado_em', 'conferido_em'],
+    'obs', 'informado_por', 'informado_em', 'conferido_em',
+    'analista', 'recebido_por', 'recebido_em', 'dist_orc_por', 'dist_orc_em'],
   DDO: ['id', 'instrumento_id', 'data', 'processo', 'valor', 'situacao', 'ne', 'objeto', 'periodo', 'por', 'em'],
   TESOURO_NE: ['ne', 'tipo', 'ug', 'processo', 'favorecido', 'acao', 'fonte', 'pi', 'nd', 'desc_nd', 'empenhado', 'liquidado', 'em_liquidacao', 'pago', 'saldo', 'base_liquidado', 'carga', 'origem'],
   HISTORICO: ['quando', 'email', 'acao', 'ref', 'detalhe'],
   SESSOES: ['token', 'email', 'exp']
 };
-const SIT = { REFORCO: 'REFORCO', SALDO_OK: 'SALDO_OK', DISTRIBUIDO: 'DISTRIBUIDO', INFORMADO: 'INFORMADO', CONFIRMADO: 'CONFIRMADO', AJUSTAR: 'AJUSTAR' };
+const SIT = { RECEBIDO: 'RECEBIDO', NO_ORCAMENTO: 'NO_ORCAMENTO', REFORCO: 'REFORCO', SALDO_OK: 'SALDO_OK', DISTRIBUIDO: 'DISTRIBUIDO', INFORMADO: 'INFORMADO', CONFIRMADO: 'CONFIRMADO', AJUSTAR: 'AJUSTAR' };
 const UGS = ['130010', '420013', '130141', '130255', '135098'];
 const NOME_UG = { '130010': 'CEPLAC', '420013': 'SDR', '130141': 'SDR · CGPI', '130255': 'SDR · PROMAQ', '135098': 'SDR · CGPI (repasse)' };
 
@@ -255,8 +259,8 @@ function baixarCsv(nome) {
   return l.filter(x => x.join('') !== '').map(x => { const o = {}; cab.forEach((c, i) => o[c] = x[i]); return o; });
 }
 /** Acrescenta no fim do cabeçalho as colunas novas (versões novas do código), sem mexer nas que já existem. */
-function garantirCabecalhos() {
-  Object.keys(ABAS).forEach(n => {
+function garantirCabecalhos(so) {
+  (so || Object.keys(ABAS)).forEach(n => {
     const s = sh(n); if (!s) return;
     const atual = s.getRange(1, 1, 1, Math.max(1, s.getLastColumn())).getValues()[0].filter(String);
     const falta = ABAS[n].filter(c => atual.indexOf(c) < 0);
@@ -348,7 +352,7 @@ function doPost(e) {
     if (!u) return json({ ok: false, sessao: false, msg: 'Sessão expirada. Entre de novo.' });
     if (p.acao === 'dados') return json(dados(u));
     lock.waitLock(25000);
-    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, distribuir: distribuir, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
+    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, receber: receberProcesso, distribuirOrc: distribuirOrcamento, distribuir: distribuir, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
     const f = acoes[p.acao];
     const r = f ? f(u, p) : { ok: false, msg: 'Ação desconhecida.' };
     SpreadsheetApp.flush();
@@ -408,8 +412,11 @@ function dados(u) {
   }
   const usadas = {}; inst.forEach(i => i.nes_vinculadas.forEach(n => usadas[n] = 1));
   const equipe = lerTudo('USUARIOS').filter(x => String(x.ativo).toUpperCase() !== 'NÃO' && /EXECUTOR|ADMIN/i.test(x.perfil)).map(x => ({ email: String(x.email).toLowerCase(), nome: x.nome || x.email }));
+  const ativos = lerTudo('USUARIOS').filter(x => String(x.ativo).toUpperCase() !== 'NÃO');
+  const equipeOrc = ativos.filter(x => /^(ORCAMENTO|CHEFE_ORCAMENTO)$/i.test(x.perfil) || (u.perfil === 'ADMIN' && igual(x.email, u.email)))
+    .map(x => ({ email: String(x.email).toLowerCase(), nome: x.nome || x.email }));
   return {
-    ok: true, eu: u, ano: ano(), competencias: competenciasDoAno(), nomeUg: NOME_UG,
+    ok: true, eu: u, ano: ano(), equipeOrc: equipeOrc, competencias: competenciasDoAno(), nomeUg: NOME_UG,
     instrumentos: inst, previsao: lerTudo('PREVISAO'), pagamentos: pags, ddo: u.perfil === 'EXECUTOR' ? [] : lerTudo('DDO'),
     tesouro: tes.filter(t => usadas[t.ne]), totalTesouro: tes.length,
     equipe: equipe, importacao: getConfig('ULTIMA_IMPORTACAO'), carga: getConfig('ULTIMA_CARGA'), conferencia: getConfig('ULTIMA_CONFERENCIA'), agora: agora()
@@ -426,7 +433,38 @@ function buscaTesouro(u, p) {
 }
 
 /* ---- ações ---- */
-function podeCadastrar(u) { return /ADMIN|ORCAMENTO/.test(u.perfil); }
+function podeCadastrar(u) { return /ADMIN|ORCAMENTO/.test(u.perfil); }   // ADMIN, CHEFE_ORCAMENTO e ORCAMENTO
+function chefeOrc(u) { return u.perfil === 'ADMIN' || u.perfil === 'CHEFE_ORCAMENTO'; }
+
+/** Responsável do orçamento: o processo SEI chegou. Cria a demanda (sem NE ainda) e, se já escolher, entrega ao analista. */
+function receberProcesso(u, p) {
+  if (!chefeOrc(u)) return { ok: false, msg: 'Só o responsável do orçamento registra a chegada do processo.' };
+  garantirCabecalhos(['PAGAMENTOS']);
+  const i = lerTudo('INSTRUMENTOS').find(x => x.id === p.instrumento_id);
+  if (!i) return { ok: false, msg: 'Instrumento não encontrado.' };
+  if (!String(p.processo || '').trim()) return { ok: false, msg: 'Informe o processo SEI.' };
+  if (!p.competencia) return { ok: false, msg: 'Informe a competência.' };
+  const quando = agora();
+  const o = { id: 'P' + Date.now().toString(36).toUpperCase(), instrumento_id: i.id, competencia: p.competencia, processo_pagamento: String(p.processo).trim(),
+    area_demandante: p.area || '', valor: num(p.valor), recebido_por: u.email, recebido_em: quando, situacao: SIT.RECEBIDO };
+  if (p.analista) Object.assign(o, { analista: String(p.analista).toLowerCase(), dist_orc_por: u.email, dist_orc_em: quando, situacao: SIT.NO_ORCAMENTO });
+  anexar('PAGAMENTOS', o);
+  hist(u, 'processo recebido', o.id, o.processo_pagamento + (p.analista ? ' · analista ' + p.analista : ''));
+  return { ok: true, id: o.id };
+}
+/** Responsável do orçamento: entrega (ou troca) o analista que vai tratar a NE e o saldo. */
+function distribuirOrcamento(u, p) {
+  if (!chefeOrc(u)) return { ok: false, msg: 'Só o responsável do orçamento distribui no orçamento.' };
+  garantirCabecalhos(['PAGAMENTOS']);
+  const todos = lerTudo('PAGAMENTOS'), quando = agora(); let n = 0;
+  (p.itens || []).forEach(it => {
+    const c = todos.find(x => x.id === it.id);
+    if (!c || !it.analista || [SIT.RECEBIDO, SIT.NO_ORCAMENTO, SIT.REFORCO].indexOf(c.situacao) < 0) return;
+    atualizar('PAGAMENTOS', c.id, { analista: String(it.analista).toLowerCase(), dist_orc_por: u.email, dist_orc_em: quando, situacao: c.situacao === SIT.REFORCO ? SIT.REFORCO : SIT.NO_ORCAMENTO });
+    hist(u, 'distribuído no orçamento', c.id, it.analista); n++;
+  });
+  return { ok: true, n: n };
+}
 function salvarInstrumento(u, p) {
   if (!podeCadastrar(u)) return { ok: false, msg: 'Só o Orçamento ou o coordenador cadastram.' };
   const d = p.dados || {};
@@ -477,8 +515,16 @@ function registrarDemanda(u, p) {
   const t = lerTudo('TESOURO_NE').find(x => x.ne === p.ne && String(x.ug) === String(i.ug));
   if (!t) return { ok: false, msg: 'Escolha a NE (da mesma UG do instrumento).' };
   const o = { instrumento_id: i.id, competencia: p.competencia, processo_pagamento: p.processo, area_demandante: p.area || '', valor: num(p.valor), ne: t.ne, recurso: t.tipo === 'RAP' ? 'RAP001' : 'EXE001', fonte: t.fonte, obs_orcamento: p.obs || '', orcamento_por: u.email, orcamento_em: agora(), situacao: p.saldoOk ? SIT.SALDO_OK : SIT.REFORCO };
-  if (p.id) { atualizar('PAGAMENTOS', p.id, o); hist(u, p.saldoOk ? 'saldo confirmado' : 'reforço de NE', p.id, p.processo); return { ok: true }; }
-  o.id = 'P' + Date.now().toString(36).toUpperCase();
+  garantirCabecalhos(['PAGAMENTOS']);
+  if (p.id) {
+    const c = lerTudo('PAGAMENTOS').find(x => x.id === p.id);
+    if (!c) return { ok: false, msg: 'Demanda não encontrada.' };
+    if ([SIT.RECEBIDO, SIT.NO_ORCAMENTO, SIT.REFORCO, SIT.SALDO_OK].indexOf(c.situacao) < 0) return { ok: false, msg: 'Esta demanda já foi distribuída no financeiro.' };
+    if (!chefeOrc(u) && !igual(c.analista, u.email)) return { ok: false, msg: 'Esta demanda está com outro analista.' };
+    if (!c.analista) o.analista = u.email;
+    atualizar('PAGAMENTOS', p.id, o); hist(u, p.saldoOk ? 'saldo confirmado' : 'reforço de NE', p.id, p.processo); return { ok: true };
+  }
+  o.id = 'P' + Date.now().toString(36).toUpperCase(); o.analista = u.email;
   anexar('PAGAMENTOS', o);
   hist(u, p.saldoOk ? 'demanda · saldo confirmado' : 'demanda · reforço de NE', o.id, p.processo + ' · ' + t.ne);
   return { ok: true };
