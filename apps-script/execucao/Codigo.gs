@@ -38,7 +38,7 @@ const ABAS = {
   INSTRUMENTOS: ['id', 'formalizacao', 'orcamento', 'ug', 'sigla', 'atividade', 'natureza', 'numero', 'instrumento', 'proposta',
     'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'prorrogacao_prevista',
     'valor_global', 'valor_parcela', 'executado_anteriores', 'nes', 'regiao', 'uf', 'origem', 'criado_em', 'criado_por', 'alterado_em', 'alterado_por', 'justificativa',
-    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao'],
+    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao', 'a_desembolsar'],
   PREVISAO: ['instrumento_id', 'competencia', 'valor', 'alterado_por', 'alterado_em'],
   PAGAMENTOS: ['id', 'instrumento_id', 'competencia', 'processo_pagamento', 'area_demandante', 'valor', 'ne', 'recurso', 'fonte',
     'obs_orcamento', 'orcamento_por', 'orcamento_em', 'situacao', 'executor', 'distribuido_por', 'distribuido_em',
@@ -114,16 +114,18 @@ function competenciasDoAno() {
   return out;
 }
 /** Previsão = valor da parcela em cada competência do ano dentro da vigência (até dezembro se prorrogação prevista). */
-/** Ata, compra sem parcela, contrato de repasse, convênio e termos: o valor do ano fica todo em junho (se pagar antes, o executor ajusta). */
+/** Ata, compra sem parcela, contrato de repasse, convênio e termos: o valor do ano fica todo em julho (se pagar antes, o executor ajusta).
+ *  Parcerias: o a desembolsar (inclusive parcela atrasada), limitado ao saldo das NEs. Ata e compra: o saldo das NEs. */
 const MES_UNICO_RE = /^(ata|contrato de repasse|conv[eê]nio|termo de fomento|termo de colabora)/i;
 function previsaoMesUnico(i) { return MES_UNICO_RE.test(String(i.formalizacao || '')) || /^compra/i.test(String(i.base_previsao || '')); }
-function mesUnico() { return ano() + '-06'; }
+function mesUnico() { return ano() + '-07'; }
+const PARCERIA_RE = /^(contrato de repasse|conv[eê]nio|termo de fomento|termo de colabora)/i;
 function saldoDasNes(nes, ug) { const sd = {}; tesouroEmCache().forEach(t => { const k = t.ne + '|' + t.ug; sd[k] = (sd[k] || 0) + num(t.saldo); }); return String(nes || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + (sd[ne + '|' + ug] || 0), 0); }
 function gerarPrevisao(i, por) {
   const ja = {}; lerTudo('PREVISAO').filter(p => p.instrumento_id === i.id).forEach(p => ja[p.competencia] = 1);
   if (previsaoMesUnico(i)) {
     if (Object.keys(ja).length) return;   // já tem previsão: não mexe
-    const v = num(i.valor_parcela) || saldoDasNes(i.nes, i.ug) || num(i.valor_global);
+    const sd = saldoDasNes(i.nes, i.ug), v = num(i.valor_parcela) || (PARCERIA_RE.test(String(i.formalizacao || '')) ? Math.min(num(i.a_desembolsar) || num(i.valor_global), sd || num(i.valor_global)) : sd) || num(i.valor_global);
     if (v) anexarVarios('PREVISAO', [{ instrumento_id: i.id, competencia: mesUnico(), valor: v, alterado_por: por, alterado_em: agora() }]);
     return;
   }
@@ -291,7 +293,7 @@ function importarCadastro(u) {
   const dig = x => String(x || '').replace(/\D/g, '');
   const porChave = {}, porProc = {};
   linhas.forEach(r => { if (g(r, 'chave')) porChave[g(r, 'chave')] = r; porProc[dig(g(r, 'processo_raiz')) + '|' + g(r, 'ug') + '|' + String(g(r, 'numero') || g(r, 'instrumento'))] = r; });
-  const AUTO = ['formalizacao', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'uf', 'regiao', 'acao'];
+  const AUTO = ['formalizacao', 'ug', 'numero', 'instrumento', 'proposta', 'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'valor_global', 'valor_parcela', 'base_previsao', 'uf', 'regiao', 'acao', 'a_desembolsar'];
   const agora_ = agora(), vistos = {}, tocados = [];
   let criados = 0, atualizados = 0, encerrados = 0, semSaldo = 0;
   novos.forEach(n => {
@@ -320,9 +322,14 @@ function importarCadastro(u) {
   const ps = sh('PREVISAO'), idPorChave = {}; linhas.forEach(r => { if (g(r, 'chave')) idPorChave[g(r, 'chave')] = g(r, 'id'); });
   // mês único (ata, compra, repasse, convênio, termos): soma do ano em junho; refeito a cada importação, salvo se alguém editou à mão
   const unico = {}; linhas.forEach(r => { if (g(r, 'chave') && previsaoMesUnico({ formalizacao: g(r, 'formalizacao'), base_previsao: g(r, 'base_previsao') })) unico[g(r, 'id')] = r; });
-  const somaU = {};
-  prevs.forEach(p => { const id = idPorChave[p.chave]; if (id && unico[id]) somaU[id] = (somaU[id] || 0) + num(p.valor); });
-  Object.keys(unico).forEach(id => { if (!somaU[id]) { const r = unico[id]; const sd = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + (saldoNe[ne + '|' + g(r, 'ug')] || 0), 0); if (sd > 0.01) somaU[id] = sd; } });
+  const somaU = {}, crono = {};
+  prevs.forEach(p => { const id = idPorChave[p.chave]; if (id && unico[id]) crono[id] = (crono[id] || 0) + num(p.valor); });
+  Object.keys(unico).forEach(id => {
+    const r = unico[id], sd = String(g(r, 'nes') || '').split(/[,;\s]+/).filter(Boolean).reduce((a, ne) => a + Math.max(0, saldoNe[ne + '|' + g(r, 'ug')] || 0), 0);
+    const parceria = PARCERIA_RE.test(String(g(r, 'formalizacao') || '')), falta = num(g(r, 'a_desembolsar')) || crono[id] || 0;
+    const v = parceria ? Math.min(falta, sd) : sd;   // só o que tem empenho para pagar
+    if (v > 0.01) somaU[id] = v;
+  });
   competenciaComoTexto();
   const pvBruto = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, 5).getValues().filter(x => x.join('') !== '') : [];
   const unicoPv = {}; pvBruto.forEach(x => { x[1] = compStr(x[1]); const k = x[0] + '|' + x[1], old = unicoPv[k]; if (!old || String(old[3]) === 'robô' || String(old[3]) === 'teste') unicoPv[k] = x; });   // uma linha por instrumento e mês; a editada à mão vence
@@ -379,7 +386,7 @@ function doPost(e) {
     if (!u) return json({ ok: false, sessao: false, msg: 'Sessão expirada. Entre de novo.' });
     if (p.acao === 'dados') return json(dados(u));
     lock.waitLock(25000);
-    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, receber: receberProcesso, distribuirOrc: distribuirOrcamento, distribuir: distribuir, devolver: devolverAoOrcamento, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
+    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, receber: receberProcesso, distribuirOrc: distribuirOrcamento, distribuir: distribuir, devolver: devolverAoOrcamento, limparTeste: limparTeste, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
     const f = acoes[p.acao];
     const r = f ? f(u, p) : { ok: false, msg: 'Ação desconhecida.' };
     SpreadsheetApp.flush();
@@ -582,6 +589,31 @@ function devolverAoOrcamento(u, p) {
   atualizar('PAGAMENTOS', c.id, { situacao: c.analista ? SIT.DEVOLVIDO : SIT.RECEBIDO, executor: '', devolvido_por: u.email, devolvido_em: agora(), motivo_devolucao: motivo });
   hist(u, 'devolvido ao orçamento', c.id, motivo + (c.executor ? ' · estava com ' + c.executor : ''));
   return { ok: true };
+}
+/** Apaga os dados de TESTE (instrumentos T1–T4, NEs 900xxx e tudo ligado a eles). O histórico fica. */
+function limparTeste(u) {
+  if (u && u.perfil !== 'ADMIN') return { ok: false, msg: 'Só o coordenador apaga os dados de teste.' };
+  const ids = {}; lerTudo('INSTRUMENTOS').forEach(i => { if (i.origem === 'TESTE') ids[i.id] = 1; });
+  const nesTeste = {}; lerTudo('TESOURO_NE').forEach(t => { if (t.origem === 'TESTE') nesTeste[t.ne] = 1; });
+  const tira = (aba, fora) => {
+    const s = sh(aba); if (!s || s.getLastRow() < 2) return 0;
+    const v = s.getDataRange().getValues(), cab = v[0], fica = v.slice(1).filter(r => r.join('') !== '' && !fora(r, cab));
+    const n = v.length - 1 - fica.length;
+    s.getRange(2, 1, v.length - 1, cab.length).clearContent();
+    if (fica.length) s.getRange(2, 1, fica.length, cab.length).setValues(fica);
+    return n;
+  };
+  const col = (cab, c) => cab.indexOf(c);
+  const n = {
+    instrumentos: tira('INSTRUMENTOS', (r, c) => r[col(c, 'origem')] === 'TESTE'),
+    pagamentos: tira('PAGAMENTOS', (r, c) => ids[r[col(c, 'instrumento_id')]] || nesTeste[r[col(c, 'ne')]]),
+    previsao: tira('PREVISAO', (r, c) => ids[r[col(c, 'instrumento_id')]]),
+    ddo: tira('DDO', (r, c) => ids[r[col(c, 'instrumento_id')]]),
+    nes: tira('TESOURO_NE', (r, c) => r[col(c, 'origem')] === 'TESTE')
+  };
+  limparCacheTesouro();
+  hist(u || { email: 'apps-script' }, 'dados de teste apagados', '', JSON.stringify(n));
+  return { ok: true, msg: 'Dados de teste apagados: ' + n.instrumentos + ' instrumento(s), ' + n.pagamentos + ' pagamento(s), ' + n.previsao + ' linha(s) de previsão, ' + n.ddo + ' DDO, ' + n.nes + ' NE(s) de teste.' };
 }
 function informarPago(u, p) {
   const c = lerTudo('PAGAMENTOS').find(x => x.id === p.id);
