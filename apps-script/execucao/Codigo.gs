@@ -411,7 +411,8 @@ function importarCadastro(u) {
   tocados.forEach(r => {
     if (unico[g(r, 'id')]) return;
     const parcela = num(g(r, 'valor_parcela')); if (!parcela) return;
-    const ini = String(g(r, 'vigencia_ini')).slice(0, 7), fim = String(g(r, 'prorrogacao_prevista')).toUpperCase() === 'SIM' ? '9999-12' : String(g(r, 'vigencia_fim')).slice(0, 7);
+    const fimTxt = ymd(g(r, 'vigencia_fim')).slice(0, 7);
+    const ini = ymd(g(r, 'vigencia_ini')).slice(0, 7), fim = String(g(r, 'prorrogacao_prevista')).toUpperCase() === 'SIM' || !fimTxt ? '9999-12' : fimTxt;
     competenciasDoAno().forEach(c => { if (c >= ini && c <= fim) add(g(r, 'id'), c, parcela); });
   });
   if (novasPrev.length) ps.getRange(ps.getLastRow() + 1, 1, novasPrev.length, 5).setValues(novasPrev);
@@ -440,7 +441,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10b · importação rápida';
+const VERSAO = '2026-11-10c · previsão dos contratos';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
@@ -746,6 +747,8 @@ function lerTudo(n) {
   return v.filter(r => r.join('') !== '').map(r => { const o = {}; cab.forEach((c, i) => o[c] = c === 'competencia' ? compStr(r[i]) : (r[i] instanceof Date ? Utilities.formatDate(r[i], 'America/Sao_Paulo', "yyyy-MM-dd'T'HH:mm:ss") : r[i])); return o; });
 }
 /** O Google Sheets transforma "2027-03" em data: aqui volta sempre para o texto "2027-03". */
+/** Data lida da planilha (o Sheets transforma "2025-05-14" em data) → texto "2025-05-14". */
+function ymd(x) { return x instanceof Date ? Utilities.formatDate(x, 'America/Sao_Paulo', 'yyyy-MM-dd') : String(x || ''); }
 function compStr(x) { return x instanceof Date ? Utilities.formatDate(x, 'America/Sao_Paulo', 'yyyy-MM') : String(x || '').slice(0, 7); }
 /** Deixa a coluna competência como texto, para o Sheets não converter mais (uma vez por aba). */
 function competenciaComoTexto() {
