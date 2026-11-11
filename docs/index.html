@@ -3593,6 +3593,15 @@ async function abrirFicha(c, origem){
   ajustarFundoFicha();
   const irParaFicha = () => { try{ el.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ el.scrollIntoView(); } };
   irParaFicha();
+  // dentro do Painel SDR a execução vem do Tesouro do painel (as abas BASE EXE/RAP GERAL SDR foram retiradas da planilha em 11/11/2026):
+  // abre a mesma ficha dos Contratos SDR, ligada pelas notas de empenho do contrato no Contratos.gov.br
+  if(temTesPai() && typeof abrirFichaCtrApi === 'function'){
+    try{ await dados('base'); }catch(e){}
+    await carregarApiCtr();
+    const b = DADOS.base && (DADOS.base.linhas||[]).find(d => chaveCtr(d.num) === chaveCtr(c));
+    const o = apiDoContrato(b, c);
+    if(o) return abrirFichaCtrApi(o.id, origem);
+  }
   try{
     await Promise.all((escopo==='EXE' ? ['exe'] : escopo==='RAP' ? ['rap'] : ['exe','rap']).map(dados));
     try{ await dados('base'); }catch(e){}
