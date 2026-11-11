@@ -5267,10 +5267,30 @@ async function abrirFichaRepasse(o, origem){
   try{ el.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ el.scrollIntoView(); }
 }
 window.abrirFichaRepasse = abrirFichaRepasse;
-function abrirFichaInst(num, origem){
+// o mesmo instrumento aparece em duas bases: Parceria SDR (Transferegov, robô) e Execução Convênio/TF 420013 (controle da equipe).
+// A ficha junta as duas: fatos do Transferegov (situação, UG, programa, valores, vigência) + o que só a equipe tem
+// (status financeiro, alerta, técnico/executor, observação, departamento) — a mesma ficha nas duas telas.
+const CAMPOS_EQUIPE = ['statusFin','alerta','exec','obs','depto','atualiz','ultPag','semDes'];
+function juntarInst(num){
+  const n = String(num||'').trim().toUpperCase();
+  const ach = k => DADOS[k] && DADOS[k].linhas ? DADOS[k].linhas.find(x => String(x.num||'').trim().toUpperCase() === n) : null;
+  const tg = ach('parc'), eq = ach('conv');
+  if(!tg && !eq) return null;
+  const vazio = v => v === undefined || v === null || v === '' || v === '—' || v === '(sem status)' || v === '(sem técnico)' || v === '(sem departamento)';
+  const d = Object.assign({}, eq || {}, tg || {});
+  // o que o Transferegov não trouxe vem da equipe, e vice-versa
+  [eq, tg].forEach(o => { if(o) Object.keys(o).forEach(k => { if(vazio(d[k]) && !vazio(o[k])) d[k] = o[k]; }); });
+  if(eq) CAMPOS_EQUIPE.forEach(k => { if(!vazio(eq[k])) d[k] = eq[k]; });
+  if(eq && !vazio(eq.acao) && /[A-Za-z]{3}/.test(eq.acao)) d.acao = eq.acao;   // "DECAP - 215A - Desenvolvimento…" (nome) no lugar do código 1144215A
+  if(tg && !vazio(tg.situ)) d.situ = tg.situ;                                    // situação oficial: a do Transferegov
+  if(!tg && eq && (vazio(d.ug) || d.ug === '(sem UG)')) d.ug = '420013';   // a base da equipe é só da UG 420013
+  d._tg = !!tg; d._eq = !!eq;
+  return d;
+}
+async function abrirFichaInst(num, origem){
   if(!String(num||'').trim()) return;   // sem nº: não abre a ficha de outro instrumento
-  const fonte = VIEW && VIEW.id==='conv' ? 'conv' : 'parc';
-  const d = DADOS[fonte] && DADOS[fonte].linhas.find(x => x.num===num); if(!d) return;
+  await Promise.allSettled(['parc','conv'].map(k => DADOS[k] ? null : dados(k)));
+  const d = juntarInst(num); if(!d) return;
   const fundo = document.getElementById('fichaFundo'), el = document.getElementById('ficha');
   FICHA_ORIGEM = origem || null;
   const y = origem ? origem.getBoundingClientRect().top + window.scrollY : window.scrollY;
@@ -5285,8 +5305,8 @@ function abrirFichaInst(num, origem){
     <div class="fi-cab"><small>Ficha de instrumento celebrado · ${esc((tipoInst(d)||['Convênios e Termos de Fomento'])[0])}</small>
       <h2>${esc(d.num)} ${tagTipoInst(d).replace('font-size:10px','font-size:13px')}</h2>
       <p>Autor: <b>${esc(d.parl||'—')}</b> · Proponente: <b>${esc(d.proponente)}</b></p>
-      <p style="font-size:11px;opacity:.75;margin:2px 0 6px">Dados: ${tgFonte()}${d.ajPT ? ' · ajuste de PT: '+esc(d.ajPT)+' (conferido no Acesso Livre do Transferegov 2×/dia)' : ''}</p>
-      ${pillStatus(status)}${d.alerta?` <span class="st-pill" style="background:#c0392b">⚠ ${esc(d.alerta)}</span>`:''}${d.carteira && d.carteira!=='SDR'?` <span class="st-pill" style="background:#1a7f9c" title="Todas as notas de empenho deste instrumento foram emitidas pela UG 110008 (pesca)">🐟 ${esc(d.carteira)}</span>`:''}
+      <p style="font-size:11px;opacity:.75;margin:2px 0 6px">Dados: ${d._tg ? tgFonte() : 'Transferegov (planilha da equipe)'}${d._eq ? ' + controle da equipe 420013 (status, técnico, observação)' : ''}${d.ajPT ? ' · ajuste de PT: '+esc(d.ajPT)+' (conferido no Acesso Livre do Transferegov 2×/dia)' : ''}</p>
+      ${pillStatus(status)}${d._eq && d._tg && d.situ && normAccent(d.situ) !== normAccent(status) ? ` <span class="st-pill" style="background:#1f4e79" title="Situação no Transferegov">Transferegov: ${esc(d.situ)}</span>` : ''}${d.alerta?` <span class="st-pill" style="background:#c0392b">⚠ ${esc(d.alerta)}</span>`:''}${d.carteira && d.carteira!=='SDR'?` <span class="st-pill" style="background:#1a7f9c" title="Todas as notas de empenho deste instrumento foram emitidas pela UG 110008 (pesca)">🐟 ${esc(d.carteira)}</span>`:''}
       <div class="fi-caixas"><div>Exercício<b>${esc(d.ano||'—')}</b></div><div>UF<b>${esc(d.uf||'—')}</b></div><div>Modalidade<b>${esc(d.mod||'—')}</b></div><div>Emenda<b>${esc(d.emenda||'—')}</b></div><div title="${esc(ugNome(ugInst(d)))}">UG executora<b id="fi-ug">${esc(ugInst(d)||'…')}</b></div></div>
       <div class="fi-acoes">${d.link ? `<a class="fi-link" href="${esc(d.link)}" target="_blank" rel="noopener" title="Abrir o instrumento no Transferegov">Instrumento ↗</a>` : ''}${d.linkProg ? `<a class="fi-link" href="${esc(d.linkProg)}" target="_blank" rel="noopener" title="Abrir o programa no Transferegov">Programa ↗</a>` : ''}<button type="button" onclick="imprimirFicha()">📄 Extração em PDF</button><button type="button" data-fechaficha aria-label="Fechar a ficha">✕</button></div>
     </div>
