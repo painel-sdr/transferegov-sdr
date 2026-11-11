@@ -12229,7 +12229,7 @@ async function asTeste(txt){
     `<button data-asxlteste>⬇ Excel do teste</button>`, '');
 }
 // registro das perguntas (uso real e testes) numa aba de planilha, pelo Apps Script publicado como app da web (link em AS_REGISTRO)
-const AS_REGISTRO = 'https://script.google.com/macros/s/AKfycbzKr731TalB0FRdsM_UO58sM1rGESTv8SnloS-ZE2kOz7L3R4ACjG0dO5UjM9CcXYEuzg/exec';   // planilha BANCO DE DADOS PERGUNTAS · aba REGISTRO ASSISTENTE
+const AS_REGISTRO = 'https://script.google.com/macros/s/AKfycbzpb1xz2AsKdUlBhUmvyDKq0CPQtxoRwTfQaQwPGFMgxjKcubwWY-h1NZ1xJptt2Z4EtA/exec';   // planilha BANCO DE DADOS PERGUNTAS · aba REGISTRO ASSISTENTE
 function asRegistrar(linhas){
   if(!AS_REGISTRO || !linhas || !linhas.length) return;
   try{ fetch(AS_REGISTRO, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({linhas})}).catch(() => {}); }catch(e){}
