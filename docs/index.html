@@ -5271,10 +5271,32 @@ window.abrirFichaRepasse = abrirFichaRepasse;
 // A ficha junta as duas: fatos do Transferegov (situação, UG, programa, valores, vigência) + o que só a equipe tem
 // (status financeiro, alerta, técnico/executor, observação, departamento) — a mesma ficha nas duas telas.
 const CAMPOS_EQUIPE = ['statusFin','alerta','exec','obs','depto','atualiz','ultPag','semDes'];
+// instrumento que está no Transferegov (robô) mas ainda não entrou na planilha da Parceria SDR: a busca e a ficha usam o do robô
+function instDoTG(num){
+  if(typeof TG === 'undefined' || !TG || !TG.mapa) return null;
+  const t = TG.mapa.get(String(num||'').trim()); if(!t) return null;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const fim = dataBR(t.fim_vigencia), glob = nTG(t.valor_global), rep = nTG(t.valor_repasse);
+  return {num:t.nr_instrumento, ano:t.ano, situ:t.situacao, situG:t.situacao, fim, limPC:dataBR(t.limite_prestacao_contas), diasFim: fim ? Math.round((fim-hoje)/864e5) : null,
+    proc:t.nr_processo, procTG:t.nr_processo, mod:t.modalidade, proponente:t.proponente, uf:t.uf, global:glob, repasse:rep, contrap:Math.max(0, glob-rep),
+    desemb:nTG(t.valor_desembolsado), aDes:nTG(t.valor_a_desembolsar), saldo:nTG(t.saldo_em_conta), acao:String(t.acao_orcamentaria||'').split(' | ')[0],
+    programa:t.programa, codProg:t.cod_programa, objeto:t.objeto, ug:t.ug_emitente, tg:t, _soTG:true};
+}
+let _parcExtra = null;
+function listaParcBusca(){
+  const L = DADOS.parc ? DADOS.parc.linhas : [];
+  if(typeof TG === 'undefined' || !TG || !TG.mapa || !TG.mapa.size) return L;
+  if(!_parcExtra || _parcExtra.tg !== TG || _parcExtra.n !== L.length){
+    const tem = new Set(L.map(d => String(d.num).trim())), extra = [];
+    TG.mapa.forEach((t, k) => { if(!tem.has(k)){ const o = instDoTG(k); if(o) extra.push(o); } });
+    _parcExtra = {tg: TG, n: L.length, extra};
+  }
+  return L.concat(_parcExtra.extra);
+}
 function juntarInst(num){
   const n = String(num||'').trim().toUpperCase();
   const ach = k => DADOS[k] && DADOS[k].linhas ? DADOS[k].linhas.find(x => String(x.num||'').trim().toUpperCase() === n) : null;
-  const tg = ach('parc'), eq = ach('conv');
+  const tg = ach('parc') || instDoTG(String(num||'').trim()), eq = ach('conv');
   if(!tg && !eq) return null;
   const vazio = v => v === undefined || v === null || v === '' || v === '—' || v === '(sem status)' || v === '(sem técnico)' || v === '(sem departamento)';
   const d = Object.assign({}, eq || {}, tg || {});
@@ -7171,7 +7193,7 @@ const VIEW_PARC = {
   },
   principais:['uf','situG','mod','parl','depto'],
   busca:{
-    lista:() => DADOS.parc ? DADOS.parc.linhas : [],
+    lista:() => listaParcBusca(),
     texto:d => [d.num, d.prop, d.proc, d.procTG, d.proponente, d.cnpj, d.parl, d.emenda, d.uf, d.tg && d.tg.municipio].join(' '),
     rot:d => `<b>${esc(d.num)}</b> · ${esc(d.situ||'')}<small>${esc(d.proponente||'')}${d.tg && d.tg.municipio ? ' · '+esc(d.tg.municipio) : ''}${d.uf ? '/'+esc(d.uf) : ''} · repasse ${fmtC(d.repasse||0)}</small>`,
     abrir:(d, el) => abrirFichaInst(d.num, el)
