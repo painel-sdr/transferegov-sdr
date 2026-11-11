@@ -3601,6 +3601,19 @@ async function abrirFicha(c, origem){
     const b = DADOS.base && (DADOS.base.linhas||[]).find(d => chaveCtr(d.num) === chaveCtr(c));
     const o = apiDoContrato(b, c);
     if(o) return abrirFichaCtrApi(o.id, origem);
+    // fora do Contratos.gov.br: notas que o robô ligou ao contrato na coluna "Contrato" do Tesouro
+    try{
+      el.innerHTML = '<div class="f-corpo"><p>Lendo no Tesouro do painel as notas de empenho ligadas a este contrato…</p></div>';
+      const nes = await parent.__tesNEsDoContrato(c);
+      if(nes.length){
+        const h = await parent.__tesNEsHist(nes);
+        DADOS.exe = Object.assign(DADOS.exe || {}, h.exe); DADOS.rap = Object.assign(DADOS.rap || {}, h.rap);
+        FICHA_C = c; FICHA_ESC = escopo; FICHA_MES = 0; FICHA_API = null;
+        el.innerHTML = fichaHTML(c, escopo, 0);
+        ajustarFundoFicha(); irParaFicha(); return;
+      }
+      el.innerHTML = `<div class="f-corpo"><p class="estado">O contrato ${esc(c)} não está no Contratos.gov.br e nenhuma nota de empenho do Tesouro está ligada a ele na coluna "Contrato". Confira o número na coluna "Contrato" da BASE TESOURO GERENCIAL.</p><button type="button" class="btn" data-fechaficha>Fechar</button></div>`; return;
+    }catch(e){ el.innerHTML = `<div class="f-corpo"><p class="estado erro">Não foi possível ler o Tesouro do painel: ${esc(e.message)}</p><button type="button" class="btn" data-fechaficha>Fechar</button></div>`; return; }
   }
   try{
     await Promise.all((escopo==='EXE' ? ['exe'] : escopo==='RAP' ? ['rap'] : ['exe','rap']).map(dados));
@@ -11981,6 +11994,18 @@ window.__tesCtrMapa = () => _tesCtrMapa || (_tesCtrMapa = (async () => {
   return {mapa: M, mes: ult, rot: rotMes(ult)};
 })().catch(e => { _tesCtrMapa = null; throw e; }));
 // todos os meses de algumas notas de empenho, no formato das bases EXE/RAP do app antigo ({linhas, ranks}), para a ficha do contrato
+// notas de empenho que o robô ligou a um contrato (coluna "Contrato" da BASE TESOURO GERENCIAL), para a ficha da Base Contratos (CEPLAC)
+window.__tesNEsDoContrato = async num => {
+  await Promise.all(['exe','rap'].map(v => carregarVisao(v).catch(() => {})));
+  const alvo = String(num||'').trim().replace(/'/g, ''); if(!alvo) return [];
+  const vistos = new Map();
+  for(const v of ['exe','rap']){ const D = DADOS[v];
+    const tarefas = D.fontes.filter(F => F.C.ne >= 0 && F.C.contr >= 0 && F.C.ug >= 0).map(F => async () => {
+      const r = await gqF(F, F.range, `select ${F.ids[F.C.ug]}, ${F.ids[F.C.ne]} where ${F.ids[F.C.contr]} contains '${alvo}'`);
+      return r.rows.map(x => ({ug:String(x[0]||'').trim(), ne:String(x[1]||'').trim()})); });
+    (await emLotes(tarefas, 6)).forEach(r => { if(r.ok) r.v.forEach(e => { if(e.ne) vistos.set(e.ug+'|'+e.ne, e); }); }); }
+  return [...vistos.values()];
+};
 window.__tesNEsHist = async nes => {
   await Promise.all(['exe','rap'].map(v => carregarVisao(v).catch(() => {})));
   const quer = new Set(nes.map(e => neChaveTes(e.ug, e.ne)).filter(Boolean)), cods = [...new Set([...quer].map(k => k.split('|')[1]))];
