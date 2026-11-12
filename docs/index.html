@@ -5303,6 +5303,8 @@ function juntarInst(num){
   // o que o Transferegov não trouxe vem da equipe, e vice-versa
   [eq, tg].forEach(o => { if(o) Object.keys(o).forEach(k => { if(vazio(d[k]) && !vazio(o[k])) d[k] = o[k]; }); });
   if(eq) CAMPOS_EQUIPE.forEach(k => { if(!vazio(eq[k])) d[k] = eq[k]; });
+  // textos longos: fica o mais completo (o arquivo leve do robô corta o objeto em 160 caracteres)
+  ['objeto','proponente','programa','obs'].forEach(k => { [eq, tg].forEach(o => { if(o && !vazio(o[k]) && String(o[k]).length > String(d[k]||'').length) d[k] = o[k]; }); });
   if(eq && !vazio(eq.acao) && /[A-Za-z]{3}/.test(eq.acao)) d.acao = eq.acao;   // "DECAP - 215A - Desenvolvimento…" (nome) no lugar do código 1144215A
   if(tg && !vazio(tg.situ)) d.situ = tg.situ;                                    // situação oficial: a do Transferegov
   if(!tg && eq && (vazio(d.ug) || d.ug === '(sem UG)')) d.ug = '420013';   // a base da equipe é só da UG 420013
