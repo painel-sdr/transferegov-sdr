@@ -12804,7 +12804,10 @@ const histChave = e => { const u = String(e.ug||'').match(/\d{6}/), n = String(e
 async function histDados(nes, ex){
   const ks0 = [...new Set(nes.map(histChave).filter(Boolean))], pd = String(ex && ex.proc || '').replace(/\D/g, ''), ugEx = String(ex && ex.ug || '').match(/\d{6}/);
   const ugs = [...new Set(ks0.map(k => k.split('|')[0]).concat(pd && ugEx ? [ugEx[0]] : []))], D = {};
-  await Promise.all(ugs.map(async u => { D[u] = await histUG(u); }));
+  const ugsNE = new Set(ks0.map(k => k.split('|')[0]));
+  const semUG = [];
+  await Promise.all(ugs.map(async u => { try{ D[u] = await histUG(u); }catch(e){ semUG.push(u); D[u] = {ne:{}, proc:{}, anos:[], gerado:''}; } }));
+  if(semUG.length && semUG.length === ugs.length && ugsNE.size) throw new Error('o histórico da UG '+semUG.join(', ')+' ainda não foi gerado pelo robô');
   // notas com o mesmo processo do contrato no Portal (as que o Contratos.gov.br não liga)
   const ks = ks0.slice(), porProc = [];
   if(pd.length >= 10) ugs.forEach(u => ((D[u].proc || {})[pd] || []).forEach(ne => { const k = u+'|'+ne; if(!ks.includes(k)){ ks.push(k); porProc.push(ne); } }));
@@ -12816,7 +12819,7 @@ async function histDados(nes, ex){
   const dt = s => { const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? +(m[3]+m[2]+m[1]) : 0; };
   const anos = Object.values(A).sort((a,b) => b.ano - a.ano); anos.forEach(y => y.docs.sort((a,b) => dt(b[0]) - dt(a[0])));
   const ult = anos.flatMap(y => y.docs).sort((a,b) => dt(b[0]) - dt(a[0]))[0];
-  return {anos, porProc, nKs: ks.length, nNE: new Set(anos.flatMap(y => [...y.nes])).size, tot: anos.reduce((s,y) => s + y.pago + y.rap, 0), ult: ult ? ult[0] : '', gerado, faixa};
+  return {anos, porProc, semUG, nKs: ks.length, nNE: new Set(anos.flatMap(y => [...y.nes])).size, tot: anos.reduce((s,y) => s + y.pago + y.rap, 0), ult: ult ? ult[0] : '', gerado, faixa};
 }
 const histR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 const histC = v => { const a = Math.abs(v||0); return 'R$ '+(a >= 1e6 ? (v/1e6).toLocaleString('pt-BR', {maximumFractionDigits:2})+' Mi' : a >= 1e3 ? (v/1e3).toLocaleString('pt-BR', {maximumFractionDigits:1})+' mil' : Number(v||0).toLocaleString('pt-BR', {maximumFractionDigits:2})); };
@@ -13065,6 +13068,107 @@ function rcMensal(){
   return ranks.map(r => { const e = E[r] || lastE, x = R[r] || lastR; const m = {r, pE: (e.pago||0) - aE, pR: (x.pago||0) - aR, emp: e.emp||0, liq: e.liq||0, pagoAcE: e.pago||0, pagoAcR: x.pago||0, saldoR: x.saldo||0};
     aE = e.pago||0; aR = x.pago||0; lastE = e; lastR = x; return m; });
 }
+// visão do gestor (esboço aprovado em 11/11/2026): situação, 5 números, velocímetro + régua da vigência, o que fazer e ritmo de pagamento
+function rcGestor(C, M){
+  const S = C.S, o = C.o, hoje = new Date(); hoje.setHours(0,0,0,0);
+  const P = RC.portal && !RC.portal.erro ? RC.portal : null;
+  if(!P || !M) return `<p class="ri-nota">${RC.portal && RC.portal.erro ? 'O histórico do Portal não abriu: '+esc(RC.portal.erro) : 'Lendo o Tesouro e o histórico de pagamentos…'}</p>`;
+  const ano = hoje.getFullYear(), MS = 30.4375 * 864e5;
+  // pagamentos por mês (aaaamm): Portal até o ano anterior + Tesouro do ano (mês a mês)
+  const pm = new Map(), add = (k, v) => pm.set(k, (pm.get(k) || 0) + v);
+  P.anos.forEach(y => y.docs.forEach(d => { const dt = riData(d[0]); if(dt && dt.getFullYear() < ano) add(dt.getFullYear()*100 + dt.getMonth() + 1, d[4] || 0); }));
+  M.forEach(m => add(m.r, (m.pE || 0) + (m.pR || 0)));
+  const indet = S.indet || !o.fim || o.fim.getFullYear() >= 2090;
+  let ini, fim, tot, modo;
+  if(indet){ modo = '12m'; fim = hoje; ini = new Date(ano - 1, hoje.getMonth(), hoje.getDate()); tot = S.mensal > 0 ? S.mensal * 12 : (o.vg || 0); }
+  else if(S.compra){ modo = 'compra'; ini = o.ini; fim = o.fim; tot = o.vg || 0; }
+  else { modo = 'serv'; ini = S.iniP || o.ini; fim = o.fim; tot = S.valorP > 0 ? S.valorP : (o.vg || 0); }
+  if(!ini || !fim || !(tot > 0)) return '';
+  const kIni = ini.getFullYear()*100 + ini.getMonth() + 1;
+  let pago = 0; pm.forEach((v, k) => { if(k >= kIni) pago += v; });
+  const fT = indet ? 1 : Math.min(1, Math.max(0, (hoje - ini) / (fim - ini)));
+  const devido = modo === 'compra' ? null : tot * fT, atraso = devido === null ? 0 : Math.max(0, devido - pago), falta = tot - pago;
+  const pPago = pago / tot, pTempo = fT;
+  const dias = indet ? null : Math.round((fim - hoje) / 864e5), mRest = indet ? 0 : Math.max(0, (fim - hoje) / MS);
+  // ritmo: médias dos últimos 12 e 6 meses fechados (dentro do período)
+  const ult = n => { let s = 0, sem = 0; for(let i = 1; i <= n; i++){ const d = new Date(ano, hoje.getMonth() - i, 1), k = d.getFullYear()*100 + d.getMonth() + 1; if(k < kIni) continue; const v = pm.get(k) || 0; s += v; if(v < 0.01) sem++; } return {m: s / n, sem}; };
+  const m12 = ult(12), m6 = ult(6), mensal = S.mensal > 0 ? S.mensal : (indet ? tot / 12 : tot / Math.max(1, (fim - ini) / MS));
+  const nec = !indet && mRest > 0.3 && falta > 0.5 ? Math.max(0, falta) / Math.max(1, mRest) : null;
+  const proj = !indet && modo === 'serv' ? pago + m6.m * mRest : null, sobra = proj !== null ? tot - proj : null;
+  const semMeses = (() => { const L = []; for(let i = 1; i <= 12; i++){ const d = new Date(ano, hoje.getMonth() - i, 1), k = d.getFullYear()*100 + d.getMonth() + 1; if(k >= kIni && (pm.get(k) || 0) < 0.01) L.push(['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][d.getMonth()]+'/'+String(d.getFullYear()).slice(2)); } return L.reverse(); })();
+  const R = v => riR(v), C2 = v => { const a = Math.abs(v); return 'R$ '+(a >= 1e6 ? (v/1e6).toLocaleString('pt-BR', {maximumFractionDigits:2})+' Mi' : a >= 1e3 ? (v/1e3).toLocaleString('pt-BR', {maximumFractionDigits:0})+' mil' : v.toLocaleString('pt-BR', {maximumFractionDigits:2})); };
+  const pc = x => Math.round(x * 100)+'%', gap = devido === null || modo === '12m' ? 0 : (devido - pago) / tot;
+  // situação (semáforo)
+  let cor = 'v', tit, txt;
+  const acima = pago > tot * 1.005;
+  if(acima){ cor = 'r'; tit = modo === '12m' ? 'Pago nos últimos 12 meses acima do valor anual do contrato' : 'Pago acima do valor do contrato'; }
+  else if(dias !== null && dias < 0){ cor = 'r'; tit = 'Vigência vencida'; }
+  else if(gap > 0.15){ cor = 'r'; tit = 'Pagamento '+pc(gap)+' abaixo do previsto'; }
+  else if(gap > 0.05 || (dias !== null && dias <= 120)){ cor = 'a'; tit = [gap > 0.05 ? 'pagamento '+pc(gap)+' abaixo do previsto' : '', dias !== null && dias <= 120 ? 'contrato vence em '+dias+' dias' : ''].filter(Boolean).join(' e '); tit = 'Atenção: '+tit; }
+  else tit = modo === '12m' ? 'Pagamentos dos últimos 12 meses dentro do valor anual estimado' : 'Pagamento em dia com o tempo do contrato';
+  txt = modo === '12m' ? `Vigência indeterminada: nos últimos 12 meses pagou ${C2(pago)} de ${C2(tot)} por ano (${pc(pPago)}).`
+    : `Pagou ${C2(pago)} de ${C2(tot)} (${pc(pPago)}).` + (devido !== null ? ` Pelo tempo deveria estar em ${pc(pTempo)}.` : ' Compra: só é pago o que é entregue.')
+      + (sobra !== null && Math.abs(sobra) > tot * 0.03 && dias > 0 ? (sobra > 0 ? ` No ritmo atual o contrato termina com cerca de <b>${C2(sobra)} sem pagar</b>.` : ` No ritmo atual o pagamento passaria o valor do contrato em <b>${C2(-sobra)}</b>.`) : '');
+  // 5 números
+  const k5 = [
+    ['Valor do contrato', C2(tot), modo === '12m' ? 'valor anual de referência' : modo === 'serv' ? Math.round((fim - ini) / MS)+' meses · '+C2(mensal)+'/mês' : 'teto da compra', ''],
+    [modo === '12m' ? 'Pago em 12 meses' : 'Pago até hoje', C2(pago), pc(pPago)+' do contrato', '', `<div class="rg-bar"><i style="width:${Math.min(100, pPago*100).toFixed(1)}%"></i></div>`],
+    ['Falta pagar', modo === '12m' ? '—' : C2(Math.max(0, falta)), modo === '12m' ? 'contrato sem fim definido' : acima ? 'pagou '+C2(-falta)+' acima' : pc(Math.max(0, falta)/tot)+(dias > 0 ? ' · '+Math.max(0, Math.round(mRest))+' mes(es) de vigência' : ''), 'o'],
+    ['Atraso hoje', devido === null || modo === '12m' ? '—' : C2(atraso), devido === null ? 'compra: sem previsto pelo tempo' : modo === '12m' ? '' : 'previsto '+C2(devido)+' × pago', atraso > tot * 0.05 ? 'r' : ''],
+    ['Vencimento', indet ? 'Indeterminado' : riDt(fim), indet ? 'sem data de fim' : dias < 0 ? 'vencido há '+(-dias)+' dias' : dias+' dias'+(dias <= 120 ? ' · prazo de 120 dias já passou' : ''), dias !== null && dias <= 120 ? 'r' : '']];
+  // velocímetro
+  const gauge = (() => { const cx = 158, cy = 160, r = 112, ang = p => Math.PI * (1 - Math.min(1, Math.max(0, p))), pt = (p, rr) => [cx + rr*Math.cos(ang(p)), cy - rr*Math.sin(ang(p))];
+    const arc = (p0, p1, c, w) => { if(p1 <= p0) return ''; const [a, b] = pt(p0, r), [x, y] = pt(p1, r); return `<path d="M${a.toFixed(1)},${b.toFixed(1)}A${r},${r} 0 0 1 ${x.toFixed(1)},${y.toFixed(1)}" fill="none" stroke="${c}" stroke-width="${w}"/>`; };
+    let g = arc(0, 1, '#e8eee9', 24) + arc(0, Math.min(1, pPago), acima ? '#b3261e' : '#e07b12', 24) + (devido !== null && modo !== '12m' ? arc(Math.min(1, pPago), pTempo, '#f3c2bd', 24) : '');
+    if(devido !== null && modo !== '12m'){ const [t1, t2] = pt(pTempo, r-16), [t3, t4] = pt(pTempo, r+16), [tx, ty] = pt(pTempo, r+26);
+      g += `<line x1="${t1.toFixed(1)}" y1="${t2.toFixed(1)}" x2="${t3.toFixed(1)}" y2="${t4.toFixed(1)}" stroke="#2e8a4f" stroke-width="4"/><text x="${(tx + (pTempo > .5 ? 18 : -18)).toFixed(1)}" y="${(ty - 14).toFixed(1)}" text-anchor="${pTempo > .5 ? 'end' : 'start'}" font-size="11.5" font-weight="700" fill="#2e8a4f">previsto ${pc(pTempo)}</text>`; }
+    const [nx, ny] = pt(Math.min(1, pPago), r-34);
+    g += `<line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="#1d2b22" stroke-width="4" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="8" fill="#1d2b22"/>
+      <text x="${cx}" y="${cy-40}" text-anchor="middle" font-size="34" font-weight="800" fill="${acima ? '#b3261e' : '#e07b12'}">${pc(pPago)}</text><text x="${cx}" y="${cy-22}" text-anchor="middle" font-size="11.5" fill="#5f6f66">${modo === '12m' ? 'do valor anual pago' : 'do contrato pago'}</text>
+      <text x="${cx-r}" y="${cy+20}" text-anchor="middle" font-size="10.5" fill="#7a877f">0%</text><text x="${cx+r}" y="${cy+20}" text-anchor="middle" font-size="10.5" fill="#7a877f">100%</text>
+      ${atraso > 0.5 && modo !== '12m' ? `<text x="${cx}" y="${cy+40}" text-anchor="middle" font-size="12.5" font-weight="700" fill="#b3261e">atraso: ${C2(atraso)}</text>` : ''}`;
+    return `<svg viewBox="0 0 330 215" width="100%" role="img" aria-label="Velocímetro: ${pc(pPago)} pago">${g}</svg>`; })();
+  // régua da vigência
+  const regua = (() => { const Lx = 8, W = 404, y1 = 40, y2 = 150, hh = 42, X = p => Lx + W * Math.min(1, Math.max(0, p)); let g = '';
+    const tLab = modo === '12m' ? 'Últimos 12 meses' : 'Tempo da vigência';
+    g += `<text x="${Lx}" y="${y1-10}" font-size="12.5" font-weight="700" fill="#1f4e79">${tLab}</text><text x="${X(Math.max(pTempo, .55))-10}" y="${y1-10}" text-anchor="end" font-size="11" fill="#5f6f66">${riDt(ini)} → ${riDt(fim)}</text>`;
+    g += `<rect x="${Lx}" y="${y1}" width="${W}" height="${hh}" rx="7" fill="#e8eee9"/><rect x="${Lx}" y="${y1}" width="${(W*pTempo).toFixed(1)}" height="${hh}" rx="7" fill="#1f4e79"/>${pTempo > .25 ? `<text x="${(X(pTempo)-8).toFixed(1)}" y="${y1+27}" text-anchor="end" font-size="14" font-weight="700" fill="#fff">${pc(pTempo)} do tempo</text>` : `<text x="${(X(pTempo)+8).toFixed(1)}" y="${y1+27}" font-size="14" font-weight="700" fill="#1f4e79">${pc(pTempo)} do tempo</text>`}`;
+    const anos = fim.getFullYear() - ini.getFullYear(); if(anos >= 2 && modo !== '12m') for(let a = ini.getFullYear() + 1; a <= fim.getFullYear(); a += anos > 8 ? 2 : 1){ const p = (new Date(a, 0, 1) - ini) / (fim - ini); if(p <= 0.04 || p >= 0.96) continue; g += `<line x1="${X(p).toFixed(1)}" x2="${X(p).toFixed(1)}" y1="${y1}" y2="${y1+hh}" stroke="#fff" stroke-opacity=".45"/><text x="${X(p).toFixed(1)}" y="${y1+hh+13}" text-anchor="middle" font-size="10" fill="#7a877f">${a}</text>`; }
+    g += `<text x="${Lx}" y="${y2-10}" font-size="12.5" font-weight="700" fill="#c76a00">Dinheiro pago</text><text x="${X(Math.max(pTempo, .55))-10}" y="${y2-10}" text-anchor="end" font-size="11" fill="#5f6f66">${C2(pago)} de ${C2(tot)}</text>`;
+    g += `<rect x="${Lx}" y="${y2}" width="${W}" height="${hh}" rx="7" fill="#e8eee9"/><rect x="${Lx}" y="${y2}" width="${(W*Math.min(1, pPago)).toFixed(1)}" height="${hh}" rx="7" fill="${acima ? '#b3261e' : '#e07b12'}"/>`;
+    if(devido !== null && modo !== '12m' && pTempo > pPago) g += `<rect x="${X(pPago).toFixed(1)}" y="${y2}" width="${(X(pTempo)-X(pPago)).toFixed(1)}" height="${hh}" fill="#f3c2bd"/>`;
+    g += pPago > .25 ? `<text x="${(X(pPago)-8).toFixed(1)}" y="${y2+27}" text-anchor="end" font-size="14" font-weight="700" fill="#fff">${pc(pPago)} pago</text>` : `<text x="${(X(pPago)+8).toFixed(1)}" y="${y2+27}" font-size="14" font-weight="700" fill="#c76a00">${pc(pPago)} pago</text>`;
+    if(modo !== '12m'){ const xh = X(pTempo); g += `<line x1="${xh.toFixed(1)}" x2="${xh.toFixed(1)}" y1="${y1-4}" y2="${y2+hh+6}" stroke="#b3261e" stroke-dasharray="4 3" stroke-width="2"/><text x="${xh.toFixed(1)}" y="${y2+hh+22}" text-anchor="${pTempo > .5 ? 'end' : 'start'}" font-size="12" font-weight="700" fill="#b3261e">hoje${atraso > 0.5 ? ' · atraso de '+C2(atraso) : ''}</text>`; }
+    return `<svg viewBox="0 0 420 250" width="100%" role="img" aria-label="Régua: ${pc(pTempo)} do tempo, ${pc(pPago)} pago">${g}</svg>`; })();
+  // o que fazer (até 3)
+  const ac = [];
+  if(dias !== null && dias < 0) ac.push(['r', 'Vigência vencida', 'Venceu há '+(-dias)+' dias. Verificar no SEI o aditivo ou encerrar o contrato no Contratos.gov.br.']);
+  else if(dias !== null && dias <= 120) ac.push(['r', 'Prorrogação / nova contratação', 'Vence em '+dias+' dias e o prazo de 120 dias já passou. Confirmar no SEI se o aditivo está em andamento.']);
+  if(acima) ac.push(['r', 'Pago acima do valor', 'Pagou '+C2(pago - tot)+' além do valor '+(modo === '12m' ? 'anual' : 'do contrato')+'. Conferir aditivos de valor, repactuação ou nota de empenho de outro contrato.']);
+  if(semMeses.length >= 2 && modo !== 'compra') ac.push(['o', 'Faturas não pagas', semMeses.length >= 12 ? 'Nenhum pagamento nos últimos 12 meses. Conferir com o fiscal se o serviço está sendo executado e se há faturas paradas.' : semMeses.length+' mes(es) sem pagamento nos últimos 12 ('+(semMeses.length > 6 ? semMeses.slice(0, 3).join(', ')+' … '+semMeses[semMeses.length-1] : semMeses.join(', '))+'). Conferir com o fiscal se há fatura parada.']);
+  const empAl = C.al.find(a => /Empenho não cobre/.test(a[1])); if(empAl) ac.push(['o', 'Reforço de empenho', empAl[2]]);
+  if(sobra !== null && sobra > tot * 0.03 && dias > 0) ac.push(['b', 'Saldo no fim', 'Projeção: sobram ~'+C2(sobra)+'. Se o serviço foi menor, avaliar anulação de empenho e remanejamento.']);
+  else if(sobra !== null && sobra < -tot * 0.03 && dias > 0) ac.push(['r', 'Valor não cobre até o fim', 'No ritmo atual faltam ~'+C2(-sobra)+' de valor contratado. Avaliar aditivo de valor.']);
+  if(!ac.length) ac.push(['b', 'Acompanhar', 'Nenhuma providência automática: acompanhar faturas e pagamentos do mês.']);
+  const rit = [['Valor mensal do contrato', C2(mensal), '—'], ['Média últimos 12 meses', C2(m12.m), pc(m12.m / mensal)], ['Média últimos 6 meses', C2(m6.m), pc(m6.m / mensal)]].concat(nec !== null ? [['Necessário até o fim', C2(nec), pc(nec / mensal), 1]] : []);
+  const corR = x => x === '—' ? '' : parseInt(x) > 115 || parseInt(x) < 85 ? (parseInt(x) > 150 || parseInt(x) < 60 ? '#b3261e' : '#b8650a') : '#2e8a4f';
+  return `<style>.rg-st{display:flex;gap:14px;align-items:center;border-radius:12px;padding:12px 16px;margin:4px 0 14px;border-left:6px solid}.rg-st.a{background:#fff6e6;border-color:#d08c1a}.rg-st.r{background:#fdecea;border-color:#b3261e}.rg-st.v{background:#eaf6ee;border-color:#2e8a4f}
+.rg-sem{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;flex:none}.rg-st.a .rg-sem{background:#e0a21a}.rg-st.r .rg-sem{background:#b3261e}.rg-st.v .rg-sem{background:#2e8a4f}
+.rg-st b.t{font-size:16px;display:block}.rg-st p{margin:2px 0 0;font-size:13.5px}
+.rg-k{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}.rg-k>div{border:1px solid #e3ece5;border-radius:10px;padding:10px 12px}.rg-k small{display:block;font-size:11px;color:#5f6f66;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.rg-k b{display:block;font-size:21px;color:#155a30;margin:2px 0}.rg-k em{font-style:normal;font-size:12px;color:#5f6f66}.rg-k .r b{color:#b3261e}.rg-k .o b{color:#c76a00}
+.rg-bar{height:6px;background:#eef3ef;border-radius:4px;margin-top:6px;overflow:hidden}.rg-bar i{display:block;height:100%;background:#e07b12}
+.rg-g{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:18px;margin-bottom:8px}.rg-vr{display:grid;grid-template-columns:.85fr 1.15fr;gap:14px;align-items:center;border:1px solid #e3ece5;border-radius:12px;padding:10px 12px}
+.rg-ac{border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:13px;border-left:4px solid}.rg-ac b{display:block;font-size:13.5px;margin-bottom:1px}.rg-ac.r{background:#fdecea;border-color:#b3261e}.rg-ac.o{background:#fff6e6;border-color:#d08c1a}.rg-ac.b{background:#eaf1f8;border-color:#1f4e79}
+.rg-t{width:100%;border-collapse:collapse;font-size:12.5px}.rg-t td,.rg-t th{padding:5px 6px;border-bottom:1px solid #eef2ef;text-align:right}.rg-t th{font-size:11px;color:#5f6f66;text-transform:uppercase}.rg-t td:first-child,.rg-t th:first-child{text-align:left}
+@media (max-width:900px){.rg-k{grid-template-columns:repeat(2,minmax(0,1fr))}.rg-g,.rg-vr{grid-template-columns:1fr}}</style>
+  <div class="rg-st ${cor}"><div class="rg-sem">${cor === 'v' ? '✓' : '!'}</div><div><b class="t">${esc(tit)}</b><p>${txt}</p></div></div>
+  <div class="rg-k">${k5.map(([t, v, sub, cl, ex]) => `<div class="${cl}"><small>${t}</small><b>${v}</b><em>${sub}</em>${ex || ''}</div>`).join('')}</div>
+  <div class="rg-g"><div>${riSec('Execução do contrato · pago × tempo')}<div class="rg-vr"><div>${gauge}</div><div>${regua}</div></div>
+    <p class="ri-nota">${modo === '12m' ? 'Vigência indeterminada: compara o pago nos últimos 12 meses com o valor anual do contrato.' : 'O ponteiro mostra quanto do contrato foi pago; a marca verde, onde deveria estar pelo tempo. Nas barras, a parte rosa é o atraso de hoje.'} Pagamentos: Portal da Transparência até ${ano-1} + Tesouro de ${ano}${P.semUG && P.semUG.length ? ' (sem histórico do Portal para a UG '+P.semUG.join(', ')+': só '+ano+')' : ''}${modo === 'serv' && S.iniP && o.ini && +S.iniP !== +o.ini ? ' · período atual (prorrogado)' : ''}.</p>${rcConf(S)}</div>
+    <div>${riSec('O que fazer')}${ac.slice(0, 3).map((a, i) => `<div class="rg-ac ${a[0]}"><b>${i+1}. ${esc(a[1])}</b>${esc(a[2])}</div>`).join('')}
+      ${riSec('Ritmo de pagamento')}<table class="rg-t"><tr><th>Período</th><th>Pago/mês</th><th>× contrato</th></tr>${rit.map(r => `<tr><td>${r[3] ? '<b>'+r[0]+'</b>' : r[0]}</td><td>${r[3] ? '<b>'+r[1]+'</b>' : r[1]}</td><td style="color:${corR(r[2])}">${r[3] ? '<b>'+r[2]+'</b>' : r[2]}</td></tr>`).join('')}</table></div></div>`;
+}
 function rcPagFin(C){
   const o = C.o, M = rcMensal(), H = RC.hist;
   const porNE = (() => { if(!H || H.erro) return []; const m = new Map();
@@ -13078,8 +13182,9 @@ function rcPagFin(C){
   const tot = porNE.reduce((s,x) => ({emp:s.emp+x.emp, liq:s.liq+x.liq, pago:s.pago+x.pago, insc:s.insc+x.insc, pagoR:s.pagoR+x.pagoR, saldo:s.saldo+x.saldo}), {emp:0,liq:0,pago:0,insc:0,pagoR:0,saldo:0});
   const k = (t, v, s, c) => `<div style="${c ? '--c:'+c : ''}"><small>${t}</small><b>${v}</b><em>${s||''}</em></div>`;
   return `${rcCab(C, 'execução financeira')}
+  ${rcGestor(C, M)}
+  ${riSec('Execução orçamentária de '+new Date().getFullYear()+' · Tesouro')}
   <div class="ri-k">${k('Empenhado 2026', riR(C.emp), 'notas do exercício')}${k('Liquidado 2026', riR(tot.liq), '')}${k('Pago 2026 (EXE)', riR(C.pagoE), '', '#e07b12')}${k('Pago de RAP', riR(C.pagoR), 'empenhos de anos anteriores', '#e07b12')}${k('RAP em aberto', riR(C.rapAb), '', '#1f4e79')}${k('Previsto 2026', riR(C.prev), C.prev ? riP(C.pagoE + C.pagoR, C.prev)+' pago' : '')}</div>
-  <div class="ri-g2"><div>${rcSaldo(C)}</div><div>${rcGrafico(C, M)}</div></div>
   ${riSec('Pagamentos mês a mês · previsto × pago')}${M && M.length ? `<table class="ri-t"><tr><th>Mês</th><th class="n">Previsto</th><th class="n">Pago EXE</th><th class="n">Pago RAP</th><th class="n">Pago no mês</th><th class="n">Acumulado</th><th>Situação</th></tr>
     ${M.map(m => { const p = prevMes(m.r), tt = m.pE + m.pR; return `<tr><td>${nm(m.r)}</td><td class="n">${riR(p)}</td><td class="n">${riR(m.pE)}</td><td class="n">${riR(m.pR)}</td><td class="n"><b>${riR(tt)}</b></td><td class="n">${riR(m.pagoAcE + m.pagoAcR)}</td><td>${tt < 0.005 && p > 0 ? '<span style="color:#b3261e">sem pagamento no mês</span>' : tt + 0.5 < p*0.8 ? '<span style="color:#b8650a">abaixo do previsto</span>' : '✓'}</td></tr>`; }).join('')}</table>
     <p class="ri-nota">Previsto do mês: cronograma do Contratos.gov.br; sem cronograma, o previsto de 2026 ÷ 12. Pago = posição do Tesouro do mês menos a do mês anterior.</p>`
