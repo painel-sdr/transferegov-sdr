@@ -8117,7 +8117,7 @@ async function lerViagens(){
   }
   if(!J) throw new Error('A base de viagens ainda não foi gerada pelo robô (Actions › Run workflow).');
   const hoje = viagHoje();
-  const L = (J.viagens||[]).map(r => { const ini = viagData(r.ini), fim = viagData(r.fim), ant = (r.emis||[]).map(viagData).filter(Boolean).map(e => Math.round((ini - e) / 864e5)), a = ant.length ? Math.min(...ant) : null;
+  const L = (J.viagens||[]).map(r => { const ini = viagData(r.ini), fim = viagData(r.fim), ant = (r.emis||[]).map(viagData).filter(Boolean).map(e => Math.round((ini - e) / 864e5)), a = ant.length ? Math.max(...ant) : null;
     const prazo = fim ? new Date(fim.getTime() + (r.ext ? 30 : 5) * 864e5) : null;
     return {...r, ugN: VIAG_NUG[r.ug] || r.ug, iniD: ini, fimD: fim, mes: ini ? VIAG_MES[ini.getMonth()] : '', tipo: r.ext ? 'Internacional' : 'Nacional', total: (r.diar||0) + (r.pass||0), urgN: r.urg === 'SIM' ? 'Urgente' : 'Normal',
       ant: a, antF: a === null ? 'Sem passagem' : a <= 5 ? 'Até 5 dias' : a <= 9 ? '6 a 9 dias' : a <= 14 ? '10 a 14 dias' : '15 dias ou mais', dias: ini && fim ? Math.round((fim - ini) / 864e5) + 1 : 0,
@@ -8129,7 +8129,7 @@ const fBv = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDi
 const CSS_VIAG = `<style>
   .vk{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.vk>div{background:#fff;border-radius:12px;padding:9px 13px;box-shadow:0 2px 8px rgba(20,60,30,.06);border:1px solid #e3ece5}
   .vk small{display:block;font-size:11px;font-weight:700;color:#5f6f66;text-transform:uppercase;letter-spacing:.05em}.vk b{display:block;font-size:21px;color:#155a30;line-height:1.25}.vk em{font-style:normal;font-size:11.5px;color:#5f6f66}
-  .vk .d{background:#1f4e79;border-color:#1f4e79}.vk .d small,.vk .d em{color:#cfe0f0}.vk .d b{color:#fff}.vk .r b{color:#b3261e}
+  .vk>div{cursor:pointer;transition:transform .12s,box-shadow .12s}.vk>div:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(20,60,30,.12)}.vk .d{background:#1f4e79;border-color:#1f4e79}.vk .d small,.vk .d em{color:#cfe0f0}.vk .d b{color:#fff}.vk .r b{color:#b3261e}
   .va{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.va>div{border-radius:12px;padding:8px 12px;border:2px solid transparent}.va>div[data-campo],.va>div[data-viagtab]{cursor:pointer}.va>div[data-campo]:hover,.va>div[data-viagtab]:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.08)}.va>div.on{border-color:currentColor}
   .va p{margin:0;font-size:12px;font-weight:700}.va b{font-size:22px;line-height:1.2;display:block}.va small{font-size:11px}
   .va .r{background:#fdecea;color:#8a1c14}.va .o{background:#fff3e0;color:#7a4a00}.va .y{background:#fdf6d8;color:#6b5a00}.va .p{background:#eaf1f8;color:#163d5f}.va .g{background:#f1f4f2;color:#7a877f}
@@ -8152,23 +8152,75 @@ const viagXl = (tit, arq, cols, lista) => () => ({titulo:'Viagens SDR · '+tit, 
 function viagPCSit(d, hoje){
   if(!d.voltou) return {cl:'c', t:'Viagem não terminou'};
   const dl = Math.round((d.prazoPC - hoje) / 864e5);
-  return dl < 0 ? {cl:'r', t:'Vencido há ' + (-dl) + ' dia(s)'} : dl <= 2 ? {cl:'o', t:'Vence em ' + dl + ' dia(s)'} : {cl:'v', t:'No prazo · ' + dl + ' dias'};
+  return dl < -30 ? {cl:'c', t:'Prazo encerrado'} : dl < 0 ? {cl:'r', t:'Vencido há ' + (-dl) + ' dia(s)'} : dl <= 2 ? {cl:'o', t:'Vence em ' + dl + ' dia(s)'} : {cl:'v', t:'No prazo · ' + dl + ' dias'};
 }
-function abrirFichaViagem(pcdp){
-  const d = ((DADOS.viag||{}).linhas||[]).find(x => x.pcdp === pcdp); if(!d) return;
-  const fundo = document.getElementById('fichaFundo'), el = document.getElementById('ficha'), hoje = viagHoje(), pc = viagPCSit(d, hoje);
+const CSS_FV = `.fv{font-family:Barlow,Arial,sans-serif;color:#1d2b24;background:#fff;border-radius:14px;overflow:hidden}
+.fv-cab{background:linear-gradient(110deg,#155a30,#22743d 60%,#2f8a4c);color:#fff;padding:16px 22px 14px;position:relative}.fv-cab small{font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+.fv-cab h2{margin:2px 0 2px;font-size:24px;letter-spacing:.02em;color:#fff}.fv-cab p{margin:0;font-size:14px;opacity:.95}.fv-pl{display:inline-block;border-radius:999px;padding:2px 10px;font-size:11.5px;font-weight:700;margin:8px 6px 0 0;background:rgba(255,255,255,.2)}
+.fv-pl.r{background:#c0392b}.fv-pl.a{background:#d49a0f}.fv-pl.b{background:#1f4e79}.fv-bt{position:absolute;right:16px;top:14px;display:flex;gap:6px}.fv-bt button{border:0;border-radius:8px;padding:7px 12px;background:rgba(255,255,255,.2);color:#fff;font:700 12.5px Barlow,Arial,sans-serif;cursor:pointer}.fv-bt button:hover{background:rgba(255,255,255,.32)}
+.fv-c{padding:16px 22px 18px}.fv-sec{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#1f4e79;margin:16px 0 8px;display:flex;align-items:center;gap:10px}.fv-sec:after{content:"";flex:1;height:1px;background:#dfe7e2}
+.fv-tr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;background:#f4f8f5;border-radius:12px;padding:12px 18px}.fv-tr div small{display:block;font-size:11px;color:#5f6f66;text-transform:uppercase;letter-spacing:.06em;font-weight:700}.fv-tr div b{font-size:18px;color:#155a30}.fv-tr div span{display:block;font-size:12.5px;color:#5f6f66}.fv-tr .av{font-size:26px;color:#1f4e79;text-align:center}.fv-tr .av small{font-size:11px;color:#5f6f66;text-transform:none;letter-spacing:0;font-weight:400}.fv-tr>div:last-child{text-align:right}
+.fv-tl{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:4px}.fv-tl div{position:relative;padding:22px 6px 0;text-align:center;font-size:12px;color:#5f6f66}.fv-tl div:before{content:"";position:absolute;top:8px;left:0;right:0;height:3px;background:#dfe7e2}.fv-tl div:first-child:before{left:50%}.fv-tl div:last-child:before{right:50%}
+.fv-tl div:after{content:"";position:absolute;top:3px;left:calc(50% - 7px);width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--c,#1f7a43)}.fv-tl b{display:block;font-size:13.5px;color:#1d2b24}.fv-tl em{display:block;font-style:normal;font-size:11.5px;font-weight:700;color:var(--c,#1f7a43)}
+.fv-v{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.fv-v div{border:1px solid #e3ece5;border-left:4px solid var(--c,#1f7a43);border-radius:10px;padding:8px 12px}.fv-v small{display:block;font-size:11px;color:#5f6f66;text-transform:uppercase;letter-spacing:.05em;font-weight:700}.fv-v b{font-size:19px;color:#155a30}.fv-v span{display:block;font-size:11.5px;color:#5f6f66}
+.fv-ck{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}.fv-ck div{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:7px 10px;border-radius:8px;background:#f6f8f7}.fv-ck i{font-style:normal;font-weight:800;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;flex:none;background:#2e8a4f}.fv-ck .n i{background:#c0392b}.fv-ck .a i{background:#d49a0f}.fv-ck small{display:block;color:#5f6f66;font-size:11.5px}
+.fv-tx{font-size:13.5px;line-height:1.5;background:#f6f8f7;border-radius:10px;padding:10px 14px;margin:0}.fv-tx b{color:#155a30}
+.fv-t{width:100%;border-collapse:collapse;font-size:12.5px}.fv-t th{background:#1f4e79;color:#fff;text-align:left;padding:6px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}.fv-t td{padding:6px 8px;border-bottom:1px solid #eef2ef}.fv-t .n{text-align:right}.fv-t tr.eu td{background:#fff6dc;font-weight:700}
+.fv-rod{font-size:11px;color:#7a877f;border-top:1px solid #e3ece5;margin-top:16px;padding-top:8px;display:flex;justify-content:space-between;gap:10px}
+@media (max-width:760px){.fv-v,.fv-tl{grid-template-columns:1fr 1fr}.fv-ck{grid-template-columns:1fr}.fv-tr{grid-template-columns:1fr}.fv-tr>div:last-child{text-align:left}.fv-bt{position:static;margin-top:10px}}
+@media print{.fv-bt{display:none}.fv{border-radius:0}.fv-c{padding:10px 16px 12px}.fv-sec{margin:10px 0 6px}.fv-cab{padding:12px 16px}.fv-tx{padding:7px 10px;font-size:12.5px}.fv-t td{padding:4px 8px}.fv-ck div{padding:5px 8px}}`;
+function fichaViagemHTML(d, imp){
+  const L = (DADOS.viag||{}).linhas||[], hoje = viagHoje(), pc = viagPCSit(d, hoje), dt = x => x ? x.toLocaleDateString('pt-BR') : '—', nd = v => String(v).replace('.', ',');
+  const emis = (d.emis||[]).map(viagData).filter(Boolean).sort((a, b) => a - b)[0] || null;
+  // regras do Passaporte do Usuário SCDP
+  let fds = false; if(d.iniD && d.fimD) for(let t = d.iniD.getTime(); t <= d.fimD.getTime(); t += 864e5){ const w = new Date(t).getDay(); if(w === 0 || w === 6){ fds = true; break; } }
+  const ano = d.iniD ? d.iniD.getFullYear() : hoje.getFullYear(), doServ = L.filter(x => x.nome === d.nome && x.iniD && x.iniD.getFullYear() === ano).sort((a, b) => a.iniD - b.iniD), ndiAno = doServ.reduce((a, x) => a + (x.ndi||0), 0);
+  const ck = [[d.urg === 'SIM' ? 'n' : 's', 'Pedido com 15 dias de antecedência', d.urg === 'SIM' ? 'viagem urgente · ' + (d.just ? esc(d.just.slice(0, 140)) : 'sem justificativa') : 'não é urgente'],
+    [d.ant === null ? 'a' : d.ant < 15 ? 'n' : 's', 'Passagem comprada com antecedência', d.ant === null ? 'sem passagem no Portal (veículo oficial ou terrestre)' : d.ant + ' dia(s) antes da ida'],
+    [fds ? 'a' : 's', 'Fim de semana ou feriado', fds ? 'inclui sábado ou domingo · exige justificativa (Nota Técnica)' : 'só dias úteis'],
+    [d.dias > 5 ? 'a' : 's', 'Até 5 dias contínuos', d.dias + ' dia(s) de viagem' + (d.dias > 5 ? ' · exige Nota Técnica' : '')],
+    [ndiAno > 30 ? 'n' : 's', 'Até 30 diárias no ano', nd(ndiAno) + ' diária(s) do servidor em ' + ano + (ndiAno > 30 ? ' · exige Nota Técnica' : '')],
+    [!d.voltou || pc.cl === 'c' ? 'a' : pc.cl === 'r' ? 'n' : 's', 'Prestação de contas', d.voltou ? 'prazo ' + dt(d.prazoPC) + ' (' + (d.ext ? '30' : '5') + ' dias após a volta) · ' + pc.t + (pc.cl === 'r' || pc.cl === 'c' ? ' · conferir a entrega na planilha da equipe' : '') : 'depois da volta']];
+  const tl = [['Compra da passagem', emis ? dt(emis) : '—', d.ant === null ? '' : d.ant + ' d antes', d.ant !== null && d.ant < 15 ? '#c0392b' : '#1f7a43'], ['Ida', d.ini, d.orig, '#1f4e79'], ['Volta', d.fim, d.dias + ' dia(s)', '#1f4e79'],
+    ['Prestação de contas', dt(d.prazoPC), d.voltou ? pc.t : 'a partir da volta', !d.voltou || pc.cl === 'c' ? '#9aa7a0' : pc.cl === 'r' ? '#c0392b' : pc.cl === 'o' ? '#d49a0f' : '#1f7a43']];
+  const pl = [`<span class="fv-pl">${esc(d.sit)}</span>`, d.urg === 'SIM' ? '<span class="fv-pl r">Urgente</span>' : '', `<span class="fv-pl b">${d.ext ? 'Internacional' : 'Nacional'}</span>`, ndiAno > 30 ? '<span class="fv-pl a">+30 diárias no ano</span>' : ''].join('');
+  return `<div class="fv"><div class="fv-cab"><small>Viagem a serviço · SCDP · UG ${esc(d.ugN)}</small><h2>✈ PCDP ${esc(d.pcdp)}</h2><p><b>${esc(d.nome)}</b> · ${esc(d.cargo)}</p>${pl}
+    ${imp ? '' : `<div class="fv-bt"><button type="button" data-viagpdf="${esc(d.pcdp)}">⬇ PDF</button><button type="button" data-fechaficha aria-label="Fechar">✕</button></div>`}</div>
+    <div class="fv-c"><div class="fv-tr"><div><small>Origem</small><b>${esc(d.orig || '—')}</b><span>${esc(d.ini)}</span></div><div class="av">✈<small style="display:block">${d.dias} dia(s) · ${nd(d.ndi)} diária(s)</small></div><div><small>Destino</small><b>${esc(d.destC || '—')}</b><span>${esc(d.fim)}</span></div></div>
+    ${d.dest && d.dest !== d.destC ? `<p style="font-size:12px;color:#5f6f66;margin:6px 2px 0">Destinos no SCDP: ${esc(d.dest)}</p>` : ''}
+    <div class="fv-sec">Linha do tempo</div><div class="fv-tl">${tl.map(([t, a, b, c]) => `<div style="--c:${c}"><b>${t}</b>${esc(a)}<em>${esc(b)}</em></div>`).join('')}</div>
+    <div class="fv-sec">Valores</div><div class="fv-v"><div><small>Diárias</small><b>${fBv(d.diar)}</b><span>${nd(d.ndi)} diária(s)</span></div><div style="--c:#1f4e79"><small>Passagens</small><b>${fBv(d.pass)}</b><span>${d.taxa ? 'taxa de serviço ' + fBv(d.taxa) : 'pagas pela UG 130005'}</span></div><div style="--c:#d49a0f"><small>Devolução e outros</small><b>${fBv((d.dev||0) + (d.outros||0))}</b><span>devolução ${fBv(d.dev)} · outros ${fBv(d.outros)}</span></div><div style="--c:#155a30;background:#f4f8f5"><small>Total</small><b>${fBv(d.total)}</b><span>diárias + passagens</span></div></div>
+    <div class="fv-sec">Conferência com as regras (Passaporte do Usuário SCDP)</div><div class="fv-ck">${ck.map(([c, t, x]) => `<div class="${c}"><i>${c === 's' ? '✓' : c === 'n' ? '!' : '•'}</i><span><b>${t}</b><small>${x}</small></span></div>`).join('')}</div>
+    <div class="fv-sec">Motivo</div><p class="fv-tx">${esc(d.motivo || '—')}${(d.motivo||'').length >= 200 ? '…' : ''}</p>
+    <div class="fv-sec">Viagens do servidor em ${ano} · ${doServ.length} viagem(ns) · ${nd(ndiAno)} diária(s)</div><table class="fv-t"><tr><th>Ida</th><th>PCDP</th><th>Destino</th><th class="n">Diárias</th><th class="n">Total</th></tr>${doServ.map(x => `<tr class="${x.pcdp === d.pcdp ? 'eu' : ''}"><td>${esc(x.ini)}</td><td>${esc(x.pcdp)}</td><td>${esc(x.destC)}</td><td class="n">${nd(x.ndi)}</td><td class="n">${fBv(x.total)}</td></tr>`).join('')}</table>
+    <div class="fv-rod"><span>Portal da Transparência · Viagens a Serviço${DADOS.viag.posicao ? ' (posição de ' + esc(DADOS.viag.posicao) + ')' : ''} · departamento e entrega da prestação de contas virão da planilha "Controle de SCDP"</span><span>Painel SDR 2026 · ${new Date().toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'})}</span></div></div></div>`;
+}
+const FV_NOVA = false;   // ficha nova (esboço de 12/11/2026): liga depois da aprovação
+function fichaViagemSimples(d){
+  const pc = viagPCSit(d, viagHoje());
   const it = [['UG pagadora', d.ugN], ['Servidor', d.nome], ['Cargo', d.cargo], ['Situação', d.sit], ['Período', d.ini + ' a ' + d.fim + ' · ' + d.dias + ' dia(s) · ' + String(d.ndi).replace('.', ',') + ' diária(s)'],
     ['Trajeto', d.orig + ' → ' + d.destC + (d.ext ? ' · internacional' : '')], ['Destinos (SCDP)', d.dest], ['Motivo', d.motivo], ['Urgente', d.urg === 'SIM' ? 'Sim · ' + (d.just || 'sem justificativa') : 'Não'],
     ['Compra da passagem', d.ant === null ? 'sem passagem no Portal' : d.ant + ' dia(s) antes da ida (' + d.emis.join(', ') + ')'],
     ['Diárias', fBv(d.diar)], ['Passagens', fBv(d.pass) + (d.taxa ? ' · taxa de serviço ' + fBv(d.taxa) : '')], ['Devolução', fBv(d.dev)], ['Outros gastos', fBv(d.outros)], ['Total', fBv(d.total)],
-    ['Prestação de contas', d.voltou ? 'prazo ' + d.prazoPC.toLocaleDateString('pt-BR') + ' (' + (d.ext ? '30' : '5') + ' dias após a volta) · ' + pc.t + (pc.cl === 'r' ? ' · conferir a entrega' : '') : 'depois da volta']];
+    ['Prestação de contas', d.voltou ? 'prazo ' + d.prazoPC.toLocaleDateString('pt-BR') + ' (' + (d.ext ? '30' : '5') + ' dias após a volta) · ' + pc.t : 'depois da volta']];
+  return `<div class="pp-modal vf"><div class="pp-mcab"><h2>✈ PCDP ${esc(d.pcdp)}</h2><div><button type="button" class="btn" data-fechaficha aria-label="Fechar">✕ Fechar</button></div></div><dl>${it.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>`;
+}
+function abrirFichaViagem(pcdp){
+  const d = ((DADOS.viag||{}).linhas||[]).find(x => x.pcdp === pcdp); if(!d) return;
+  const fundo = document.getElementById('fichaFundo'), el = document.getElementById('ficha');
   FICHA_ORIGEM = null; PP_ABERTO = null; el.style.marginTop = Math.max(12, window.scrollY + 30) + 'px';
-  el.innerHTML = `<div class="pp-modal vf"><div class="pp-mcab"><h2>✈ PCDP ${esc(d.pcdp)}</h2><div><button type="button" class="btn" data-fechaficha aria-label="Fechar">✕ Fechar</button></div></div><dl>${it.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl><p class="dica" style="text-align:left;margin-top:12px">Portal da Transparência · Viagens a Serviço. Departamento e entrega da prestação de contas virão da planilha "Controle de SCDP" da equipe.</p></div>`;
+  el.innerHTML = FV_NOVA ? `<style>${CSS_FV}</style>` + fichaViagemHTML(d) : fichaViagemSimples(d);
   fundo.hidden = false; document.body.classList.add('ficha-aberta'); ajustarFundoFicha();
+}
+function pdfFichaViagem(pcdp){
+  const d = ((DADOS.viag||{}).linhas||[]).find(x => x.pcdp === pcdp); if(!d) return;
+  abrirPDF(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Ficha da viagem · PCDP ${esc(d.pcdp)}</title><style>@page{size:A4;margin:12mm}body{margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}${CSS_FV}</style></head><body>${fichaViagemHTML(d, true)}<script>window.addEventListener('load', function(){ setTimeout(function(){ window.focus(); window.print(); }, 600); });<\/script></body></html>`, 'ficha_viagem_' + d.pcdp);
 }
 document.addEventListener('click', e => {
   const f = e.target.closest('[data-viagficha]'); if(f){ abrirFichaViagem(f.dataset.viagficha); return; }
-  const t = e.target.closest('[data-viagtab]'); if(t){ abrirPPTab('viag', +t.dataset.viagtab); }
+  const pv = e.target.closest('[data-viagpdf]'); if(pv){ pdfFichaViagem(pv.dataset.viagpdf); return; }
+  const t = e.target.closest('[data-viagtab]'); if(t){ abrirPPTab('viag', +t.dataset.viagtab); return; }
+  const te = e.target.closest('[data-viagteto]'); if(te){ PP_EXP.viag = 'teto'; render(); const x = document.querySelector('.pp-ex'); if(x) x.scrollIntoView({behavior:'smooth', block:'center'}); }
 });
 // atalhos do menu lateral (Agenda, Prestação de contas, Controle de teto)
 window.__viagIr = async function(alvo){
@@ -8193,8 +8245,8 @@ VIEWS.viag = {
     const s30 = porServ.filter(s => s.ndi > 30);
     const pcV = L.filter(d => d.voltou && viagPCSit(d, hoje).cl !== 'v' && d.prazoPC >= new Date(hoje.getTime() - 60 * 864e5));
     const tetoT = ugs.reduce((a, u) => a + (VIAG_TETO[u] || 0), 0);
-    const k = (cl, t, v, n) => `<div class="${cl}"><small>${t}</small><b>${v}</b><em>${n}</em></div>`;
-    const kp = `<div class="vk">${k('d','Viagens', intN(L.length), intN(L.length - nI) + ' nacionais · ' + intN(nI) + ' internacionais')}${k('','Gasto total', fmtC(tot), 'diárias ' + fmtC(S('diar')) + ' · passagens ' + fmtC(S('pass')))}${k('','Teto do ano', tetoT ? fmtC(tetoT) : '—', tetoT ? Math.round(100 * tot / tetoT) + '% usado · sobra ' + fmtC(Math.max(0, tetoT - tot)) : 'sem teto para estas UGs')}${k('','Custo médio', fmtC(L.length ? tot / L.length : 0), 'por viagem')}${k('r','Urgentes', intN(urg.length), Math.round(100 * urg.length / Math.max(1, L.length)) + '% das viagens')}</div>`;
+    const k = (cl, t, v, n, at) => `<div class="${cl}" ${at || ''} role="button" tabindex="0" title="Clique para ver as viagens"><small>${t}</small><b>${v}</b><em>${n}</em></div>`;
+    const kp = `<div class="vk">${k('d','Viagens', intN(L.length), intN(L.length - nI) + ' nacionais · ' + intN(nI) + ' internacionais', 'data-viagtab="1"')}${k('','Gasto total', fmtC(tot), 'diárias ' + fmtC(S('diar')) + ' · passagens ' + fmtC(S('pass')), 'data-viagtab="1"')}${k('','Teto do ano', tetoT ? fmtC(tetoT) : '—', tetoT ? Math.round(100 * tot / tetoT) + '% usado · sobra ' + fmtC(Math.max(0, tetoT - tot)) : 'sem teto para estas UGs', 'data-viagteto="1"')}${k('','Custo médio', fmtC(L.length ? tot / L.length : 0), 'por viagem', 'data-viagtab="1"')}${k('r','Urgentes', intN(urg.length), Math.round(100 * urg.length / Math.max(1, L.length)) + '% das viagens', 'data-campo="urgN" data-valor="Urgente"')}</div>`;
     const selU = selDe('urgN').map(String).includes('Urgente');
     const ac = (cl, t, n, s, attr, on) => `<div class="${n ? cl : 'g'} ${on ? 'on' : ''}" ${n && attr ? attr : ''}><p>${t}</p><b>${n}</b><small>${s}</small></div>`;
     const acao = `<div class="va">${ac('r','Viagem urgente', urg.length, 'pedido fora do prazo de 15 dias', 'data-campo="urgN" data-valor="Urgente" role="button" tabindex="0"', selU)}${ac('o','Passagem comprada com menos de 15 dias', menos15.length, 'de ' + comP.length + ' com passagem', 'data-viagtab="1" role="button" tabindex="0"')}${ac('o','Servidor com mais de 30 diárias', s30.length, s30.slice(0, 2).map(x => x.nome.split(' ')[0]).join(', ') || 'limite anual (Nota Técnica)', 'data-viagtab="2" role="button" tabindex="0"')}${ac('p','Viajam nos próximos 7 dias', prox.length, emCurso.length ? emCurso.length + ' em viagem agora' : 'conferir passagem e diárias', 'data-viagtab="0" role="button" tabindex="0"')}${ac('y','Prestação de contas', pcV.length, 'vencendo ou vencida · conferir entrega', 'data-viagtab="4" role="button" tabindex="0"')}</div>`;
@@ -13534,7 +13586,7 @@ document.addEventListener('click', e => {
 // esboços aprovados em 26/10/2026 · mesma lógica e visual do relatório de Parcerias (mensal, trimestral, semestral, anual)
 // =====================================================================
 const RG = {tipo:'trimestral', per:'', cmp:'ant', ugs:[], acoes:[], fases:[], modelo:''};
-const RG_NOME = {orc:'Relatório de gestão orçamentária e financeira', ted:'Relatório de gestão de TED'};
+const RG_NOME = {orc:'Relatório de gestão orçamentária e financeira', ted:'Relatório de gestão de TED', viag:'Relatório de gestão de viagens'};
 const rgW = () => asW();
 const rgR = v => 'R$ '+fmtC(v||0, Math.abs(v||0) >= 1e6 ? 1 : 0);
 const rgN = v => Math.round(v||0).toLocaleString('pt-BR');
@@ -13551,10 +13603,11 @@ function rgVar(a, b, bomSobe, pct){
 async function rgAbrir(modelo){
   const w = await garantirAntigo(); if(RG.modelo !== modelo){ RG.ugs = []; RG.acoes = []; RG.fases = []; RG.cats = []; } RG.modelo = modelo;
   if(!RG.per || !w.relPeriodos(RG.tipo).some(p => p[0] === RG.per)){ const L = w.relPeriodos(RG.tipo); RG.per = (L[1]||L[0])[0]; }
-  if(modelo === 'orc'){ try{ await carregarVisao('exe'); }catch(e){} } else if(modelo === 'ctr'){ try{ await rgCarregarCtr(); }catch(e){} } else { try{ await rgCarregarTed(); }catch(e){} }
+  if(modelo === 'orc'){ try{ await carregarVisao('exe'); }catch(e){} } else if(modelo === 'viag'){ try{ await w.dados('viag'); }catch(e){} } else if(modelo === 'ctr'){ try{ await rgCarregarCtr(); }catch(e){} } else { try{ await rgCarregarTed(); }catch(e){} }
   rgJanela();
 }
 function rgOpcoesUG(){
+  if(RG.modelo === 'viag'){ let L = []; try{ L = rgW().eval('DADOS.viag.linhas') || []; }catch(e){} return [...new Set(L.map(d => d.ugN))].filter(Boolean).sort().map(u => [u, u, null]); }
   if(RG.modelo === 'ctr') return [...new Set((AS.dados.ctr||[]).map(d => d.ugc))].filter(Boolean).sort().map(u => [u, u+(UG_NOMES_CURTOS[u] ? ' · '+UG_NOMES_CURTOS[u].split(' · ')[0] : ''), null]);
   if(RG.modelo === 'orc'){ const s = new Set(); (DADOS.exe.agg||[]).forEach(d => s.add(d.ug)); return [...s].filter(Boolean).sort().map(u => [u, u+(UG_NOMES_CURTOS[u] ? ' · '+UG_NOMES_CURTOS[u].split(' · ')[0] : ''), null]); }
   return (AS.dados.ted || []).reduce((a, d) => { const u = d['UG descentralizadora']; if(u && !a.some(x => x[0] === u)) a.push([u, u+(UG_NOMES_CURTOS[u] ? ' · '+UG_NOMES_CURTOS[u].split(' · ')[0] : ''), null]); return a; }, []).sort();
@@ -13564,7 +13617,9 @@ function rgJanela(){
   if(!f){ f = document.createElement('div'); f.id = 'rgFundo'; document.body.appendChild(f); }
   const t = RG.tipo, per = RG.per, ano = +per.slice(0,4), aH = new Date().getFullYear(), P = w.relPeriodo(t, per);
   const subs = t === 'mensal' ? ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'].map((n, i) => [ano+'-'+String(i+1).padStart(2,'0'), n]) : t === 'trimestral' ? [1,2,3,4].map(q => [ano+'-T'+q, q+'º tri']) : t === 'semestral' ? [1,2].map(s => [ano+'-S'+s, s+'º sem']) : [];
-  const recorte = RG.modelo === 'ctr'
+  const recorte = RG.modelo === 'viag'
+    ? `<label>UG ${msxHTML('rg|ug', {rot:'UG', todos:'Todas as UGs', opts:rgOpcoesUG, get:() => RG.ugs, set:a => { RG.ugs = a; rgJanela(); }})}</label>`
+    : RG.modelo === 'ctr'
     ? `<label>UG ${msxHTML('rg|ug', {rot:'UG', todos:'130010 · CEPLAC (padrão)', opts:rgOpcoesUG, get:() => RG.ugs, set:a => { RG.ugs = a; rgJanela(); }})}</label>
        <label>Categoria ${msxHTML('rg|cat', {rot:'Categoria', todos:'Todas', opts:() => [...new Set((AS.dados.ctr||[]).map(d => d.cat))].filter(Boolean).sort().map(a => [a, a, null]), get:() => RG.cats, set:a => { RG.cats = a; rgJanela(); }})}</label>`
     : RG.modelo === 'orc'
@@ -13572,7 +13627,7 @@ function rgJanela(){
        <label>Ação ${msxHTML('rg|acao', {rot:'Ação', todos:'Todas', opts:() => [...new Set((DADOS.exe.agg||[]).map(d => d.acao))].filter(Boolean).sort().map(a => [a, a, null]), get:() => RG.acoes, set:a => { RG.acoes = a; rgJanela(); }})}</label>`
     : `<label>UG descentralizadora ${msxHTML('rg|ug', {rot:'UG', todos:'Todas', opts:rgOpcoesUG, get:() => RG.ugs, set:a => { RG.ugs = a; rgJanela(); }})}</label>
        <label>Fase ${msxHTML('rg|fase', {rot:'Fase', todos:'Todas', opts:() => [...new Set((AS.dados.ted||[]).map(d => d['Fase (painel)']))].filter(Boolean).sort().map(a => [a, a, null]), get:() => RG.fases, set:a => { RG.fases = a; rgJanela(); }})}</label>`;
-  f.innerHTML = `<div class="rg-jan"><div class="rg-cab"><b>📄 Emitir relatório · ${({orc:'Orçamentário e financeiro', ted:'TED', ctr:'Contratos'})[RG.modelo]}</b><button type="button" data-rgfecha>✕</button></div>
+  f.innerHTML = `<div class="rg-jan"><div class="rg-cab"><b>📄 Emitir relatório · ${({orc:'Orçamentário e financeiro', ted:'TED', ctr:'Contratos', viag:'Viagens'})[RG.modelo]}</b><button type="button" data-rgfecha>✕</button></div>
     <div class="rg-rot">Tipo</div><div class="rg-op">${[['mensal','Mensal'],['trimestral','Trimestral'],['semestral','Semestral'],['anual','Anual']].map(([k, r]) => `<button type="button" data-rgtipo="${k}" class="${t === k ? 'on' : ''}">${r}</button>`).join('')}</div>
     <div class="rg-rot">Ano</div><select id="rgAno" class="rg-sel">${[aH, aH-1, aH-2].map(a => `<option value="${a}" ${a === ano ? 'selected' : ''}>${a}</option>`).join('')}</select>
     ${subs.length ? `<div class="rg-rot">${{mensal:'Mês', trimestral:'Trimestre', semestral:'Semestre'}[t]}</div><div class="rg-op ${t === 'mensal' ? 'm' : ''}">${subs.map(([k, r]) => `<button type="button" data-rgsub="${k}" class="${k === per ? 'on' : ''}" ${w.relPerOk(t, k) ? '' : 'disabled'}>${r}</button>`).join('')}</div>` : ''}
@@ -13593,7 +13648,7 @@ document.addEventListener('click', async e => {
   const g = e.target.closest('[data-rggerar]'); if(g){
     g.disabled = true; g.textContent = 'Montando o relatório…';
     let jan = null; if(!EMBUTIDO) try{ jan = window.open('', '_blank'); if(jan && jan.document) jan.document.write('<p style="font:16px Arial;padding:30px">Montando o relatório…</p>'); }catch(x){}
-    try{ const P = w.relPeriodo(RG.tipo, RG.per), html = RG.modelo === 'orc' ? await rgOrc(P) : RG.modelo === 'ctr' ? await rgCtr(P) : await rgTed(P);
+    try{ const P = w.relPeriodo(RG.tipo, RG.per), html = RG.modelo === 'orc' ? await rgOrc(P) : RG.modelo === 'ctr' ? await rgCtr(P) : RG.modelo === 'viag' ? await rgViag(P) : await rgTed(P);
       if(jan && jan.document){ jan.document.open(); jan.document.write(html); jan.document.close(); } else abrirPDF(html, 'relatorio-'+RG.modelo+'-'+RG.per);
       f.hidden = true; }
     catch(err){ if(jan) try{ jan.close(); }catch(x){} g.disabled = false; g.textContent = '⬇ Gerar PDF'; const n = f.querySelector('.rg-nota:last-child'); if(n) n.innerHTML = '<b style="color:#b3261e">Não foi possível montar o relatório: '+esc(err.message)+'</b>'; console.error(err); }
@@ -13766,6 +13821,83 @@ async function rgTed(P){
   return rgDoc(RG_NOME.ted, 'TED', P, 'API de TED, Tesouro Gerencial e planilha da equipe', [p1, p2]);
 }
 
+// =====================================================================
+// VIAGENS (Portal da Transparência · Viagens a Serviço) · relatório de gestão
+// =====================================================================
+async function rgViag(P){
+  const w = rgW(); try{ await w.dados('viag'); }catch(e){ throw new Error('a base de viagens não abriu: '+e.message); }
+  const V = w.eval('DADOS.viag'), TETO = w.eval('VIAG_TETO'), hoje = new Date(); hoje.setHours(0,0,0,0);
+  let T = V.linhas.slice(); if(RG.ugs.length) T = T.filter(d => RG.ugs.includes(d.ugN));
+  const cmp = RG.cmp === 'ano' ? P.ano0 : P.ant, noP = (L, a, b) => L.filter(d => d.iniD && d.iniD >= a && d.iniD <= b);
+  const L = noP(T, P.ini, P.fim), C = noP(T, cmp.ini, cmp.fim), soma = (X, k) => X.reduce((a, d) => a + (d[k]||0), 0);
+  const temC = C.length > 0 || T.some(d => d.iniD && d.iniD <= cmp.ini);   // a base do Portal começa no ano corrente: sem dados do período comparado, não compara
+  const vr = (a, b) => temC ? rgVar(a, b, false) : '<span class="eq">sem base de '+cmp.ini.getFullYear()+'</span>';
+  const tot = soma(L, 'total'), totC = soma(C, 'total'), ext = L.filter(d => d.ext), urg = L.filter(d => d.urg === 'SIM'), urgC = C.filter(d => d.urg === 'SIM');
+  const comP = L.filter(d => d.ant !== null), m15 = comP.filter(d => d.ant < 15), comPC = C.filter(d => d.ant !== null), m15C = comPC.filter(d => d.ant < 15);
+  const per = P.tipo === 'anual' ? 'no ano' : 'no período', ugs = [...new Set(T.map(d => d.ugN))].sort();
+  // servidores: diárias no ano (limite de 30 diárias intercaladas por ano · Nota Técnica)
+  const doAno = T.filter(d => d.iniD && d.iniD.getFullYear() === P.y), serv = {};
+  doAno.forEach(d => { const x = serv[d.nome] || (serv[d.nome] = {nome:d.nome, cargo:d.cargo, n:0, ndi:0, tot:0}); x.n++; x.ndi += d.ndi||0; x.tot += d.total; });
+  const servL = Object.values(serv).sort((a, b) => b.ndi - a.ndi), s30 = servL.filter(x => x.ndi > 30);
+  // prestação de contas: prazo de 5 dias (nacional) ou 30 (internacional) após a volta
+  const pcV = T.filter(d => d.voltou && d.prazoPC && d.prazoPC < hoje && (hoje - d.prazoPC)/864e5 <= 30 && d.iniD <= P.fim), pcProx = T.filter(d => d.voltou && d.prazoPC && d.prazoPC >= hoje && (d.prazoPC - hoje)/864e5 <= 7);
+  // mês a mês do ano do período
+  const meses = []; for(let m = 0; m < 12; m++){ const a = new Date(P.y, m, 1), b = new Date(P.y, m+1, 0, 23, 59, 59); if(a > P.fim) break; const X = noP(T, a, b); meses.push([MESES[m], soma(X, 'total'), soma(X, 'pass')]); }
+  // teto (exemplo até a planilha da equipe): proporcional ao tempo do ano
+  const fracA = Math.min(1, Math.max(0, ((P.fim < hoje ? P.fim : hoje) - new Date(P.y, 0, 1)) / (365*864e5)));
+  const tetoL = ugs.map(u => { const g = soma(doAno.filter(d => d.ugN === u), 'total'), t = TETO[u] || 0; return [u, g, t]; });
+  // destinos
+  const dst = {}; L.forEach(d => { const k = d.ext ? '✈ Exterior' : (d.destUF || '—'); dst[k] = dst[k] || {n:0, v:0}; dst[k].n++; dst[k].v += d.total; });
+  const dstL = Object.entries(dst).sort((a, b) => b[1].v - a[1].v).slice(0, 8);
+  // antecedência da compra
+  const F = ['Até 5 dias','6 a 9 dias','10 a 14 dias','15 dias ou mais'], nac = X => { X = X.filter(d => !d.ext && d.pass > 0); return X.length ? soma(X, 'pass')/X.length : 0; };
+  const antL = F.map(f => { const X = L.filter(d => d.antF === f); return [f, rgN(X.length), rgP(X.length, comP.length), X.length ? rgR(nac(X)) : '—']; });
+  const just = {}; urg.forEach(d => { const j = (d.just || 'sem justificativa').slice(0, 70); just[j] = (just[j]||0) + 1; });
+  // semáforo, riscos e recomendações
+  const pU = urg.length / Math.max(1, L.length), p15 = m15.length / Math.max(1, comP.length), tetoMax = tetoL.reduce((a, [, g, t]) => Math.max(a, t ? g/t : 0), 0);
+  const SEM = [[tetoMax > .9 ? 'r' : tetoMax > fracA + .05 ? 'a' : 'g', 'Teto do ano', tetoMax ? Math.round(tetoMax*100)+'% usado na UG mais adiantada' : 'sem teto'],
+    [pU > .5 ? 'r' : pU > .2 ? 'a' : 'g', 'Urgência', Math.round(pU*100)+'% das viagens'], [p15 > .5 ? 'r' : p15 > .25 ? 'a' : 'g', 'Compra da passagem', Math.round(p15*100)+'% com menos de 15 dias'],
+    [s30.length ? 'a' : 'g', 'Limite de 30 diárias', s30.length+' servidor(es) acima']];
+  const ris = [], seg = [];
+  if(pU > .2) ris.push(['r', `${rgN(urg.length)} viagens urgentes (${Math.round(pU*100)}%)`, 'pedido fora dos 15 dias de antecedência · exige justificativa e encarece a passagem', rgR(soma(urg, 'total'))]);
+  if(p15 > .25){ const c9 = nac(comP.filter(d => d.ant <= 9)), c15 = nac(comP.filter(d => d.ant >= 15)); ris.push(['a', `${rgN(m15.length)} passagens compradas com menos de 15 dias`, c9 && c15 ? `nacional média ${rgR(c9)} (até 9 dias) × ${rgR(c15)} (15 dias ou mais)` : '', rgP(m15.length, comP.length)]); }
+  if(s30.length) ris.push(['a', `${s30.length} servidor(es) com mais de 30 diárias em ${P.y}`, s30.slice(0, 4).map(x => x.nome.split(' ')[0]+' ('+String(x.ndi).replace('.', ',')+')').join(' · ')+' · exige Nota Técnica', '']);
+  if(pcV.length) ris.push(['a', `${pcV.length} viagem(ns) com prazo de prestação de contas vencido nos últimos 30 dias`, 'conferir a entrega na planilha da equipe · prestação pendente impede nova viagem', '']);
+  tetoL.filter(([, g, t]) => t && g/t > fracA + .05).forEach(([u, g, t]) => ris.push(['a', `${u}: gasto acima do ritmo do teto`, `${rgP(g, t)} do teto usado com ${Math.round(fracA*100)}% do ano`, rgR(g)]));
+  if(temC && tot < totC) seg.push(['g', `Gasto caiu ${rgR(totC - tot)}`, `de ${rgR(totC)} para ${rgR(tot)}`, '']);
+  if(temC && urg.length < urgC.length) seg.push(['g', 'Menos viagens urgentes', `${urgC.length} → ${urg.length}`, '']);
+  if(temC && comP.length && m15C.length / Math.max(1, comPC.length) > p15 + .05) seg.push(['g', 'Compra de passagem mais antecipada', `${rgP(m15C.length, comPC.length)} → ${rgP(m15.length, comP.length)} com menos de 15 dias`, '']);
+  const rec = [];
+  if(pU > .2) rec.push('Planejar as viagens com 15 dias de antecedência (agenda mensal por departamento) e reduzir os pedidos urgentes.');
+  if(p15 > .25) rec.push('Emitir as passagens assim que a viagem for aprovada: a compra antecipada reduz o preço.');
+  if(s30.length) rec.push(`Conferir a Nota Técnica dos ${s30.length} servidor(es) acima de 30 diárias no ano.`);
+  if(pcV.length || pcProx.length) rec.push(`Conferir as prestações de contas (${pcV.length} com prazo vencido nos últimos 30 dias${pcProx.length ? ', '+pcProx.length+' vencem em 7 dias' : ''}).`);
+  if(!rec.length) rec.push('Manter o acompanhamento mensal.');
+  const recorte = (RG.ugs.length ? 'UG '+RG.ugs.join(', ') : 'todas as UGs') + ' · viagens pela data de início';
+  const resumo = [`${P.tipo === 'anual' ? 'No ano' : 'No período'} foram <b>${rgN(L.length)} viagens</b> (${rgN(ext.length)} internacionais), com gasto de <b>${rgR(tot)}</b>: diárias ${rgR(soma(L, 'diar'))} e passagens ${rgR(soma(L, 'pass'))}.`,
+    `<b>${Math.round(pU*100)}%</b> foram urgentes e <b>${Math.round(p15*100)}%</b> das passagens foram compradas com menos de 15 dias da ida.`,
+    `${s30.length ? '<b>'+s30.length+' servidor(es)</b> passaram de 30 diárias em '+P.y : 'Nenhum servidor passou de 30 diárias em '+P.y}${pcV.length ? '; '+pcV.length+' viagem(ns) com prazo de prestação de contas vencido nos últimos 30 dias' : ''}.`];
+  const p1 = rgCab(P, 'Viagens', 'Diárias e passagens (SCDP) · Portal da Transparência', recorte) + rgSem(SEM)
+    + `<div class="sec">Resumo do período</div><div class="res"><ul>${resumo.map(x => `<li>${x}</li>`).join('')}</ul></div>
+    <div class="sec">Números ${P.tipo === 'anual' ? 'do ano' : 'do período'} · comparado com ${RG.cmp === 'ano' ? P.rotAno0 : P.rotAnt}</div>`
+    + rgK([['Viagens', rgN(L.length), vr(L.length, C.length)], ['Gasto total', rgR(tot), vr(tot, totC)], ['Diárias', rgR(soma(L, 'diar')), vr(soma(L, 'diar'), soma(C, 'diar'))], ['Passagens', rgR(soma(L, 'pass')), vr(soma(L, 'pass'), soma(C, 'pass'))],
+      ['Custo médio', rgR(L.length ? tot/L.length : 0), 'por viagem'], ['Internacionais', rgN(ext.length), rgR(soma(ext, 'total'))], ['Urgentes', rgP(urg.length, L.length), rgN(urg.length)+' viagens', pU > .2 ? '#a32d2d' : ''], ['Passagem < 15 dias', rgP(m15.length, comP.length), rgN(m15.length)+' de '+rgN(comP.length), p15 > .25 ? '#b8650a' : '']])
+    + `<div class="sec">Gasto por mês (barras) × passagens (linha) · ${P.y}</div>${w.relBarras(meses.map(x => x[1]), meses.map(x => x[0]), meses.map(x => x[2]))}
+    <div class="dois"><div><div class="sec">Por UG ${per}</div>${rgTab(['UG', 'Viagens', 'Diárias', 'Passagens', 'Total'], ugs.map(u => { const X = L.filter(d => d.ugN === u); return [esc(u), rgN(X.length), rgR(soma(X, 'diar')), rgR(soma(X, 'pass')), rgR(soma(X, 'total'))]; }).filter(x => x[1] !== '0'), [1,2,3,4])}</div>
+    <div><div class="sec">Destinos ${per}</div>${rgTab(['Destino', 'Viagens', 'Gasto'], dstL.map(([k, x]) => [esc(k), rgN(x.n), rgR(x.v)]), [1,2])}</div></div>`;
+  const p2 = rgMini('Viagens', P, 'Planejamento, servidores, internacionais e prestação de contas')
+    + `<div class="dois"><div><div class="sec">Compra da passagem · dias antes da ida</div>${rgTab(['Antecedência', 'Viagens', '%', 'Passagem nacional média'], antL, [1,2,3])}</div>
+    <div><div class="sec">Urgência · justificativas mais usadas</div>${Object.keys(just).length ? rgTab(['Justificativa', 'Viagens'], Object.entries(just).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([j, n]) => [esc(j), rgN(n)]), [1]) : '<p class="nota">Nenhuma viagem urgente no período.</p>'}</div></div>
+    <div class="sec">Servidores com mais diárias em ${P.y} · limite de 30 diárias intercaladas no ano (acima disso, Nota Técnica)</div>${rgTab(['Servidor', 'Cargo', 'Viagens', 'Nº de diárias', 'Gasto'], servL.slice(0, 8).map(x => [esc(x.nome), esc(x.cargo), rgN(x.n), x.ndi > 30 ? `<span class="up">${String(x.ndi).replace('.', ',')}</span>` : String(x.ndi).replace('.', ','), rgR(x.tot)]), [2,3,4])}
+    <div class="sec">Viagens internacionais ${per} · ${rgN(ext.length)} viagens · ${rgR(soma(ext, 'total'))}</div>${ext.length ? rgTab(['PCDP', 'Servidor', 'Destino', 'Período', 'Total'], ext.slice().sort((a, b) => b.total - a.total).slice(0, 6).map(d => [esc(d.pcdp), esc(d.nome), esc(d.destC || d.dest), esc(d.ini.slice(0, 5))+'–'+esc(d.fim.slice(0, 5)), rgR(d.total)]), [4]) + (ext.length > 6 ? `<p class="nota">as 6 mais caras · + ${ext.length - 6} viagem(ns) internacionais.</p>` : '') : '<p class="nota">Nenhuma viagem internacional no período.</p>'}
+    <div class="dois"><div><div class="sec">Prestação de contas · prazo vencido nos últimos 30 dias</div>${pcV.length ? rgTab(['PCDP', 'Servidor', 'Volta', 'Prazo'], pcV.slice(0, 6).map(d => [esc(d.pcdp), esc(d.nome), esc(d.fim.slice(0, 5)), d.prazoPC.toLocaleDateString('pt-BR').slice(0, 5)])) + `<p class="nota">O Portal não informa a entrega: conferir na planilha "Controle de SCDP".${pcV.length > 6 ? ' + '+(pcV.length - 6)+' viagem(ns).' : ''}</p>` : '<p class="nota">Nenhuma.</p>'}</div><div><div class="sec">Teto do ano ${P.y} · gasto acumulado (teto de exemplo)</div>${rgTab(['UG', 'Gasto no ano', 'Teto', '% usado'], tetoL.map(([u, g, t]) => [esc(u), rgR(g), t ? rgR(t) : '—', t ? (g/t > fracA + .05 ? `<span class="up">${rgP(g, t)}</span>` : rgP(g, t)) : '—']), [1,2,3])}<p class="nota">Ritmo esperado hoje: ${Math.round(fracA*100)}% do teto.</p></div></div>
+`;
+  const p3 = rgMini('Viagens', P, 'Riscos, recomendações e notas')
+    + `<div class="sec">Pontos de risco</div>${rgRis(ris)}<div class="sec">Pontos de segurança</div>${rgRis(seg)}
+    <div class="sec">Recomendações</div><div class="res"><ul>${rec.map(x => `<li>${x}</li>`).join('')}</ul></div>
+    <div class="sec">Notas metodológicas</div><div class="nota"><p><b>Fonte:</b> Portal da Transparência, Viagens a Serviço ${P.y}${V.posicao ? ' (posição de '+esc(V.posicao)+')' : ''}. Entram as viagens com diárias pagas pelas UGs 420013, 130010, 130141, 130255 e 135098; passagens e seguro são pagos pela UG 130005. A viagem entra no período pela data de início.</p><p><b>Regras (Passaporte do Usuário SCDP):</b> pedido com 15 dias de antecedência; prestação de contas em 5 dias (nacional) ou 30 dias (internacional) após a volta; mais de 30 diárias intercaladas no ano, fim de semana/feriado e mais de 5 dias contínuos exigem Nota Técnica. Teto por UG é exemplo até a planilha da equipe.</p></div>`;
+  return rgDoc(RG_NOME.viag, 'Viagens', P, 'Portal da Transparência (Viagens a Serviço)', [p1, p2, p3]);
+}
 // =====================================================================
 // PARCERIAS · página extra no relatório que já existe (propostas, 420013, contratos de repasse, vigências, PC e IDTRU)
 // =====================================================================
@@ -14268,10 +14400,10 @@ function preCarregar(){
     ['', [['visao','▦','Visão geral']]],
     ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)'],['ctrsdr','📄','Contratos SDR'],['despesas','🧾','Despesas previstas'],['conferencia','✔','Conferência de Contratos'],['relctr','📄','Relatório do contrato'],['_relctr','📊','Relatório de gestão de contratos'],['alertactr','🔔','Alerta Contratos']]],
     ['ORÇAMENTO E FINANÇAS', [['orcacao','🏛','Orçamento por ações'],['exe','$','Financeiro EXE'],['rap','⏱','Financeiro RAP'],['exerap','⇄','EXE + RAP'],['_relorc','📊','Relatório de gestão orçamentária e financeira'],['cronorc','📅','Cronograma orçamentário'],['alertaorc','🔔','Alerta Orç & Fin']]],
+    ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['_relviag','📊','Relatório de gestão de viagens'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
     ['PARCERIAS', [['parc','🤝','Parceria SDR',[['geral','Visão geral'],['prop','Propostas'],['inst','Instrumentos vigentes'],['pc','Prestação de contas']]],
                    ['prop','📝','Propostas SDR'],['conv','📋','Execução Convênio/TF 420013'],['repasse','🏠','Contrato de Repasse'],['relinst','📄','Relatório do instrumento'],['captacao','💡','Captação de Emendas',[['ind','Emenda Individual']]],['indic','🎯','Indicadores'],['_rel','📊','Relatório de gestão de parcerias'],['cronparc','📅','Calendário de parcerias'],['alertaparc','🔔','Alerta Parcerias']]],
     ['TED', [['tedapi','✉','TED GERAL SDR'],['ted','👥','TED EQUIPE SDR'],['_relted','📊','Relatório de gestão de TED'],['alertated','🔔','Alerta TED']]],
-    ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
     ['PORTFÓLIO E CARTILHAS SDR', [['portmapa','📘','Portfólio MAPA 2026'],['acoessdr','🌱','Ações SDR 2026']]],
     ['AJUDA', [['assist','🤖','Assistente virtual'],['metodo','📚','Metodologia e fontes']]],
   ];
@@ -14367,6 +14499,7 @@ function preCarregar(){
     if(id === '_relorc'){ rgAbrir('orc'); return; }
     if(id === '_relctr'){ rgAbrir('ctr'); return; }
     if(id === '_relted'){ rgAbrir('ted'); return; }
+    if(id === '_relviag'){ rgAbrir('viag'); return; }
     if(id === '_rel'){ const atual = telaAtual(); const temRel = ['parc'].includes(atual); if(!temRel){ await ir('parc'); await esperar(() => est().id === 'parc'); } const w = W(); if(w && w.abrirRelatorio) w.abrirRelatorio(); return; }
     if(/^_viag/.test(id)){ const alvo = id.slice(5); if(telaAtual() !== 'viag'){ await ir('viag'); await esperar(() => est().id === 'viag'); } const w = W(); try{ if(w && w.__viagIr) await w.__viagIr(alvo); }catch(e){} marcar(); return; }
     if(id.startsWith('_')) return;
