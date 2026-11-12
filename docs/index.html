@@ -12983,10 +12983,10 @@ function rcSaldo(C){
   if(S.indet || !o.fim) return `${riSec('Saldo do contrato')}<p class="ri-nota">Vigência indeterminada: sem saldo pelo tempo.${S.mensal ? ' Valor mensal de referência: '+riR(S.mensal)+'.' : ''}</p>${rcConf(S)}`;
   return `${riSec('Saldo do contrato · período '+riDt(S.iniP || o.ini)+' a '+riDt(o.fim))}<table class="ri-t ri-kv">
     <tr><td>Valor mensal de referência</td><td>${riR(S.mensal)} <small>(${esc(S.base)})</small></td></tr>
-    <tr><td>Valor do período</td><td>${riR(S.valorP)} <small>(${Math.round(S.mesesP)} meses)</small></td></tr>
-    <tr><td>Saldo pelo tempo</td><td><b>${riR(S.saldoTempo)}</b> <small>· ${Math.round((C.o.calc||{}).mRest||0)} meses até o fim · o que ainda deve ser pago</small></td></tr>
-    <tr><td>Pago no período</td><td>${S.pagoP !== undefined ? riR(S.pagoP)+' <small>(Portal da Transparência até 2025 + Tesouro de '+new Date().getFullYear()+')</small>' : '<small>lendo o Tesouro e o histórico…</small>'}</td></tr>
-    <tr><td>Saldo a pagar</td><td>${S.saldoPago !== undefined ? '<b>'+riR(S.saldoPago)+'</b> <small>· valor do contrato − o que já foi pago</small>' : '—'}</td></tr>
+    <tr><td>Valor do contrato</td><td>${riR(S.valorP)} <small>(${Math.round(S.mesesP)} meses)</small></td></tr>
+    <tr><td>Já pago</td><td>${S.pagoP !== undefined ? riR(S.pagoP)+' <small>(Portal da Transparência até 2025 + Tesouro de '+new Date().getFullYear()+')</small>' : '<small>lendo o Tesouro e o histórico…</small>'}</td></tr>
+    <tr><td><b>Falta pagar</b></td><td>${S.saldoPago !== undefined ? '<b>'+riR(S.saldoPago)+'</b> <small>· valor do contrato − o que já foi pago</small>' : '—'}</td></tr>
+    <tr><td>Previsto para o tempo que falta</td><td><b>${riR(S.saldoTempo)}</b> <small>· ${Math.round((C.o.calc||{}).mRest||0)} meses até o fim · se os pagamentos estivessem em dia, faltaria só isso</small></td></tr>
     ${S.ritmo ? `<tr><td>Ritmo</td><td style="color:#b8650a"><b>${S.ritmo === 'abaixo' ? 'pagamento abaixo do previsto pelo tempo' : 'pagamento acima do previsto pelo tempo'}</b></td></tr>` : S.saldoPago !== undefined ? '<tr><td>Ritmo</td><td style="color:#2e8a57">✓ pagamento no ritmo do contrato</td></tr>' : ''}</table>${rcConf(S)}`;
 }
 const rcConf = S => S.conf && S.conf.length ? `<div class="ri-al n"><b>Conferir no Contratos.gov.br</b>${S.conf.map(esc).join('<br>')}</div>` : '';
