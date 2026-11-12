@@ -65,7 +65,7 @@ const FIL = [['parl','Parlamentar'],['ano','Ano da proposta'],['mod','Modalidade
   ['nj','Natureza jurídica'],['prop','Proponente'],['emp','Empresa (CNPJ)',1],['sm','Situação da medição',1],['munN','Município']];
 const SEL = {si:'Em execução'};
 const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fm = v => v>=1e9 ? (v/1e9).toFixed(2).replace('.',',')+' Bi' : v>=1e6 ? (v/1e6).toFixed(2).replace('.',',')+' Mi' : (v/1e3).toFixed(1).replace('.',',')+' Mil';
+const fm = v => window.__FM_EXATO ? '§'+(+v||0) : fm0_(v), fm0_ = v => v>=1e9 ? (v/1e9).toFixed(2).replace('.',',')+' Bi' : v>=1e6 ? (v/1e6).toFixed(2).replace('.',',')+' Mi' : (v/1e3).toFixed(1).replace('.',',')+' Mil';
 const pct = v => v.toFixed(1).replace('.',',')+'%';
 function filtrar(exceto){ return D.filter(o => FIL.every(([k]) => k===exceto || !SEL[k] || String(o[k])===SEL[k])); }
 function desenharFiltros(){

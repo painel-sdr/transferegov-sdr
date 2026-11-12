@@ -77,8 +77,8 @@ const FIL = [['ano','Ano da proposta'],['grupo','Etapa'],['sit','Situação no T
   ['parl','Parlamentar'],['tp','Tipo de parlamentar'],['uf','UF'],['nj','Natureza jurídica'],['cel','Celebrada'],['acao','Ação orçamentária',1],['equipe','Acompanhamento',1],['ug','UG do instrumento'],['munN','Município'],['prop','Proponente']];
 const SEL = {};
 const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fm = v => v>=1e9 ? (v/1e9).toFixed(2).replace('.',',')+' Bi' : v>=1e6 ? (v/1e6).toFixed(2).replace('.',',')+' Mi' : (v/1e3).toFixed(1).replace('.',',')+' Mil';
-const R$ = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+const fm = v => window.__FM_EXATO ? '§'+(+v||0) : fm0_(v), fm0_ = v => v>=1e9 ? (v/1e9).toFixed(2).replace('.',',')+' Bi' : v>=1e6 ? (v/1e6).toFixed(2).replace('.',',')+' Mi' : (v/1e3).toFixed(1).replace('.',',')+' Mil';
+const R$ = v => window.__FM_EXATO ? '§'+(+v||0) : R0_(v), R0_ = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
 function filtrar(exceto){ return D.filter(o => FIL.every(([k]) => k===exceto || !SEL[k] || String(o[k])===SEL[k])); }
 function desenharFiltros(){
   document.getElementById('filtros').innerHTML = FIL.map(([k,n,novo]) => {

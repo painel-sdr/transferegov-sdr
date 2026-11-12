@@ -48,9 +48,9 @@ const FIL = [['acaoN','Ação'],['poN','Plano orçamentário'],['ptres','PTRES']
 const SEL = {};
 function base(){ return document.getElementById('todas').checked ? D : D.filter(o => o.noEscopo); }
 const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fm = v => { const a = Math.abs(v||0), s = v<0?'−':''; return s+(a>=1e9 ? (a/1e9).toFixed(2).replace('.',',')+' Bi' : a>=1e6 ? (a/1e6).toFixed(2).replace('.',',')+' Mi' : (a/1e3).toFixed(1).replace('.',',')+' Mil'); };
+const fm = v => window.__FM_EXATO ? '§'+(+v||0) : fm0_(v), fm0_ = v => { const a = Math.abs(v||0), s = v<0?'−':''; return s+(a>=1e9 ? (a/1e9).toFixed(2).replace('.',',')+' Bi' : a>=1e6 ? (a/1e6).toFixed(2).replace('.',',')+' Mi' : (a/1e3).toFixed(1).replace('.',',')+' Mil'); };
 const f2 = v => Math.abs(v||0) < 0.005 ? '—' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-const R$ = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const R$ = v => window.__FM_EXATO ? '§'+(+v||0) : R0_(v), R0_ = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 // valor resumido (Mi/Mil) com o valor completo ao passar o mouse
 const ft = v => `<abbr title="${R$(v)}" style="cursor:help;text-decoration:none;font:inherit;color:inherit">${fm(v)}</abbr>`;
 const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '—';

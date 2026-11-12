@@ -42,8 +42,8 @@ const FIL = [['parl','Parlamentar'],['ano','Ano da proposta'],['anoAss','Ano de 
   ['tp','Tipo de parlamentar'],['nj','Natureza jurídica'],['objr','Objeto resumido'],['fx','Vencimento da vigência'],['prop','Proponente'],['munN','Município']];
 const SEL = {sit:'Em execução'};
 const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fm = v => { const a = Math.abs(v||0), s = v<0?'−':''; return s+(a>=1e9 ? (a/1e9).toFixed(2).replace('.',',')+' Bi' : a>=1e6 ? (a/1e6).toFixed(2).replace('.',',')+' Mi' : (a/1e3).toFixed(1).replace('.',',')+' Mil'); };
-const R$ = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fm = v => window.__FM_EXATO ? '§'+(+v||0) : fm0_(v), fm0_ = v => { const a = Math.abs(v||0), s = v<0?'−':''; return s+(a>=1e9 ? (a/1e9).toFixed(2).replace('.',',')+' Bi' : a>=1e6 ? (a/1e6).toFixed(2).replace('.',',')+' Mi' : (a/1e3).toFixed(1).replace('.',',')+' Mil'); };
+const R$ = v => window.__FM_EXATO ? '§'+(+v||0) : R0_(v), R0_ = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pct = (a,b) => b ? (a/b*100).toFixed(1).replace('.',',')+'%' : '—';
 const soma = (L,k) => L.reduce((a,o) => a+(o[k]||0), 0);
 const n = x => Number(x||0).toLocaleString('pt-BR');

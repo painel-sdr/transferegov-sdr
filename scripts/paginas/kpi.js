@@ -29,7 +29,7 @@ function kpiDepois(){
   mini = `<div class="kpi-mc">${mini}</div>`;
   const limpa = Object.keys(KF).some(k => k !== '__on' && KF[k]) ? '<button type="button" class="kpi-bt" data-kflimpa="1">Limpar</button>' : '';
   box.innerHTML = `<section class="card kpi-box"><div class="kpi-cab"><div><h3>📋 ${esc(d.tit)}</h3><p class="d">${fil ? LF.length.toLocaleString('pt-BR')+' de ' : ''}${d.lista.length.toLocaleString('pt-BR')} registro(s) · clique na linha para abrir a ficha</p></div>
-    <div><button type="button" class="kpi-bt" data-kpicsv="1">⬇ Baixar lista (CSV)</button><button type="button" class="kpi-bt" data-kpifecha="1">✕ Fechar</button></div></div>
+    <div><button type="button" class="kpi-bt" data-kpicsv="1">⬇ Extração em Excel</button><button type="button" class="kpi-bt" data-kpifecha="1">✕ Fechar</button></div></div>
     <div class="kpi-fil"><label>Instrumento<input type="search" data-kf="q" data-bm-in="kpi" value="${esc(KF.q||'')}" placeholder="nº, proponente… (vários: ;)" title="Vários termos: separe por ; ou , ou cole uma coluna do Excel · use + para exigir os dois"></label>
     ${sits.length > 1 ? sel('sit', sits, 'Situação') : ''}${mods.length ? sel('mod', mods, 'Modalidade') : ''}${ufs.length > 1 ? sel('uf', ufs, 'UF') : ''}${finOps.length ? sel('fin', finOps, 'Financeiro') : ''}${anos.length ? sel('ano', anos, mods.length ? 'Ano da proposta' : 'Ano') : ''}${anosE.length ? sel('anoNE', anosE, 'Ano do empenho') : ''}${limpa}</div>${mini}
     <div data-bm="kpi"></div>${tabela('k', LF, cols, 10)}</section>`;
@@ -96,7 +96,19 @@ function kpiMetrica(d, cols){
     if(e.target.closest('[data-kflimpa]')){ e.stopImmediatePropagation(); KF = {__on: window.__kpi}; if(typeof PAG === 'object') PAG.k = 0; kpiDepois(); return; }
     if(e.target.closest('[data-kpicsv]')){ e.stopImmediatePropagation(); const d = (window.KPI_DEF||{})[window.__kpi]; if(!d) return;
       const txt = s => String(s ?? '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-      const cs = kpiCols(d), linhas = [cs.map(c => txt(c[0]))].concat(kpiFiltrar(d.lista).map(o => cs.map(c => txt(c[1](o)))));
+      const cs = kpiCols(d), lista = kpiFiltrar(d.lista);
+      // Excel no modelo padrão do painel (mesmo das outras telas): valores em número exato, não "50,00 Mi"
+      const P = (() => { try{ return window.parent && window.parent !== window && window.parent.baixarXlsx ? window.parent : null; }catch(e){ return null; } })();
+      if(P){
+        window.__FM_EXATO = true; let L2;
+        try{ L2 = lista.map(o => cs.map(c => { const t = txt(c[1](o)), m = t.match(/^§(-?[\d.e+-]+)/); return m ? +m[1] : t.replace(/§(-?[\d.e+-]+)/g, (_, x) => Number(x).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})); })); }
+        finally{ window.__FM_EXATO = false; }
+        const num = cs.map((c, i) => L2.length && L2.every(l => typeof l[i] === 'number' || l[i] === ''));
+        P.baixarXlsx({titulo:(document.title || 'Painel SDR') + ' · ' + txt(d.tit || 'lista'), sub:document.title || '', arquivo:(d.tit || 'lista').replace(/[^\wÀ-ú ]+/g, '').trim().replace(/\s+/g, '_'),
+          cab:cs.map((c, i) => num[i] ? {t:txt(c[0]), n:1} : {t:txt(c[0])}), linhas:L2});
+        return;
+      }
+      const linhas = [cs.map(c => txt(c[0]))].concat(lista.map(o => cs.map(c => txt(c[1](o)))));
       const csv = '﻿' + linhas.map(l => l.map(v => '"' + v.replace(/"/g, '""') + '"').join(';')).join('\r\n');
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = (d.tit || 'lista').replace(/[^\wÀ-ú ]+/g, '').trim().replace(/\s+/g, '_') + '.csv';
       document.body.appendChild(a); a.click(); a.remove(); return; }
