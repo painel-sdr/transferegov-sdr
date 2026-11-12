@@ -221,6 +221,9 @@ def tesouro_ne(linhas):
         nd = vals.get('nd', ('', ''))[0]
         if not VIAG_ND.match(nd):
             continue
+        # PO 000K da ação 2000 é da Secretaria Executiva (outros órgãos usam): só entra se a UG ou a UGR for da SDR
+        if vals.get('acao', ('', ''))[0] == '2000' and vals.get('po', ('', ''))[0] == '000K' and not ({vals.get('ug', ('', ''))[0], vals.get('ugr', ('', ''))[0]} & UGS):
+            continue
         k = (ne, nd, vals.get('ptres', ('', ''))[0], vals.get('pi', ('', ''))[0])
         o = out.get(k)
         if not o:
