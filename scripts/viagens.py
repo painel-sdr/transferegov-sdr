@@ -160,6 +160,102 @@ def gastos(saida, ano, anterior):
     log(f'  gastos {ano}: lido até {E["ate"]} ({lidos} dia(s) novos) · {len(E["ob"])} OB do SCDP · {len(E["obne"])} ligações OB × NE · {len(E["ne"])} notas de empenho')
 
 
+# ---------- Tesouro Gerencial · relatório VIAGENS NE (empenhado, liquidado e pago de cada nota de viagem) ----------
+CONFIG_TES = os.path.join(os.path.dirname(__file__), '..', 'config', 'viagens_tesouro_ne.txt')
+ATRIB = [('acao', r'^ACAO GOVERNO'), ('po', r'^PLANO ORCAMENTARIO'), ('ug', r'^UG EXECUTORA'), ('ugr', r'^UG RESPONSAVEL'), ('ptres', r'^PTRES'), ('pi', r'^PI$'),
+         ('nd', r'^NATUREZA DESPESA DETALHADA'), ('ne', r'^NE CCOR$'), ('data', r'^NE CCOR - DIA EMISSAO'), ('fav', r'^NE CCOR - FAVORECIDO'), ('desc', r'^NE CCOR - DESCRICAO'), ('proc', r'^NE CCOR - NUM. PROCESSO|^NE CCOR - PROCESSO')]
+ITENS = [('emp', r'EMPENHAD'), ('rpp', r'RESTOS A PAGAR PROCESSADOS PAGOS'), ('rpnp', r'RESTOS A PAGAR NAO PROCESSADOS PAGOS'), ('liq', r'LIQUIDAD'), ('pago', r'^\d*:?\s*DESPESAS PAGAS')]
+VIAG_ND = re.compile(r'^(339014|339033|33903602|33903603|33903969)')
+
+
+def _na(t):
+    import unicodedata
+    return re.sub(r'\s+', ' ', unicodedata.normalize('NFD', str(t or '')).encode('ascii', 'ignore').decode().upper()).strip()
+
+
+def _numT(v):
+    from ted_tesouro import num as n_
+    return n_(v)
+
+
+def tesouro_ne(linhas):
+    L = [[c.strip() for c in l] for l in linhas]
+    ih = next((i for i, l in enumerate(L[:60]) if any(_na(c) == 'UG EXECUTORA' for c in l) and any(_na(c) == 'NE CCOR' for c in l)), None)
+    if ih is None:
+        raise ValueError('não achei as colunas "UG Executora" e "NE CCor"')
+    # títulos podem estar em até 3 linhas (ex.: "NE CCor - Núm. Processo" fica na 3ª, embaixo de "Item Informação")
+    HH = [[_na(c) for c in l] for l in L[ih:ih + 3]]
+    def achar(rx):
+        for H in HH:
+            j = next((j for j, h in enumerate(H) if re.search(rx, h)), None)
+            if j is not None:
+                return j
+        return None
+    pos = sorted((i, k) for k, rx in ATRIB for i in [achar(rx)] if i is not None)
+    itens = {}
+    for l in L[max(0, ih - 4): ih + 4]:
+        for i, c in enumerate(l):
+            for k, rx in ITENS:
+                if i not in itens and k not in itens.values() and re.search(rx, _na(c)):
+                    itens[i] = k; break
+    if not itens:
+        raise ValueError('não achei as colunas de empenhado / liquidado / pago')
+    fimAtr = min(itens) if itens else len(H)
+    spans = [(k, i, (pos[n + 1][0] if n + 1 < len(pos) else fimAtr)) for n, (i, k) in enumerate(pos)]
+    curto = lambda v: bool(v) and ' ' not in v and len(v) <= 12
+    out = {}
+    for l in L[ih + 1:]:
+        vals = {}
+        for k, a, b in spans:
+            cel = [c for c in l[a:b] if c]
+            if not cel:
+                vals[k] = ('', ''); continue
+            if k == 'po':      # 22101 · 20 · 122 · 0032 · 2000 · 000H · nome: o código do PO é o último código antes do nome
+                cods = [c for c in cel if curto(c)]; nome = next((c for c in cel if not curto(c)), '')
+                vals[k] = (cods[-1] if cods else '', nome)
+            else:
+                vals[k] = (cel[0], next((c for c in cel[1:] if not curto(c)), cel[1] if len(cel) > 1 else ''))
+        ne = vals.get('ne', ('', ''))[0]
+        if not re.search(r'\d{4}NE\d{6}$', ne):
+            continue
+        nd = vals.get('nd', ('', ''))[0]
+        if not VIAG_ND.match(nd):
+            continue
+        k = (ne, nd, vals.get('ptres', ('', ''))[0], vals.get('pi', ('', ''))[0])
+        o = out.get(k)
+        if not o:
+            o = out[k] = {'ne': ne[-12:], 'ug': vals.get('ug', ('', ''))[0], 'ug_nome': vals.get('ug', ('', ''))[1], 'ugr': vals.get('ugr', ('', ''))[0], 'acao': vals.get('acao', ('', ''))[0],
+                          'po': vals.get('po', ('', ''))[0], 'ptres': k[2], 'pi': k[3], 'nd': nd, 'nd_nome': vals.get('nd', ('', ''))[1], 'data': vals.get('data', ('', ''))[0],
+                          'fav': vals.get('fav', ('', ''))[0], 'fav_nome': vals.get('fav', ('', ''))[1], 'desc': re.sub(r'\s+', ' ', vals.get('desc', ('', ''))[0])[:300],
+                          'proc': vals.get('proc', ('', ''))[0], 'emp': 0.0, 'liq': 0.0, 'pago': 0.0, 'rpp': 0.0, 'rpnp': 0.0}
+        for i, kk in itens.items():
+            v = (_numT(l[i]) or 0) if i < len(l) else 0
+            if v:
+                o[kk] = round(o[kk] + v, 2)
+    return list(out.values())
+
+
+def ler_tesouro(saida, ano):
+    import urllib.request
+    urls = [l.strip() for l in open(CONFIG_TES, encoding='utf-8') if l.strip() and not l.strip().startswith('#')] if os.path.exists(CONFIG_TES) else []
+    todas, info = [], []
+    for u in urls:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(u, headers={'User-Agent': 'robo-sdr-mapa'}), timeout=120) as r:
+                txt = r.read().decode('utf-8-sig', 'replace')
+            if txt.lstrip().startswith('<'):
+                raise ValueError('o link não devolveu CSV')
+            L = tesouro_ne(list(csv.reader(io.StringIO(txt))))
+            todas += L; info.append({'link': u, 'linhas': len(L), 'ok': True})
+            log(f'  tesouro viagens: {len(L)} notas de viagem em {u[-50:]}')
+        except Exception as e:
+            info.append({'link': u, 'erro': str(e)[:200], 'ok': False})
+            log(f'  tesouro viagens: erro em {u[-50:]}: {e}')
+    if todas:
+        json.dump({'gerado_em': datetime.datetime.now().strftime('%d/%m/%Y %H:%M'), 'fontes': info, 'nes': todas},
+                  open(os.path.join(saida, 'viagens', f'tesouro_ne_{ano}.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+
+
 def main():
     saida = sys.argv[1] if len(sys.argv) > 1 else 'saida'
     pasta = os.path.join(saida, 'viagens'); os.makedirs(pasta, exist_ok=True)
@@ -173,6 +269,10 @@ def main():
         json.dump({'ano': ano, 'posicao': f'{dt:%d/%m/%Y}', 'fonte': 'Portal da Transparência · Viagens a Serviço', 'ugs': sorted(UGS), 'viagens': lin},
                   open(os.path.join(pasta, f'viagens_{ano}.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
         log(f'  viagens {ano}: {len(lin)} viagens gravadas')
+        try:
+            ler_tesouro(saida, ano)
+        except Exception as e:
+            log(f'  tesouro viagens: erro {str(e)[:200]}')
         try:
             gastos(saida, ano, sys.argv[2] if len(sys.argv) > 2 else '')
         except Exception as e:

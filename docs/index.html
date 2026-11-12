@@ -8141,7 +8141,8 @@ async function lerViagens(){
       ant: a, antF: a === null ? 'Sem passagem' : a <= 5 ? 'Até 5 dias' : a <= 9 ? '6 a 9 dias' : a <= 14 ? '10 a 14 dias' : '15 dias ou mais', dias: ini && fim ? Math.round((fim - ini) / 864e5) + 1 : 0,
       prazoPC: prazo, voltou: !!(fim && fim < hoje)}; });
   let G = null; try{ const r = await fetch(RAW_VIAG+'gastos_'+(J.ano||ano)+'.json?_='+Date.now(), {cache:'no-store'}); if(r.ok) G = await r.json(); }catch(e){}
-  return {linhas: L, cols: [], ano: J.ano, posicao: J.posicao || '', gastos: G};
+  let TS = null; try{ const r = await fetch(RAW_VIAG+'tesouro_ne_'+(J.ano||ano)+'.json?_='+Date.now(), {cache:'no-store'}); if(r.ok) TS = await r.json(); }catch(e){}
+  return {linhas: L, cols: [], ano: J.ano, posicao: J.posicao || '', gastos: G, tesouro: TS};
 }
 // departamento pela UG e pela ação/PO da nota de empenho (mesma regra do Orçamento e Finanças)
 function viagDep(ug, ac, po){
@@ -8149,6 +8150,30 @@ function viagDep(ug, ac, po){
   if(ug === '130010') return 'CEPLAC';
   if(DEP_UG[ug]) return DEP_UG[ug];
   return ORC_DEP_FIXO[ac+'|'+po] || ORC_DEP_FIXO[ac] || (ac ? 'SDR · '+ac : '(sem ação)');
+}
+const VIAG_UGS = ['130010','130141','130255','135098','420013'];
+const viagTipoND = nd => /^339014/.test(nd) ? 'Diárias' : /^339033/.test(nd) ? 'Passagens' : /^3390360[23]/.test(nd) ? 'Colaborador eventual' : /^33903969/.test(nd) ? 'Seguro-viagem' : 'Outros';
+// notas de empenho de viagem do Tesouro Gerencial (relatório VIAGENS NE: ações da SDR, qualquer UG executora)
+function viagTesouro(){
+  const T = (DADOS.viag||{}).tesouro; if(!T || !T.nes) return [];
+  return T.nes.map(n => { const ugD = VIAG_UGS.includes(n.ugr) ? n.ugr : n.ug, uf = (String(n.ug_nome).match(/SFA\/([A-Z]{2})/)||[])[1];
+    const quem = VIAG_UGS.includes(n.ug) ? 'SDR · UG '+n.ug : n.ug === '130005' ? 'Passagens e seguro · 130005' : uf ? 'Superintendência · '+uf : 'Outra UG · '+n.ug;
+    const pagoT = (n.pago||0) + (n.rpp||0) + (n.rpnp||0);
+    return {ne:n.ne, ano:n.ne.slice(0, 4), ug:n.ug, ugNome:n.ug+' · '+n.ug_nome, ugr:n.ugr, quem, acao:n.acao+(n.po ? ' · PO '+n.po : ''), dep:viagDep(ugD, n.acao, n.po), tipo:viagTipoND(n.nd), nd:n.nd+' · '+n.nd_nome, ptres:n.ptres, pi:n.pi,
+      data:n.data, fav:n.fav_nome || n.fav, desc:n.desc, proc:n.proc, emp:n.emp||0, liq:n.liq||0, pago:pagoT, aPagar:Math.max(0, (n.emp||0) - (n.pago||0)), rp:(n.rpp||0) + (n.rpnp||0)}; });
+}
+function viagTesHTML(TS){
+  const T = (DADOS.viag||{}).tesouro, dep = {}, quem = {};
+  TS.forEach(o => { const d = dep[o.dep] || (dep[o.dep] = {dep:o.dep, e:{}, p:{}, E:0, P:0, S:0}); d.e[o.tipo] = (d.e[o.tipo]||0) + o.emp; d.p[o.tipo] = (d.p[o.tipo]||0) + o.pago; d.E += o.emp; d.P += o.pago; d.S += o.aPagar;
+    const q = quem[o.quem] || (quem[o.quem] = {q:o.quem, E:0, P:0, n:0}); q.E += o.emp; q.P += o.pago; q.n++; });
+  const D = Object.values(dep).sort((a, b) => b.E - a.E), Q = Object.values(quem).sort((a, b) => b.E - a.E), tot = D.reduce((a, d) => (a.E += d.E, a.P += d.P, a.S += d.S, a), {E:0, P:0, S:0});
+  const tp = ['Diárias', 'Passagens', 'Colaborador eventual', 'Seguro-viagem'];
+  const res = `<details class="vres" open><summary>Resumo por departamento · empenhado ${fBv(tot.E)} · pago ${fBv(tot.P)}</summary><table class="t"><thead><tr><th>Departamento</th>${tp.map(t => `<th class="num">${t}<small style="display:block;font-weight:400">empenhado</small></th>`).join('')}<th class="num">Empenhado</th><th class="num">Pago (+ RP)</th><th class="num">A pagar</th></tr></thead><tbody>${D.map(d => `<tr><td><b>${esc(d.dep)}</b></td>${tp.map(t => `<td class="num">${d.e[t] ? fBv(d.e[t]) : '—'}</td>`).join('')}<td class="num"><b>${fBv(d.E)}</b></td><td class="num">${fBv(d.P)}</td><td class="num">${fBv(d.S)}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td>${tp.map(t => `<td class="num">${fBv(D.reduce((a, d) => a + (d.e[t]||0), 0))}</td>`).join('')}<td class="num">${fBv(tot.E)}</td><td class="num">${fBv(tot.P)}</td><td class="num">${fBv(tot.S)}</td></tr></tfoot></table></details>
+    <details class="vres"><summary>Quem executou · ${Q.length} UG(s)</summary><table class="t"><thead><tr><th>UG executora</th><th class="num">Notas</th><th class="num">Empenhado</th><th class="num">Pago (+ RP)</th></tr></thead><tbody>${Q.map(q => `<tr><td>${esc(q.q)}</td><td class="num">${q.n}</td><td class="num">${fBv(q.E)}</td><td class="num">${fBv(q.P)}</td></tr>`).join('')}</tbody></table></details>`;
+  const cols = [['ne','Empenho'], ['data','Emissão'], ['tipo','Tipo','tag'], ['dep','Departamento'], ['acao','Ação · PO'], ['quem','Quem executou'], ['ugr','UGR'], ['nd','Natureza'], ['fav','Favorecido'], ['desc','Descrição','txt'], ['emp','Empenhado','n'], ['liq','Liquidado','n'], ['pago','Pago (+ RP)','n'], ['aPagar','A pagar','n']];
+  return `<style>.vres{margin:0 0 12px}.vres>summary{cursor:pointer;font-weight:700;color:#155a30;font-size:13.5px;margin-bottom:6px}.vres small{font-weight:400;color:#7a877f}.vres table{font-size:12.5px}</style>` + res
+    + tabela('viagtes', 'Empenhos de viagem · Tesouro Gerencial', cols, TS, {ordem:{campo:'emp', dir:-1}, arquivo:'viagens-sdr-empenhos-tesouro', filtrosTab:[['tipo','Tipo'], ['dep','Departamento'], ['acao','Ação · PO'], ['quem','Quem executou'], ['ano','Ano da nota'], ['ne','Empenho']]})
+    + `<p class="dica" style="text-align:left;margin-top:6px">Tesouro Gerencial, relatório VIAGENS NE${T && T.gerado_em ? ' (lido em '+esc(T.gerado_em)+')' : ''} · ações da SDR em qualquer UG executora (inclusive superintendências e a 130005) · naturezas 3390.14, 3390.33, 3390.36.02/03 e 3390.39.69 · departamento pela UGR (ou UG) e pela ação/PO · notas de 2024 e 2025 entram pelo RP pago em 2026.</p>`;
 }
 const VIAG_ELEM = {'14':'Diárias', '36':'Diárias · colaborador eventual', '93':'Ressarcimento / indenização'};
 // gasto por gasto: cada pagamento de diária (ordem bancária do SCDP + nota de empenho) e cada passagem emitida (trecho)
@@ -8282,7 +8307,7 @@ document.addEventListener('click', e => {
 // atalhos do menu lateral (Agenda, Prestação de contas, Controle de teto)
 window.__viagIr = async function(alvo){
   if(alvo === 'teto'){ PP_EXP.viag = 'teto'; if(VIEW && VIEW.id === 'viag') render(); return; }
-  const i = {ag:0, gas:4, pc:5}[alvo]; if(i === undefined) return;
+  const i = {ag:0, gas:4, tes:5, pc:6}[alvo]; if(i === undefined) return;
   const t0 = Date.now(); while(!(PP_TAB.viag && PP_TAB.viag[i]) && Date.now() - t0 < 20000) await new Promise(ok => setTimeout(ok, 200));
   abrirPPTab('viag', i);
 };
@@ -8306,7 +8331,7 @@ VIEWS.viag = {
     const kp = `<div class="vk">${k('d','Viagens', intN(L.length), intN(L.length - nI) + ' nacionais · ' + intN(nI) + ' internacionais', 'data-viagtab="1"')}${k('','Gasto total', fmtC(tot), 'diárias ' + fmtC(S('diar')) + ' · passagens ' + fmtC(S('pass')), 'data-viagtab="1"')}${k('','Teto do ano', tetoT ? fmtC(tetoT) : '—', tetoT ? Math.round(100 * tot / tetoT) + '% usado · sobra ' + fmtC(Math.max(0, tetoT - tot)) : 'sem teto para estas UGs', 'data-viagteto="1"')}${k('','Custo médio', fmtC(L.length ? tot / L.length : 0), 'por viagem', 'data-viagtab="1"')}${k('r','Urgentes', intN(urg.length), Math.round(100 * urg.length / Math.max(1, L.length)) + '% das viagens', 'data-campo="urgN" data-valor="Urgente"')}</div>`;
     const selU = selDe('urgN').map(String).includes('Urgente');
     const ac = (cl, t, n, s, attr, on) => `<div class="${n ? cl : 'g'} ${on ? 'on' : ''}" ${n && attr ? attr : ''}><p>${t}</p><b>${n}</b><small>${s}</small></div>`;
-    const acao = `<div class="va">${ac('r','Viagem urgente', urg.length, 'pedido fora do prazo de 15 dias', 'data-campo="urgN" data-valor="Urgente" role="button" tabindex="0"', selU)}${ac('o','Passagem comprada com menos de 15 dias', menos15.length, 'de ' + comP.length + ' com passagem', 'data-viagtab="1" role="button" tabindex="0"')}${ac('o','Servidor com mais de 30 diárias', s30.length, s30.slice(0, 2).map(x => x.nome.split(' ')[0]).join(', ') || 'limite anual (Nota Técnica)', 'data-viagtab="2" role="button" tabindex="0"')}${ac('p','Viajam nos próximos 7 dias', prox.length, emCurso.length ? emCurso.length + ' em viagem agora' : 'conferir passagem e diárias', 'data-viagtab="0" role="button" tabindex="0"')}${ac('y','Prestação de contas', pcV.length, 'vencendo ou vencida · conferir entrega', 'data-viagtab="5" role="button" tabindex="0"')}</div>`;
+    const acao = `<div class="va">${ac('r','Viagem urgente', urg.length, 'pedido fora do prazo de 15 dias', 'data-campo="urgN" data-valor="Urgente" role="button" tabindex="0"', selU)}${ac('o','Passagem comprada com menos de 15 dias', menos15.length, 'de ' + comP.length + ' com passagem', 'data-viagtab="1" role="button" tabindex="0"')}${ac('o','Servidor com mais de 30 diárias', s30.length, s30.slice(0, 2).map(x => x.nome.split(' ')[0]).join(', ') || 'limite anual (Nota Técnica)', 'data-viagtab="2" role="button" tabindex="0"')}${ac('p','Viajam nos próximos 7 dias', prox.length, emCurso.length ? emCurso.length + ' em viagem agora' : 'conferir passagem e diárias', 'data-viagtab="0" role="button" tabindex="0"')}${ac('y','Prestação de contas', pcV.length, 'vencendo ou vencida · conferir entrega', 'data-viagtab="6" role="button" tabindex="0"')}</div>`;
     const ano = V.ano || hoje.getFullYear(), ini = new Date(ano, 0, 1), frac = Math.min(1, Math.max(0, (hoje - ini) / (365 * 864e5)));
     const teto = () => `<table class="vt"><tr><th>UG</th><th style="text-align:left">Consumo do teto</th><th>Gasto</th><th>Teto</th><th>Sobra</th><th>%</th></tr>${ugs.map(u => { const g = soma(L.filter(d => d.ugN === u), 'total'), t = VIAG_TETO[u] || 0, p = t ? g / t : 0, c = !t ? 'c' : p > .85 ? 'r' : p > frac ? 'o' : 'v', col = {r:'#b3261e', o:'#d4a017', v:'#1f7a43', c:'#9aa7a0'}[c];
         return `<tr><td><b>${esc(u)}</b></td><td class="bar"><div><i style="width:${Math.min(100, p * 100).toFixed(1)}%;background:${col}"></i><u style="left:${(frac * 100).toFixed(1)}%"></u></div></td><td>${fBv(g)}</td><td>${t ? fmtC(t) : '—'}</td><td>${t ? fmtC(Math.max(0, t - g)) : '—'}</td><td><span class="pill ${c}">${t ? Math.round(p * 100) + '%' : 'sem teto'}</span></td></tr>`; }).join('')}</table>
@@ -8339,7 +8364,7 @@ VIEWS.viag = {
     const cSv = [['Servidor', s => s.nome], ['Cargo', s => s.cargo], ['UG', s => [...s.ugs].join(', ')], ['Viagens', s => String(s.n)], ['Nº de diárias', s => String(s.ndi).replace('.', ',') + (s.ndi > 30 ? ' · acima de 30' : '')], ['Diárias', s => s.diar, 'n'], ['Passagens', s => s.pass, 'n'], ['Total', s => s.total, 'n']];
     const lIn = ord(L.filter(d => d.ext), (a, b) => porIni(b, a));
     const cIn = [['PCDP', d => d.pcdp], ['Servidor', d => d.nome], ['Destino', d => d.dest], ['Ida', d => d.ini], ['Volta', d => d.fim], ['Nº de diárias', d => String(d.ndi).replace('.', ',')], ['Diárias', d => d.diar, 'n'], ['Passagens', d => d.pass, 'n'], ['Total', d => d.total, 'n']];
-    const GA = viagGastos(L);
+    const GA = viagGastos(L), TS = viagTesouro();
     const lPC = ord(L.filter(d => d.voltou), (a, b) => (a.prazoPC || 0) - (b.prazoPC || 0)).reverse();
     const cPC = [['PCDP', d => d.pcdp], ['Servidor', d => d.nome], ['UG', d => d.ugN], ['Tipo', d => d.tipo], ['Volta', d => d.fim], ['Prazo da prestação', d => d.prazoPC.toLocaleDateString('pt-BR')], ['Situação do prazo', d => { const p = viagPCSit(d, hoje); return {html:`<span class="pill ${p.cl}">${esc(p.t)}</span>`, txt:p.t}; }]];
     const tabs = [
@@ -8348,6 +8373,7 @@ VIEWS.viag = {
       ['Por servidor', intN(porServ.length) + ' servidores · ' + intN(s30.length) + ' acima de 30 diárias', () => viagTab(cSv, porServ, false), viagXl('por servidor', 'servidor', cSv, porServ)],
       ['Internacionais e seguro', intN(nI) + ' viagens · seguro pago pela 130005', () => viagTab(cIn, lIn) + '<p class="dica" style="text-align:left;margin-top:8px">O seguro-viagem e as passagens são pagos de forma central pela UG 130005 (não aparecem como gasto da UG SDR). Internacional com ônus: SCRI com 20 dias de antecedência e Nota Técnica.</p>', viagXl('internacionais', 'internacionais', cIn, lIn)],
       ['Gastos das viagens', intN(GA.length) + ' lançamentos · gasto por gasto, com empenho e ação', () => viagGastosHTML(GA), () => { const R = viagResumo(GA); return {titulo:'Viagens SDR · resumo dos gastos por departamento', sub:'Portal da Transparência', arquivo:'viagens-sdr-resumo-departamento', cab:[{t:'Departamento'}, {t:'Diárias', n:1}, {t:'Pagamentos', n:1, inteiro:1}, {t:'Passagens', n:1}, {t:'Emissões', n:1, inteiro:1}, {t:'Total', n:1}], linhas:R.map(r => [r.dep, r.d, r.nd, r.p, r.np, r.d + r.p])}; }],
+      ['Empenhos de viagem (Tesouro)', TS.length ? intN(TS.length) + ' notas · empenhado ' + fmtC(soma(TS, 'emp')) : 'aguardando o relatório do Tesouro', () => TS.length ? viagTesHTML(TS) : '<p class="dica" style="padding:18px">O robô ainda não leu o relatório VIAGENS NE do Tesouro Gerencial.</p>', () => { const D = {}; TS.forEach(o => { const d = D[o.dep] || (D[o.dep] = [o.dep, 0, 0, 0]); d[1] += o.emp; d[2] += o.pago; d[3] += o.aPagar; }); return {titulo:'Viagens SDR · empenhos por departamento (Tesouro)', sub:'Tesouro Gerencial · VIAGENS NE', arquivo:'viagens-sdr-empenhos-departamento', cab:[{t:'Departamento'}, {t:'Empenhado', n:1}, {t:'Pago (+ RP)', n:1}, {t:'A pagar', n:1}], linhas:Object.values(D).sort((a, b) => b[1] - a[1])}; }],
       ['Prestação de contas', 'prazo de 5 dias (nacional) ou 30 dias (internacional) após a volta', () => '<p class="dica" style="text-align:left;margin:0 0 8px">O Portal não informa se a prestação foi entregue: a entrega virá da planilha "Controle de SCDP" da equipe. Prestação pendente impede nova viagem.</p>' + viagTab(cPC, lPC), viagXl('prestação de contas', 'prestacao', cPC, lPC)]];
     return CSS_VIAG + chips() + `
     ${ppSec('Situação geral', 'Portal da Transparência · viagens com diárias pagas pelas UGs SDR em ' + ano)}
@@ -14459,7 +14485,7 @@ function preCarregar(){
     ['', [['visao','▦','Visão geral']]],
     ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)'],['ctrsdr','📄','Contratos SDR'],['despesas','🧾','Despesas previstas'],['conferencia','✔','Conferência de Contratos'],['relctr','📄','Relatório do contrato'],['_relctr','📊','Relatório de gestão de contratos'],['alertactr','🔔','Alerta Contratos']]],
     ['ORÇAMENTO E FINANÇAS', [['orcacao','🏛','Orçamento por ações'],['exe','$','Financeiro EXE'],['rap','⏱','Financeiro RAP'],['exerap','⇄','EXE + RAP'],['_relorc','📊','Relatório de gestão orçamentária e financeira'],['cronorc','📅','Cronograma orçamentário'],['alertaorc','🔔','Alerta Orç & Fin']]],
-    ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viaggas','🧾','Gastos das viagens'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['_relviag','📊','Relatório de gestão de viagens'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
+    ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viaggas','🧾','Gastos das viagens'],['_viagtes','🏛','Empenhos de viagem (Tesouro)'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['_relviag','📊','Relatório de gestão de viagens'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
     ['PARCERIAS', [['parc','🤝','Parceria SDR',[['geral','Visão geral'],['prop','Propostas'],['inst','Instrumentos vigentes'],['pc','Prestação de contas']]],
                    ['prop','📝','Propostas SDR'],['conv','📋','Execução Convênio/TF 420013'],['repasse','🏠','Contrato de Repasse'],['relinst','📄','Relatório do instrumento'],['captacao','💡','Captação de Emendas',[['ind','Emenda Individual']]],['indic','🎯','Indicadores'],['_rel','📊','Relatório de gestão de parcerias'],['cronparc','📅','Calendário de parcerias'],['alertaparc','🔔','Alerta Parcerias']]],
     ['TED', [['tedapi','✉','TED GERAL SDR'],['ted','👥','TED EQUIPE SDR'],['_relted','📊','Relatório de gestão de TED'],['alertated','🔔','Alerta TED']]],
