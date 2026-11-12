@@ -12920,7 +12920,7 @@ async function rcAbrir(id){
     desenharRelCtr();
     try{ const T = await ctrExecTes([RC.o], null); RC.tes = T && T[0]; }catch(e){ RC.tes = {erro: e.message}; }
     try{ RC.hist = await window.__tesNEsHist(RC.o.nes); }catch(e){ RC.hist = {erro: e.message}; }
-    try{ RC.portal = await histDados(RC.o.nes); }catch(e){ RC.portal = {erro: e.message}; }
+    try{ RC.portal = await histDados(RC.o.nes, {proc: RC.o.proc, ug: RC.o.ug}); }catch(e){ RC.portal = {erro: e.message}; }
   }catch(e){ RC.erro = e.message; }
   desenharRelCtr();
 }
@@ -12945,7 +12945,8 @@ function rcCalc(){
   const cv = o.calc || {}, S = {compra: !!cv.compra, mensal: cv.mensal || 0, base: cv.base || '', iniP: cv.iniP, conf: cv.conf || [], indet};
   if(S.compra){ S.teto = o.vg; S.naoComp = Math.max(0, o.vg - cob); }
   else if(!indet && o.fim){
-    S.mesesP = cv.mP && cv.mP > 0 && /período atual/.test(S.base) ? cv.mP : cv.mT; S.valorP = S.mensal * S.mesesP; S.saldoTempo = cv.saldoTempo;
+    const usaP = !!(cv.mP && cv.mP > 0 && /período atual/.test(S.base)); if(!usaP) S.iniP = o.ini;
+    S.mesesP = usaP ? cv.mP : cv.mT; S.valorP = S.mensal * S.mesesP; S.saldoTempo = cv.saldoTempo;
     // pago no período: Portal (2014–2025, por data do documento) + Tesouro 2026
     const P = RC.portal && !RC.portal.erro ? RC.portal : null, ini = S.iniP || o.ini;
     if(P && t){ let s = 0; P.anos.forEach(y => y.docs.forEach(d => { const dt = riData(d[0]); if(dt && ini && dt >= ini) s += d[4] || 0; })); S.pagoP = s + (t.pagoE || 0) + (t.pagoR || 0); S.saldoPago = Math.max(0, S.valorP - S.pagoP);
