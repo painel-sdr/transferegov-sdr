@@ -264,11 +264,68 @@ def main(saida):
         return g
     emp_c, des_c, ta_c, pr_c = por_conv(empenhos), por_conv(desembolsos), por_conv(aditivos), por_conv(prorrogas)
 
+    # ----- LOCAL DE EXECUÇÃO (onde o recurso tem impacto), na ordem:
+    #   1) localizador da emenda no SIOP ("0035" = No Estado de São Paulo) — o local aprovado na lei orçamentária
+    #   2) UF/município das metas do plano de trabalho (Transferegov)
+    #   3) sede do proponente (só quando não há nenhum dos dois)
+    UF_IBGE = {'11': 'RO', '12': 'AC', '13': 'AM', '14': 'RR', '15': 'PA', '16': 'AP', '17': 'TO', '21': 'MA', '22': 'PI', '23': 'CE', '24': 'RN',
+               '25': 'PB', '26': 'PE', '27': 'AL', '28': 'SE', '29': 'BA', '31': 'MG', '32': 'ES', '33': 'RJ', '35': 'SP', '41': 'PR', '42': 'SC',
+               '43': 'RS', '50': 'MS', '51': 'MT', '52': 'GO', '53': 'DF'}
+    loc_emenda = {}
+    try:
+        import glob as _glob
+        for f in sorted(_glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'config', 'siop', 'emendas_*.csv'))):
+            with open(f, encoding='utf-8-sig', newline='') as fh:
+                for r in csv.DictReader(fh):
+                    ne, lc = (r.get('Número Emenda') or '').strip(), (r.get('Localizador') or '').strip()[:4]
+                    if len(ne) == 12 and len(lc) == 4 and lc[:2] == '00' and lc[2:] in UF_IBGE:
+                        loc_emenda.setdefault((ne[:4], ne[4:]), set()).add(UF_IBGE[lc[2:]])
+        log(f'localizador das emendas (SIOP): {len(loc_emenda)} emendas com estado')
+    except Exception as e:
+        log(f'localizador das emendas não lido: {e}')
+    uf_meta = {}
+    for m in metas:
+        uf_m = (m.get('UF_META') or '').strip().upper()
+        if len(uf_m) != 2:
+            continue
+        pid = m.get('ID_PROPOSTA') or (conv.get(m.get('NR_CONVENIO'), {}) or {}).get('ID_PROPOSTA', '')
+        g = uf_meta.setdefault(pid, {'uf': {}, 'mun': []})
+        g['uf'][uf_m] = g['uf'].get(uf_m, 0) + max(num(m.get('VL_META')), 0.01)
+        mun = (m.get('MUNICIPIO_META') or '').strip()
+        if mun and (mun, uf_m) not in g['mun']:
+            g['mun'].append((mun, uf_m))
+    log(f'metas com UF: {len(uf_meta)} propostas/instrumentos')
+
+    def local_execucao(p, pr, em):
+        ano = pr.get('ANO_PROP', '')
+        locs = set()
+        for e in em:
+            ne = (e.get('NR_EMENDA') or '').strip()[-8:]
+            locs |= loc_emenda.get((ano, ne), set())
+        g = uf_meta.get(p)
+        uf_mt = max(g['uf'], key=g['uf'].get) if g and g['uf'] else ''
+        sede = pr.get('UF_PROPONENTE', '')
+        if len(locs) == 1:
+            uf, fonte = next(iter(locs)), 'localizador da emenda (SIOP)'
+        elif uf_mt:
+            uf, fonte = uf_mt, 'metas do plano de trabalho'
+        else:
+            uf, fonte = sede, 'sede do proponente'
+        muns = [m for m, u in (g['mun'] if g else []) if u == uf][:6]
+        aviso = []
+        if len(locs) == 1 and uf_mt and uf_mt != uf:
+            aviso.append(f'localizador {uf} × metas {uf_mt}')
+        if sede and uf and sede != uf:
+            aviso.append(f'sede {sede} × execução {uf}')
+        return {'uf': uf, 'fonte': fonte, 'muns': muns, 'uf_meta': uf_mt, 'loc': '/'.join(sorted(locs)), 'aviso': ' · '.join(aviso)}
+
     def info_prop(p):
         pr = proposta.get(p, {})
         gs = sorted(progs_da_prop.get(p, []))
         pg = [programa[g] for g in gs if g in programa]
         em = emendas_da_prop.get(p, [])
+        lx = local_execucao(p, pr, em)
+        mudou = lx['uf'] and lx['uf'] != pr.get('UF_PROPONENTE', '')
         return {
             'id_proposta': p,
             'nr_proposta': pr.get('NR_PROPOSTA', ''),
@@ -279,9 +336,9 @@ def main(saida):
             'cnpj_proponente': pr.get('IDENTIF_PROPONENTE', ''),
             'proponente': pr.get('NM_PROPONENTE', ''),
             'natureza_juridica': pr.get('NATUREZA_JURIDICA', ''),
-            'uf': pr.get('UF_PROPONENTE', ''),
-            'municipio': pr.get('MUNIC_PROPONENTE', ''),
-            'cod_ibge': pr.get('COD_MUNIC_IBGE', ''),
+            'uf': lx['uf'] or pr.get('UF_PROPONENTE', ''),                     # UF de EXECUÇÃO (ver local_execucao)
+            'municipio': (lx['muns'][0] if lx['muns'] else '') if mudou else pr.get('MUNIC_PROPONENTE', ''),
+            'cod_ibge': '' if mudou else pr.get('COD_MUNIC_IBGE', ''),
             'objeto': (pr.get('OBJETO_PROPOSTA', '') or '').replace('\r', ' ').replace('\n', ' ').strip(),
             'valor_global_proposta': v2(num(pr.get('VL_GLOBAL_PROP'))),
             'valor_repasse_proposta': v2(num(pr.get('VL_REPASSE_PROP'))),
@@ -297,6 +354,13 @@ def main(saida):
             'tipo_parlamentar': ' | '.join(sorted(set(e.get('TIPO_PARLAMENTAR', '') for e in em if e.get('TIPO_PARLAMENTAR')))),
             'valor_emenda': v2(sum(num(e.get('VALOR_REPASSE_EMENDA')) for e in em)),
             'link_proposta': 'https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDePropostaDetalharProposta.do?idProposta=' + p + '&Usr=guest&Pwd=guest',
+            'uf_sede': pr.get('UF_PROPONENTE', ''),
+            'municipio_sede': pr.get('MUNIC_PROPONENTE', ''),
+            'uf_execucao_fonte': lx['fonte'],
+            'municipios_execucao': ' | '.join(lx['muns']),
+            'uf_localizador': lx['loc'],
+            'uf_metas': lx['uf_meta'],
+            'aviso_local': lx['aviso'],
         }
 
     # 6. instrumentos (1 linha por instrumento)
@@ -420,7 +484,8 @@ def main(saida):
             'limite_prestacao_contas', 'nr_processo', 'modalidade', 'proponente', 'uf', 'municipio', 'natureza_juridica', 'tipo_parlamentar',
             'valor_repasse', 'valor_desembolsado', 'valor_a_desembolsar', 'ultimo_desembolso', 'dias_sem_desembolso', 'qtd_aditivos',
             'qtd_prorrogacoes', 'notas_empenho', 'saldo_em_conta', 'subsituacao', 'em_processo_tce', 'inadimplente_desde', 'ugs_empenho', 'acao_orcamentaria', 'cod_programa', 'programa', 'valor_global', 'valor_global_original',
-            'valor_repasse_proposta', 'supressao_repasse_ta', 'qtd_ajustes_pt', 'ultimo_ajuste_pt', 'ajuste_pt_aberto', 'reducao_repasse', 'aditivos_valor', 'objeto']
+            'valor_repasse_proposta', 'supressao_repasse_ta', 'qtd_ajustes_pt', 'ultimo_ajuste_pt', 'ajuste_pt_aberto', 'reducao_repasse', 'aditivos_valor', 'objeto',
+            'uf_sede', 'municipio_sede', 'uf_execucao_fonte', 'municipios_execucao', 'aviso_local']
     gravar(saida, 'painel_instrumentos.csv', leve, [{**r, 'objeto': r['objeto'][:160]} for r in inst])
     with open(os.path.join(saida, 'painel_instrumentos.csv'), 'rb') as fi, gzip.open(os.path.join(saida, 'painel_instrumentos.csv.gz'), 'wb', compresslevel=9) as fo:
         fo.write(fi.read())   # o painel baixa a versão comprimida (15 MB → 2,6 MB)

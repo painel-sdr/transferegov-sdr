@@ -5280,7 +5280,8 @@ function instDoTG(num){
   return {num:t.nr_instrumento, ano:t.ano, situ:t.situacao, situG:t.situacao, fim, limPC:dataBR(t.limite_prestacao_contas), diasFim: fim ? Math.round((fim-hoje)/864e5) : null,
     proc:t.nr_processo, procTG:t.nr_processo, mod:t.modalidade, proponente:t.proponente, uf:t.uf, global:glob, repasse:rep, contrap:Math.max(0, glob-rep),
     desemb:nTG(t.valor_desembolsado), aDes:nTG(t.valor_a_desembolsar), saldo:nTG(t.saldo_em_conta), acao:String(t.acao_orcamentaria||'').split(' | ')[0],
-    programa:t.programa, codProg:t.cod_programa, objeto:t.objeto, ug:t.ug_emitente, tg:t, _soTG:true};
+    programa:t.programa, codProg:t.cod_programa, objeto:t.objeto, ug:t.ug_emitente, tg:t, _soTG:true,
+    ufSede:t.uf_sede||t.uf, ufFonte:t.uf_execucao_fonte||'', munExec:t.municipios_execucao||'', munSede:t.municipio_sede||'', avisoLocal:t.aviso_local||''};
 }
 let _parcExtra = null;
 function listaParcBusca(){
@@ -5306,7 +5307,8 @@ function juntarInst(num){
   // textos longos: fica o mais completo (o arquivo leve do robô corta o objeto em 160 caracteres)
   ['objeto','proponente','programa','obs'].forEach(k => { [eq, tg].forEach(o => { if(o && !vazio(o[k]) && String(o[k]).length > String(d[k]||'').length) d[k] = o[k]; }); });
   if(eq && !vazio(eq.acao) && /[A-Za-z]{3}/.test(eq.acao)) d.acao = eq.acao;   // "DECAP - 215A - Desenvolvimento…" (nome) no lugar do código 1144215A
-  if(tg && !vazio(tg.situ)) d.situ = tg.situ;                                    // situação oficial: a do Transferegov
+  if(tg && !vazio(tg.situ)) d.situ = tg.situ;
+  { const o = (tg && tg.ufFonte) ? tg : (eq && eq.ufFonte) ? eq : null; if(o) ['uf','ufSede','ufFonte','munExec','munSede','avisoLocal'].forEach(k => { if(o[k] !== undefined) d[k] = o[k]; }); }                                    // situação oficial: a do Transferegov
   if(!tg && eq && (vazio(d.ug) || d.ug === '(sem UG)')) d.ug = '420013';   // a base da equipe é só da UG 420013
   d._tg = !!tg; d._eq = !!eq;
   return d;
@@ -5331,7 +5333,7 @@ async function abrirFichaInst(num, origem){
       <p>Autor: <b>${esc(d.parl||'—')}</b> · Proponente: <b>${esc(d.proponente)}</b></p>
       <p style="font-size:11px;opacity:.75;margin:2px 0 6px">Dados: ${d._tg ? tgFonte() : 'Transferegov (planilha da equipe)'}${d._eq ? ' + controle da equipe 420013 (status, técnico, observação)' : ''}${d.ajPT ? ' · ajuste de PT: '+esc(d.ajPT)+' (conferido no Acesso Livre do Transferegov 2×/dia)' : ''}</p>
       ${pillStatus(status)}${d._eq && d._tg && d.situ && normAccent(d.situ) !== normAccent(status) ? ` <span class="st-pill" style="background:#1f4e79" title="Situação no Transferegov">Transferegov: ${esc(d.situ)}</span>` : ''}${d.alerta?` <span class="st-pill" style="background:#c0392b">⚠ ${esc(d.alerta)}</span>`:''}${d.carteira && d.carteira!=='SDR'?` <span class="st-pill" style="background:#1a7f9c" title="Todas as notas de empenho deste instrumento foram emitidas pela UG 110008 (pesca)">🐟 ${esc(d.carteira)}</span>`:''}
-      <div class="fi-caixas"><div>Exercício<b>${esc(d.ano||'—')}</b></div><div>UF<b>${esc(d.uf||'—')}</b></div><div>Modalidade<b>${esc(d.mod||'—')}</b></div><div>Emenda<b>${esc(d.emenda||'—')}</b></div><div title="${esc(ugNome(ugInst(d)))}">UG executora<b id="fi-ug">${esc(ugInst(d)||'…')}</b></div></div>
+      <div class="fi-caixas"><div>Exercício<b>${esc(d.ano||'—')}</b></div><div>${d.ufFonte ? 'UF de execução' : 'UF'}<b>${esc(d.uf||'—')}</b></div><div>Modalidade<b>${esc(d.mod||'—')}</b></div><div>Emenda<b>${esc(d.emenda||'—')}</b></div><div title="${esc(ugNome(ugInst(d)))}">UG executora<b id="fi-ug">${esc(ugInst(d)||'…')}</b></div></div>
       <div class="fi-acoes">${d.link ? `<a class="fi-link" href="${esc(d.link)}" target="_blank" rel="noopener" title="Abrir o instrumento no Transferegov">Instrumento ↗</a>` : ''}${d.linkProg ? `<a class="fi-link" href="${esc(d.linkProg)}" target="_blank" rel="noopener" title="Abrir o programa no Transferegov">Programa ↗</a>` : ''}<button type="button" onclick="imprimirFicha()">📄 Extração em PDF</button><button type="button" data-fechaficha aria-label="Fechar a ficha">✕</button></div>
     </div>
     <div class="fi-corpo">
@@ -5361,7 +5363,7 @@ async function abrirFichaInst(num, origem){
         ${campo('Processo',esc(d.proc))}${campo('Ação orçamentária',esc(d.acao))}
         ${d.exec?campo('Executor',esc(d.exec)):''}${campo('Departamento',`<span class="dep-badge" style="background:${depCor(d.depto)}">${esc(d.depto)}</span>`)}
       </div></section>
-      <section class="fi-sec"><h3>Localização</h3><div class="fi-loc">${miniMapaUF(d.uf)}<b>${esc(d.uf)} — ${esc(UF_NOMES[d.uf]||'')}</b></div></section>
+      <section class="fi-sec"><h3>Local de execução</h3><div class="fi-loc">${miniMapaUF(d.uf)}<b>${esc(d.uf)} — ${esc(UF_NOMES[d.uf]||'')}${d.munExec ? '<br><small style="font-weight:500">'+esc(d.munExec.split(' | ').join(', '))+'</small>' : ''}</b>${d.ufFonte ? `<p class="dica" style="text-align:left;margin:6px 0 0">Fonte do local: <b>${esc(d.ufFonte)}</b>${d.ufSede && d.ufSede !== d.uf ? ` · sede do proponente: ${esc(d.munSede ? d.munSede+'/' : '')}${esc(d.ufSede)} (não é o local do impacto)` : ''}</p>` : ''}${d.avisoLocal && /localizador/.test(d.avisoLocal) ? `<p class="dica" style="text-align:left;margin:4px 0 0;color:#b23b2e">⚠ ${esc(d.avisoLocal.split(' · ').filter(x => /localizador/.test(x)).join(' · '))}: o estado do localizador da emenda é diferente do estado das metas · conferir a justificativa do parlamentar</p>` : ''}</div></section>
       <section class="fi-sec"><h3>Financeiro detalhado</h3><div class="fi-grade">
         ${campo('Situação financeira',esc(d.statusFin||d.situ))}${campo('Valor global',v(d.global),'din')}
         ${campo('Valor de repasse',v(d.repasse),'din')}${campo('Ingresso contrapartida',v(d.ingresso),'din')}
@@ -5510,7 +5512,18 @@ function carregarTG(){
     TG = {mapa: m, meta: meta || {}};
     enriquecerParcTG();
   })().catch(e => { TG = {mapa: new Map(), meta: {}, erro: e.message}; })
-     .finally(() => { _tgP = null; if(VIEW && VIEW.id==='parc') render(); });
+     .finally(() => { _tgP = null; if(VIEW && (VIEW.id==='parc' || VIEW.id==='conv')){ enriquecerConvTG(); render(); } });
+}
+// local de execução (robô): localizador da emenda no SIOP › metas do plano de trabalho › sede do proponente
+function aplicarLocalExec(d, t){
+  if(!t || !t.uf_execucao_fonte || !t.uf) return;
+  if(d.ufSede === undefined) d.ufSede = t.uf_sede || d.uf;
+  d.uf = t.uf; d.ufFonte = t.uf_execucao_fonte; d.munExec = t.municipios_execucao || ''; d.munSede = t.municipio_sede || ''; d.avisoLocal = t.aviso_local || '';
+}
+function enriquecerConvTG(){
+  if(!TG || !TG.mapa || !DADOS.conv || !DADOS.conv.linhas || DADOS.conv._tg === TG) return;
+  DADOS.conv.linhas.forEach(d => aplicarLocalExec(d, TG.mapa.get(String(d.num).trim())));
+  DADOS.conv._tg = TG;
 }
 const nTG = s => { const v = parseFloat(String(s||'').replace(',','.')); return isNaN(v) ? 0 : v; };
 function enriquecerParcTG(){
@@ -5518,6 +5531,7 @@ function enriquecerParcTG(){
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   DADOS.parc.linhas.forEach(d => {
     const t = TG.mapa.get(String(d.num).trim()); d.tg = t || null;
+    aplicarLocalExec(d, t);
     const fim = (t && dataBR(t.fim_vigencia)) || d.fim || null;
     d.diasVenc = fim ? Math.round((fim - hoje)/864e5) : null;
     d.fimVenc = fim;
@@ -6803,6 +6817,7 @@ const VIEW_CONV = {
     abrir:(d, el) => abrirFichaInst(d.num, el)
   },
   render(){
+    carregarTG(); enriquecerConvTG();
     const todos = DADOS.conv.linhas, L = filtrar(todos), S = k => soma(L,k), intN = n => Number(n).toLocaleString('pt-BR');
     const rep = S('repasse'), des = S('desemb'), aDes = S('aDes');
     const exeN = L.filter(d => /EM EXECUCAO/.test(normAccent(d.situ))).length, pcN = L.filter(d => /PRESTACAO/.test(normAccent(d.situ))).length;
