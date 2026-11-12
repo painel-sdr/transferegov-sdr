@@ -5321,14 +5321,32 @@ function juntarInst(num){
   d._tg = !!tg; d._eq = !!eq;
   return d;
 }
-async function abrirFichaInst(num, origem){
+async function abrirFichaInst(num, origem, _completar){
   if(!String(num||'').trim()) return;   // sem nº: não abre a ficha de outro instrumento
-  await Promise.allSettled(['parc','conv'].map(k => DADOS[k] ? null : dados(k)));
-  const d = juntarInst(num); if(!d) return;
   const fundo = document.getElementById('fichaFundo'), el = document.getElementById('ficha');
-  FICHA_ORIGEM = origem || null;
-  const y = origem ? origem.getBoundingClientRect().top + window.scrollY : window.scrollY;
-  el.style.marginTop = Math.max(12, y - 140) + 'px';
+  // 12/11/2026: as planilhas da equipe (Parceria SDR, 34 mil linhas, e Convênio/TF) podem levar vários segundos para abrir.
+  // Se o robô do Transferegov já tem o instrumento, a ficha abre na hora e é completada quando as planilhas chegarem.
+  const falta = ['parc','conv'].filter(k => !DADOS[k]);
+  if(falta.length){
+    const espera = Promise.allSettled(falta.map(k => dados(k)));
+    if(!_completar && TG_LIGADO && !TG){   // base do robô (fica guardada no navegador): costuma chegar antes das planilhas
+      el.dataset.inst = String(num).trim(); el.style.marginTop = Math.max(12, window.scrollY + 30) + 'px'; el.innerHTML = '<div class="f-corpo"><p class="estado">Abrindo a ficha do instrumento '+esc(num)+'…</p></div>'; fundo.hidden = false; document.body.classList.add('ficha-aberta'); ajustarFundoFicha();
+      carregarTG(); try{ await Promise.race([_tgP, espera]); }catch(e){}
+      if(fundo.hidden || el.dataset.inst !== String(num).trim()) return;
+    }
+    if(!_completar && instDoTG(String(num).trim())){
+      espera.then(() => { const h = el.querySelector('.fi-cab h2'); if(!fundo.hidden && el.dataset.inst === String(num).trim() && h && h.textContent.includes(String(num).trim())) abrirFichaInst(num, null, true); });
+    } else {
+      if(!_completar){ el.dataset.inst = String(num).trim(); el.style.marginTop = Math.max(12, window.scrollY + 30) + 'px'; el.innerHTML = '<div class="f-corpo"><p class="estado">Abrindo a ficha do instrumento '+esc(num)+'… <small>lendo as planilhas da equipe</small></p></div>'; fundo.hidden = false; document.body.classList.add('ficha-aberta'); ajustarFundoFicha(); }
+      await espera;
+      if(fundo.hidden || el.dataset.inst !== String(num).trim() || (!_completar && !el.querySelector('.estado'))) return;
+    }
+  }
+  const d = juntarInst(num); if(!d){ if(!fundo.hidden && el.dataset.inst === String(num).trim()) el.innerHTML = '<div class="f-corpo"><p class="estado">Instrumento '+esc(num)+' não encontrado.</p><button type="button" class="btn" data-fechaficha>Fechar</button></div>'; return; }
+  el.dataset.inst = String(num).trim();
+  if(!_completar){ FICHA_ORIGEM = origem || null;
+    const y = origem ? origem.getBoundingClientRect().top + window.scrollY : window.scrollY;
+    el.style.marginTop = Math.max(12, y - 140) + 'px'; }
   const pct = d.repasse ? d.desemb/d.repasse : 0, status = d.statusFin || d.situ || '—';
   const v = x => fmtBRL(x||0);
   const campo = (rot, val, cls) => `<div class="fi-campo ${cls||''}"><span>${rot}</span><b>${val===''||val==null?'—':val}</b></div>`;
@@ -5388,7 +5406,7 @@ async function abrirFichaInst(num, origem){
   </div>`;
   fundo.hidden = false; document.body.classList.add('ficha-aberta');
   ajustarFundoFicha();
-  try{ el.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ el.scrollIntoView(); }
+  if(!_completar){ try{ el.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ el.scrollIntoView(); } }
   preencherUG(d); preencherLigacaoInst(d); if(TG_LIGADO) preencherDesembTG(d);
 }
 // desembolsos do instrumento (Transferegov · painel_desembolsos.csv do robô): data, ordem bancária, UG, observação e valor
