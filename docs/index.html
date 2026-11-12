@@ -8144,7 +8144,12 @@ async function lerViagens(){
   let TS = null; try{ const r = await fetch(RAW_VIAG+'tesouro_ne_'+(J.ano||ano)+'.json?_='+Date.now(), {cache:'no-store'}); if(r.ok) TS = await r.json(); }catch(e){}
   if(TS){ const nm = {}; (TS.nes||[]).concat(TS.obs||[]).forEach(x => { if(x.ug && x.ug_nome && !nm[x.ug]) nm[x.ug] = x.ug_nome; });
     L.forEach(d => { if(!VIAG_NUG[d.ug] && nm[d.ug]){ const sf = (nm[d.ug].match(/SFA\/([A-Z]{2})/)||[])[1]; d.ugN = d.ug + ' · ' + (sf ? 'SFA/'+sf : nm[d.ug].slice(0, 24)); d.sfa = !!sf; } }); }
-  return {linhas: L, cols: [], ano: J.ano, posicao: J.posicao || '', gastos: G, tesouro: TS};
+  const R = {linhas: L, cols: [], ano: J.ano, posicao: J.posicao || '', gastos: G, tesouro: TS};
+  // ação · PO, departamento e empenho de cada viagem: da diária paga (Tesouro ou Portal)
+  DADOS.viag = R;
+  try{ const por = {}; viagGastos(L).forEach(o => { if(o._ac && o.tipo !== 'Passagem'){ const x = por[o.pcdp] || (por[o.pcdp] = {ac:new Set(), dep:new Set(), ne:new Set()}); x.ac.add(o.acao); x.dep.add(o.dep); x.ne.add(o.ne); } });
+    L.forEach(d => { const x = por[d.pcdp]; d.acao = x ? [...x.ac].join(' / ') : '(sem diária ligada)'; d.dep = x ? [...x.dep].join(' / ') : viagDep(d.ug, '', ''); d.neV = x ? [...x.ne].join(' / ') : ''; d.ugC = d.ug; }); }catch(e){ console.warn('viagens: ação/departamento', e); }
+  return R;
 }
 // departamento pela UG e pela ação/PO da nota de empenho (mesma regra do Orçamento e Finanças)
 function viagDep(ug, ac, po){
@@ -8272,7 +8277,7 @@ function fichaViagemHTML(d, imp){
   const tl = [['Compra da passagem', emis ? dt(emis) : '—', d.ant === null ? '' : d.ant + ' d antes', d.ant !== null && d.ant < 15 ? '#c0392b' : '#1f7a43'], ['Ida', d.ini, d.orig, '#1f4e79'], ['Volta', d.fim, d.dias + ' dia(s)', '#1f4e79'],
     ['Prestação de contas', dt(d.prazoPC), d.voltou ? pc.t : 'a partir da volta', !d.voltou || pc.cl === 'c' ? '#9aa7a0' : pc.cl === 'r' ? '#c0392b' : pc.cl === 'o' ? '#d49a0f' : '#1f7a43']];
   const pl = [`<span class="fv-pl">${esc(d.sit)}</span>`, d.urg === 'SIM' ? '<span class="fv-pl r">Urgente</span>' : '', `<span class="fv-pl b">${d.ext ? 'Internacional' : 'Nacional'}</span>`, ndiAno > 30 ? '<span class="fv-pl a">+30 diárias no ano</span>' : ''].join('');
-  return `<div class="fv"><div class="fv-cab"><small>Viagem a serviço · SCDP · UG ${esc(d.ugN)}</small><h2>✈ PCDP ${esc(d.pcdp)}</h2><p><b>${esc(d.nome)}</b> · ${esc(d.cargo)}</p>${pl}
+  return `<div class="fv"><div class="fv-cab"><small>Viagem a serviço · SCDP · UG ${esc(d.ugC || d.ug)} · ação ${esc(d.acao || '—')} · ${esc(d.dep || '—')}</small><h2>✈ PCDP ${esc(d.pcdp)}</h2><p><b>${esc(d.nome)}</b> · ${esc(d.cargo)}</p>${pl}
     ${imp ? '' : `<div class="fv-bt"><button type="button" data-viagpdf="${esc(d.pcdp)}">⬇ PDF</button><button type="button" data-fechaficha aria-label="Fechar">✕</button></div>`}</div>
     <div class="fv-c"><div class="fv-tr"><div><small>Origem</small><b>${esc(d.orig || '—')}</b><span>${esc(d.ini)}</span></div><div class="av">✈<small style="display:block">${d.dias} dia(s) · ${nd(d.ndi)} diária(s)</small></div><div><small>Destino</small><b>${esc(d.destC || '—')}</b><span>${esc(d.fim)}</span></div></div>
     ${d.dest && d.dest !== d.destC ? `<p style="font-size:12px;color:#5f6f66;margin:6px 2px 0">Destinos no SCDP: ${esc(d.dest)}</p>` : ''}
@@ -8286,7 +8291,7 @@ function fichaViagemHTML(d, imp){
 const FV_NOVA = false;   // ficha nova (esboço de 12/11/2026): liga depois da aprovação
 function fichaViagemSimples(d){
   const pc = viagPCSit(d, viagHoje());
-  const it = [['UG pagadora', d.ugN], ['Servidor', d.nome], ['Cargo', d.cargo], ['Situação', d.sit], ['Período', d.ini + ' a ' + d.fim + ' · ' + d.dias + ' dia(s) · ' + String(d.ndi).replace('.', ',') + ' diária(s)'],
+  const it = [['UG pagadora', d.ugN], ['Ação · PO', d.acao || '—'], ['Departamento', d.dep || '—'], ['Empenho', d.neV || '—'], ['Servidor', d.nome], ['Cargo', d.cargo], ['Situação', d.sit], ['Período', d.ini + ' a ' + d.fim + ' · ' + d.dias + ' dia(s) · ' + String(d.ndi).replace('.', ',') + ' diária(s)'],
     ['Trajeto', d.orig + ' → ' + d.destC + (d.ext ? ' · internacional' : '')], ['Destinos (SCDP)', d.dest], ['Motivo', d.motivo], ['Urgente', d.urg === 'SIM' ? 'Sim · ' + (d.just || 'sem justificativa') : 'Não'],
     ['Compra da passagem', d.ant === null ? 'sem passagem no Portal' : d.ant + ' dia(s) antes da ida (' + d.emis.join(', ') + ')'],
     ['Diárias', fBv(d.diar)], ['Passagens', fBv(d.pass) + (d.taxa ? ' · taxa de serviço ' + fBv(d.taxa) : '')], ['Devolução', fBv(d.dev)], ['Outros gastos', fBv(d.outros)], ['Total', fBv(d.total)],
@@ -8320,7 +8325,7 @@ window.__viagIr = async function(alvo){
 VIEWS.viag = {
   id:'viag', titulo:'Viagens SDR', tema:'par', fontes:['viag'], abas:'',
   get filtros(){ const LL = () => (DADOS.viag||{linhas:[]}).linhas, f = (campo, rotulo) => ({campo, rotulo, opcoes:() => uniq(LL(), campo)});
-    return [f('ugN','UG'), f('orig','Origem'), f('destC','Destino'), f('sit','Situação da viagem'), f('urgN','Urgência'), f('nome','Servidor'), f('cargo','Cargo'), f('mes','Mês da ida'), f('tipo','Tipo'), f('antF','Compra da passagem')]; },
+    return [f('ugN','UG'), f('orig','Origem'), f('destC','Destino'), f('sit','Situação da viagem'), f('urgN','Urgência'), f('dep','Departamento'), f('acao','Ação · PO'), f('nome','Servidor'), f('cargo','Cargo'), f('mes','Mês da ida'), f('tipo','Tipo'), f('antF','Compra da passagem')]; },
   principais:['ugN','orig','destC','sit','urgN'],
   busca:{ ph:'Buscar viagem: nº da PCDP, servidor, destino ou motivo… (vários: separe por ;)', lista:() => DADOS.viag.linhas, texto:d => [d.pcdp, d.nome, d.destC, d.dest, d.motivo].join(' '),
     rot:d => `<b>PCDP ${esc(d.pcdp)}</b> · ${esc(d.nome)}<small>${esc(d.orig)} → ${esc(d.destC)} · ${esc(d.ini)} · ${fBv(d.total)}</small>`, abrir:d => abrirFichaViagem(d.pcdp) },
@@ -8362,17 +8367,17 @@ VIEWS.viag = {
     const ops = [['teto','Teto por UG', teto], ['mes','Por mês', porMes], ['dest','Destinos (mapa)', destinos], ['ant','Compra da passagem', antec], ['urg','Urgência', urgV], ['ug','Por UG', ugV]];
     // tabelas detalhadas
     const ord = (a, f) => a.slice().sort(f), porIni = (a, b) => (a.iniD || 0) - (b.iniD || 0);
-    const cAg = [['Ida', d => d.ini], ['Volta', d => d.fim], ['Servidor', d => d.nome], ['Trajeto', d => d.orig + ' → ' + d.destC], ['UG', d => d.ugN], ['PCDP', d => d.pcdp], ['Situação', d => d.iniD <= hoje ? 'em viagem' : Math.round((d.iniD - hoje) / 864e5) + ' dia(s) para a ida'], ['Urgente', d => d.urg === 'SIM' ? 'Sim' : 'Não']];
+    const cAg = [['Ida', d => d.ini], ['Volta', d => d.fim], ['Servidor', d => d.nome], ['Trajeto', d => d.orig + ' → ' + d.destC], ['UG', d => d.ugC], ['Ação · PO', d => d.acao], ['Departamento', d => d.dep], ['PCDP', d => d.pcdp], ['Situação', d => d.iniD <= hoje ? 'em viagem' : Math.round((d.iniD - hoje) / 864e5) + ' dia(s) para a ida'], ['Urgente', d => d.urg === 'SIM' ? 'Sim' : 'Não']];
     const lAg = ord(emCurso.concat(L.filter(d => d.iniD && d.iniD > hoje)), porIni);
     const lUlt = ord(L, (a, b) => porIni(b, a)).slice(0, 20);
-    const cDP = [['PCDP', d => d.pcdp], ['UG', d => d.ugN], ['Servidor', d => d.nome], ['Cargo', d => d.cargo], ['Ida', d => d.ini], ['Volta', d => d.fim], ['Trajeto', d => d.orig + ' → ' + d.destC], ['Compra da passagem', d => d.ant === null ? '—' : d.ant + ' dia(s) antes'], ['Urgente', d => d.urg === 'SIM' ? 'Sim' : 'Não'], ['Diárias', d => d.diar, 'n'], ['Passagens', d => d.pass, 'n'], ['Total', d => d.total, 'n']];
+    const cDP = [['PCDP', d => d.pcdp], ['UG', d => d.ugC], ['Ação · PO', d => d.acao], ['Departamento', d => d.dep], ['Empenho', d => d.neV], ['Servidor', d => d.nome], ['Cargo', d => d.cargo], ['Ida', d => d.ini], ['Volta', d => d.fim], ['Trajeto', d => d.orig + ' → ' + d.destC], ['Compra da passagem', d => d.ant === null ? '—' : d.ant + ' dia(s) antes'], ['Urgente', d => d.urg === 'SIM' ? 'Sim' : 'Não'], ['Diárias', d => d.diar, 'n'], ['Passagens', d => d.pass, 'n'], ['Total', d => d.total, 'n']];
     const lDP = ord(L, (a, b) => porIni(b, a));
     const cSv = [['Servidor', s => s.nome], ['Cargo', s => s.cargo], ['UG', s => [...s.ugs].join(', ')], ['Viagens', s => String(s.n)], ['Nº de diárias', s => String(s.ndi).replace('.', ',') + (s.ndi > 30 ? ' · acima de 30' : '')], ['Diárias', s => s.diar, 'n'], ['Passagens', s => s.pass, 'n'], ['Total', s => s.total, 'n']];
     const lIn = ord(L.filter(d => d.ext), (a, b) => porIni(b, a));
-    const cIn = [['PCDP', d => d.pcdp], ['Servidor', d => d.nome], ['Destino', d => d.dest], ['Ida', d => d.ini], ['Volta', d => d.fim], ['Nº de diárias', d => String(d.ndi).replace('.', ',')], ['Diárias', d => d.diar, 'n'], ['Passagens', d => d.pass, 'n'], ['Total', d => d.total, 'n']];
+    const cIn = [['PCDP', d => d.pcdp], ['UG', d => d.ugC], ['Ação · PO', d => d.acao], ['Departamento', d => d.dep], ['Servidor', d => d.nome], ['Destino', d => d.dest], ['Ida', d => d.ini], ['Volta', d => d.fim], ['Nº de diárias', d => String(d.ndi).replace('.', ',')], ['Diárias', d => d.diar, 'n'], ['Passagens', d => d.pass, 'n'], ['Total', d => d.total, 'n']];
     const GA = viagGastos(L), TS = viagTesouro();
     const lPC = ord(L.filter(d => d.voltou), (a, b) => (a.prazoPC || 0) - (b.prazoPC || 0)).reverse();
-    const cPC = [['PCDP', d => d.pcdp], ['Servidor', d => d.nome], ['UG', d => d.ugN], ['Tipo', d => d.tipo], ['Volta', d => d.fim], ['Prazo da prestação', d => d.prazoPC.toLocaleDateString('pt-BR')], ['Situação do prazo', d => { const p = viagPCSit(d, hoje); return {html:`<span class="pill ${p.cl}">${esc(p.t)}</span>`, txt:p.t}; }]];
+    const cPC = [['PCDP', d => d.pcdp], ['Servidor', d => d.nome], ['UG', d => d.ugC], ['Ação · PO', d => d.acao], ['Departamento', d => d.dep], ['Tipo', d => d.tipo], ['Volta', d => d.fim], ['Prazo da prestação', d => d.prazoPC.toLocaleDateString('pt-BR')], ['Situação do prazo', d => { const p = viagPCSit(d, hoje); return {html:`<span class="pill ${p.cl}">${esc(p.t)}</span>`, txt:p.t}; }]];
     const tabs = [
       ['Agenda de viagens', lAg.length ? intN(prox.length) + ' nos próximos 7 dias · ' + intN(lAg.length) + ' em curso ou futuras' : 'últimas viagens publicadas', () => lAg.length ? viagTab(cAg, lAg) : '<p class="dica" style="text-align:left;margin:0 0 8px">Nenhuma viagem futura ou em curso no Portal: ele só publica a viagem depois do pagamento das diárias. A agenda completa (aprovadas e a aprovar) virá da planilha "Controle de SCDP". Abaixo, as 20 últimas viagens publicadas.</p>' + viagTab(cAg.filter(c => c[0] !== 'Situação'), lUlt), viagXl('agenda', 'agenda', cAg, lAg.length ? lAg : lUlt)],
       ['Diárias e passagens', intN(L.length) + ' PCDPs', () => viagTab(cDP, lDP), viagXl('diárias e passagens', 'pcdp', cDP, lDP)],
