@@ -12,7 +12,7 @@ As linhas de título e filtro que o Tesouro Gerencial põe no topo são puladas,
 
 Uso:  python scripts/ted_tesouro.py PASTA_DE_SAIDA     (grava PASTA/ted/ted_tesouro.csv e ted_tesouro.json)
 """
-import csv, io, json, os, re, sys, time, unicodedata, urllib.request
+import csv, glob, io, json, os, re, sys, time, unicodedata, urllib.request
 from collections import OrderedDict
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -679,6 +679,18 @@ def ler_aj(pasta_saida):
         except Exception as e:
             info.append({'link': u, 'erro': str(e)[:200], 'ok': False})
             print(f'Ajustes TED: erro em {u[-60:]}: {e}', flush=True)
+    # ajustes de vigência vindos de planilhas de outras equipes (ex.: acompanhamento da CGPI), guardados no repositório:
+    # valem só para o TED que não tem ajuste na aba TED ATUALIZADA (a aba da equipe vale primeiro)
+    ja = {a['ted'].upper() for a in todas}
+    for extra in sorted(glob.glob(os.path.join(os.path.dirname(CONFIG_AJ), 'ted_ajustes_*.csv'))):
+        try:
+            for r in csv.DictReader(open(extra, encoding='utf-8')):
+                t = (r.get('ted') or '').strip().upper()
+                if t and t not in ja and (r.get('fim') or r.get('fase')):
+                    todas.append({'ted': t, 'fim': _data_aj(r.get('fim')), 'fase': (r.get('fase') or '').strip(), 'obs': (r.get('obs') or '').strip()[:400]}); ja.add(t)
+            print(f'Ajustes TED: {os.path.basename(extra)} lido', flush=True)
+        except Exception as e:
+            print(f'Ajustes TED: erro em {extra}: {e}', flush=True)
     os.makedirs(os.path.join(pasta_saida, 'ted'), exist_ok=True)
     with open(os.path.join(pasta_saida, 'ted', 'ted_ajustes.csv'), 'w', encoding='utf-8', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=['ted', 'fim', 'fase', 'obs'], extrasaction='ignore')
