@@ -13017,6 +13017,42 @@ function rcPagResumo(C){
     <tr><td>Faturas</td><td>${(o.fat||[]).length} registradas · ${o.fatVenc.length} vencida(s)</td></tr></table></div></div>`;
 }
 // execução mês a mês: as bases do Tesouro são posições acumuladas; o do mês = posição do mês − a do mês anterior
+// gráfico da execução: pago acumulado (Portal até 2025 + Tesouro do ano) × previsto pelo tempo, no período do saldo
+function rcGrafico(C, M){
+  const S = C.S, o = C.o, hoje = new Date(); hoje.setHours(0,0,0,0);
+  const P = RC.portal && !RC.portal.erro ? RC.portal : null;
+  if(!P || !M) return `${riSec('Execução do contrato · gráfico')}<p class="ri-nota">Lendo o Tesouro e o histórico…</p>`;
+  const pts = [];
+  P.anos.forEach(y => y.docs.forEach(d => { const dt = riData(d[0]); if(dt && dt.getFullYear() < hoje.getFullYear()) pts.push([dt, d[4] || 0]); }));
+  M.forEach(m => { const v = (m.pE || 0) + (m.pR || 0); if(Math.abs(v) > 0.005) pts.push([new Date(Math.floor(m.r/100), (m.r%100) - 1, 28), v]); });
+  pts.sort((a,b) => a[0] - b[0]);
+  const serv = !S.compra && !S.indet && o.fim && S.valorP > 0;
+  const ini = serv ? (S.iniP || o.ini) : (pts.length ? pts[0][0] : o.ini || hoje);
+  const fim = serv ? o.fim : (o.fim && o.fim.getFullYear() < 2090 ? o.fim : hoje);
+  if(!ini || !fim || fim <= ini) return '';
+  const tot = serv ? S.valorP : (o.vg || 0);
+  let ac = 0; const acum = [[ini, 0]];
+  pts.forEach(([d, v]) => { if(d < ini) return; ac += v; acum.push([d > hoje ? hoje : d, ac]); });
+  const fimL = hoje < fim ? hoje : fim; acum.push([fimL, ac]);
+  const W = 560, Hh = 250, L = 64, R = 14, T = 16, B = 34, w = W - L - R, h = Hh - T - B;
+  const yMax = Math.max(tot, ac, 1) * 1.08, X = d => L + w * Math.min(1, Math.max(0, (d - ini) / (fim - ini))), Y = v => T + h - h * v / yMax;
+  const cur = v => { const a = Math.abs(v); return a >= 1e6 ? (v/1e6).toLocaleString('pt-BR', {maximumFractionDigits:1})+' Mi' : a >= 1e3 ? (v/1e3).toLocaleString('pt-BR', {maximumFractionDigits:0})+' mil' : Math.round(v).toLocaleString('pt-BR'); };
+  let grade = '';
+  for(let i = 0; i <= 4; i++){ const v = yMax * i / 4; grade += `<line x1="${L}" x2="${W-R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="#e3ece5"/><text x="${L-6}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" font-size="10.5" fill="#5f6f66">${cur(v)}</text>`; }
+  const anos = fim.getFullYear() - ini.getFullYear(), passo = anos > 8 ? 2 : 1; let ticks = '';
+  if(anos >= 2){ for(let a = ini.getFullYear() + 1; a <= fim.getFullYear(); a += passo){ const x = X(new Date(a, 0, 1)); ticks += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${T}" y2="${T+h}" stroke="#eef3ef"/><text x="${x.toFixed(1)}" y="${Hh-B+16}" text-anchor="middle" font-size="10.5" fill="#5f6f66">${a}</text>`; } }
+  else { const d = new Date(ini.getFullYear(), ini.getMonth() + 1, 1); for(let i = 0; d <= fim && i < 30; i++, d.setMonth(d.getMonth() + (anos >= 1 ? 2 : 1))){ const x = X(d); ticks += `<text x="${x.toFixed(1)}" y="${Hh-B+16}" text-anchor="middle" font-size="10" fill="#5f6f66">${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][d.getMonth()]}/${String(d.getFullYear()).slice(2)}</text>`; } }
+  const linha = acum.map(([d, v], i) => (i ? 'H'+X(d).toFixed(1)+'V' : 'M'+X(d).toFixed(1)+','+Y(0).toFixed(1)+'V')+Y(v).toFixed(1)).join('');
+  const area = linha + `V${Y(0).toFixed(1)}Z`;
+  const prev = serv ? `<line x1="${X(ini).toFixed(1)}" y1="${Y(0).toFixed(1)}" x2="${X(fim).toFixed(1)}" y2="${Y(tot).toFixed(1)}" stroke="#2e8a4f" stroke-width="2" stroke-dasharray="6 4"/>` : '';
+  const teto = tot > 0 ? `<line x1="${L}" x2="${W-R}" y1="${Y(tot).toFixed(1)}" y2="${Y(tot).toFixed(1)}" stroke="#1f4e79" stroke-width="1.5"/><text x="${L+4}" y="${(Y(tot)-5).toFixed(1)}" text-anchor="start" font-size="10.5" font-weight="700" fill="#1f4e79">${serv ? 'valor do contrato' : 'valor global'} ${cur(tot)}</text>` : '';
+  const xh = X(hoje), mHoje = hoje < fim ? `<line x1="${xh.toFixed(1)}" x2="${xh.toFixed(1)}" y1="${T}" y2="${T+h}" stroke="#b3261e" stroke-dasharray="3 3"/><text x="${xh.toFixed(1)}" y="${T+h-6}" text-anchor="${xh > W - 70 ? 'end' : 'start'}" dx="${xh > W - 70 ? -4 : 4}" font-size="10.5" fill="#b3261e">hoje</text>` : '';
+  const devido = serv ? tot * Math.min(1, Math.max(0, (fimL - ini) / (fim - ini))) : 0;
+  const pts2 = acum.slice(1, -1).map(([d, v]) => `<circle cx="${X(d).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="#e07b12"><title>${d.toLocaleDateString('pt-BR')} · acumulado ${riR(v)}</title></circle>`).join('');
+  const leg = `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#4a5a50;margin:4px 0 0"><span><i style="display:inline-block;width:14px;height:3px;background:#e07b12;vertical-align:middle"></i> Pago acumulado <b>${riR(ac)}</b></span>${serv ? `<span><i style="display:inline-block;width:14px;border-top:2px dashed #2e8a4f;vertical-align:middle"></i> Previsto pelo tempo (hoje: <b>${riR(devido)}</b>)</span>` : ''}${tot > 0 ? `<span><i style="display:inline-block;width:14px;height:2px;background:#1f4e79;vertical-align:middle"></i> ${serv ? 'Valor do contrato' : 'Valor global'}</span>` : ''}</div>`;
+  const nota = serv && devido > 0 ? (ac < devido * 0.85 ? `<p class="ri-nota" style="color:#b8650a">A linha laranja está abaixo da tracejada: pagou ${riP(ac, devido)} do que o tempo corrido indicaria.</p>` : ac > devido * 1.15 ? `<p class="ri-nota" style="color:#b8650a">A linha laranja está acima da tracejada: o pagamento está adiantado em relação ao tempo.</p>` : '<p class="ri-nota">Pagamento acompanhando o tempo do contrato.</p>') : '';
+  return `${riSec('Execução do contrato · '+riDt(ini)+' a '+riDt(fim))}<svg viewBox="0 0 ${W} ${Hh}" width="100%" role="img" aria-label="Gráfico do pago acumulado do contrato" style="max-height:280px">${grade}${ticks}${teto}<path d="${area}" fill="rgba(224,123,18,.13)"/>${prev}<path d="${linha}" fill="none" stroke="#e07b12" stroke-width="2.5"/>${pts2}${mHoje}<line x1="${L}" x2="${W-R}" y1="${Y(0)}" y2="${Y(0)}" stroke="#9aa59f"/></svg>${leg}${nota}`;
+}
 function rcMensal(){
   const H = RC.hist; if(!H || H.erro) return null;
   const ult = (base, campos) => { const por = {}; (base.linhas||[]).forEach(d => { const r = por[d.rank] || (por[d.rank] = {}); campos.forEach(c => r[c] = (r[c]||0) + (d[c]||0)); }); return por; };
@@ -13040,7 +13076,7 @@ function rcPagFin(C){
   const k = (t, v, s, c) => `<div style="${c ? '--c:'+c : ''}"><small>${t}</small><b>${v}</b><em>${s||''}</em></div>`;
   return `${rcCab(C, 'execução financeira')}
   <div class="ri-k">${k('Empenhado 2026', riR(C.emp), 'notas do exercício')}${k('Liquidado 2026', riR(tot.liq), '')}${k('Pago 2026 (EXE)', riR(C.pagoE), '', '#e07b12')}${k('Pago de RAP', riR(C.pagoR), 'empenhos de anos anteriores', '#e07b12')}${k('RAP em aberto', riR(C.rapAb), '', '#1f4e79')}${k('Previsto 2026', riR(C.prev), C.prev ? riP(C.pagoE + C.pagoR, C.prev)+' pago' : '')}</div>
-  <div class="ri-g2"><div>${rcSaldo(C)}</div><div></div></div>
+  <div class="ri-g2"><div>${rcSaldo(C)}</div><div>${rcGrafico(C, M)}</div></div>
   ${riSec('Pagamentos mês a mês · previsto × pago')}${M && M.length ? `<table class="ri-t"><tr><th>Mês</th><th class="n">Previsto</th><th class="n">Pago EXE</th><th class="n">Pago RAP</th><th class="n">Pago no mês</th><th class="n">Acumulado</th><th>Situação</th></tr>
     ${M.map(m => { const p = prevMes(m.r), tt = m.pE + m.pR; return `<tr><td>${nm(m.r)}</td><td class="n">${riR(p)}</td><td class="n">${riR(m.pE)}</td><td class="n">${riR(m.pR)}</td><td class="n"><b>${riR(tt)}</b></td><td class="n">${riR(m.pagoAcE + m.pagoAcR)}</td><td>${tt < 0.005 && p > 0 ? '<span style="color:#b3261e">sem pagamento no mês</span>' : tt + 0.5 < p*0.8 ? '<span style="color:#b8650a">abaixo do previsto</span>' : '✓'}</td></tr>`; }).join('')}</table>
     <p class="ri-nota">Previsto do mês: cronograma do Contratos.gov.br; sem cronograma, o previsto de 2026 ÷ 12. Pago = posição do Tesouro do mês menos a do mês anterior.</p>`
