@@ -7,7 +7,7 @@ Guarda só as UGs da SDR. Uso:
 import csv, datetime, io, os, sys, time, urllib.request, zipfile
 
 CDN = 'https://dadosabertos-download.cgu.gov.br/PortalDaTransparencia/saida/'
-UGS = {'130010', '130141', '130255', '135098', '420013'}
+UGS = {'130010', '130141', '130255', '135098', '420013', '130005'}   # 130005 (CGOEF/SE): notas usadas em contratos da 130141 e 130255
 UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36'}
 csv.field_size_limit(10**9)
 LOG = []

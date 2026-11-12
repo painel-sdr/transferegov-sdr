@@ -7,7 +7,7 @@ Uso: python scripts/historico_indice.py PASTA_HISTORICO PASTA_SAIDA
 import csv, collections, datetime, gzip, json, os, sys
 
 csv.field_size_limit(10**9)
-UGS = ['130010', '130141', '130255', '135098', '420013']
+UGS = ['130010', '130141', '130255', '135098', '420013', '130005']
 
 
 def n(x):
