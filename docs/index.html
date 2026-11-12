@@ -14047,7 +14047,7 @@ function carregarRobos(){
   return _robosP = (async () => {
     const [a, te, ctr, lg] = await Promise.all([pega('atualizacao.json', 1), pega('ted/ted_atualizacao.json', 1), pega('contratos_api_ctr.csv'), pega('log_contratos.txt')]);
     let lido = null;   // última coluna do arquivo de contratos = data em que o robô leu a API
-    if(ctr) ctr.split(/\r?\n/).forEach(l => { const m = l.match(/,(\d{2}\/\d{2}\/\d{4})\s*$/); const d = m && dataRobo(m[1]); if(d && (!lido || d > lido)) lido = d; });
+    if(ctr) ctr.split(/\r?\n/).forEach(l => { const m = l.match(/,(\d{2}\/\d{2}\/\d{4})(?:,[^,\x22]*){0,4}\s*$/);   // coluna 'Consultado em' (pode ter colunas depois dela) const d = m && dataRobo(m[1]); if(d && (!lido || d > lido)) lido = d; });
     const falhou = !!(lg && /falhou/i.test(lg.split('\n')[0]||''));
     ROBOS = {
       tg:  {nome:'Transferegov · robô', data: a ? dataRobo(a.gerado_em) : null, obs: a && a.data_carga ? 'carga do Transferegov em '+a.data_carga : ''},
