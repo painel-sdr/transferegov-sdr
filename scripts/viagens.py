@@ -261,7 +261,8 @@ def tesouro_ob(linhas):
     out = {}
     for vals, met in _linhas_tg(linhas, ATRIB_OB, ITENS_OB, 'NE CCOR'):
         g = lambda k, n=0: vals.get(k, ('', ''))[n]
-        doc = g('ob') or g('doc')
+        ob_, dc_ = g('ob'), g('doc')
+        doc = ob_ if re.search(r'\d{4}OB\d{6}$', ob_) else (dc_ if re.search(r'\d{4}[A-Z]{2}\d{6}$', dc_) else (ob_ if ob_ not in ('-9', '-8', '') else dc_))   # DARF, GR, NS: o número vem em "Documento" ("OB" fica -9)
         k = (doc, g('ne'), g('nd'), g('ptres'))
         o = out.get(k)
         if not o:
