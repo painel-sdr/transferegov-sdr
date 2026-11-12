@@ -4491,9 +4491,16 @@ function mapaBaseCtr(rows){
     ${semUF ? `<p class="dica" style="text-align:left;margin-top:8px;color:#a5531a">⚠ ${semUF} contrato(s) sem UF reconhecida na coluna "Local de atuação".</p>` : ''}</div></div>
     <div class="uf-leg" style="--mapa:#1f7a43"><span>cor do estado: valor anual dos contratos</span><i></i></div>`;
 }
+const neBusca = nes => (nes||[]).map(e => { const n = String(e.ne||''), m = n.match(/NE0*(\d+)$/i); return n+' '+(m ? 'NE'+m[1]+' '+m[1] : ''); }).join(' ');
 const VIEW_CTRSDR = {
   titulo:'Contratos SDR · 2026', tema:'fin', fontes:[],
   linhasOp(){ return linhasCtrSdr(); },
+  busca:{ ph:'Buscar contrato: nº do contrato, nota de empenho ou fornecedor (nome ou CNPJ)… (vários: separe por ;)',
+    lista:() => linhasCtrSdr(),
+    texto:d => [d.num, d.forn, d._o && d._o.cnpj, d._o && d._o.proc, d.ug, d.ugc, neBusca(d._o && d._o.nes)].join(' '),
+    rot:d => `<b>${esc(d.num)}</b> · ${esc(d.sit||'')}<small>${esc(d.forn||'')} · ${esc(d.ug||'')} · vigência até ${esc(d.fim||'—')} · valor global ${fmtC(d.vg||0)}</small>`,
+    abrir:(d, el) => abrirFichaCtrApi(d.id, el)
+  },
   get filtros(){
     const L = () => linhasCtrSdr();
     const f = (campo, rotulo) => ({campo, rotulo, opcoes:() => uniq(L(), campo)});
@@ -7773,6 +7780,12 @@ const VIEWS = {
     abas:'Base Contratos',
     titulo:'Contratos CEPLAC - 2026', tema:'fin', fontes:['base'],
     linhasOp(){ return DADOS.base.linhas; },
+    busca:{ ph:'Buscar contrato: nº do contrato, nota de empenho ou fornecedor (nome ou CNPJ)… (vários: separe por ;)',
+      lista:() => { if(!API_CTR && typeof carregarApiCtr === 'function') try{ carregarApiCtr().catch(() => {}); }catch(e){} return DADOS.base ? DADOS.base.linhas : []; },
+      texto:d => { const a = apiDoContrato(d); return [d.num, d.fav, d.cnpj, d.proc, d.unid, d.resp, a && a.forn, a && a.cnpj, neBusca(d.nesBase), neBusca(a && a.nes)].join(' '); },
+      rot:d => `<b>${esc(d.num)}</b> · ${esc(d.cat||d.sitP||'')}<small>${esc(d.fav||'')}${d.unid ? ' · '+esc(d.unid) : ''}${d.uf ? ' · '+esc(d.uf) : ''}${d.fim ? ' · vigência até '+esc(d.fim) : ''}</small>`,
+      abrir:(d, el) => abrirFicha(d.num, el)
+    },
     get filtros(){
       const L = () => DADOS.base?.linhas||[];
       const f = (campo, rotulo) => ({campo, rotulo, opcoes:() => uniq(L(), campo)});
