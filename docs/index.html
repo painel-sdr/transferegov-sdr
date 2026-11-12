@@ -4606,7 +4606,7 @@ function doContrato(d, c){
 }
 let FICHA_TES = null;
 // histórico 2014–2025 (Portal da Transparência): o bloco vem do painel; aberto sozinho, o app antigo não mostra
-function histSecaoAntigo(nes, rot){ try{ return window.parent!==window && typeof parent.__histSecao==='function' ? parent.__histSecao(nes, rot) : ''; }catch(e){ return ''; } }
+function histSecaoAntigo(nes, rot, ex){ try{ return window.parent!==window && typeof parent.__histSecao==='function' ? parent.__histSecao(nes, rot, ex) : ''; }catch(e){ return ''; } }
 // ficha do contrato da API com o Tesouro do painel: troca as bases EXE/RAP só enquanto monta a ficha
 function fichaHTML(c, escopo, mesF){
   if(!(FICHA_API && FICHA_TES && FICHA_TES.id === FICHA_API.id)) return fichaHTML0(c, escopo, mesF);
@@ -4724,7 +4724,7 @@ function fichaHTML0(c, escopo, mesF){
       <tbody>${linhas.map(x => `<tr><td><span class="tag ${x.orig==='RAP'?'rap':''}">${x.orig}</span></td><td>${esc(x.ne)}</td><td>${esc(x.ug)}</td><td>${esc(x.nd)}</td><td class="n">${x.orig==='EXE' && credInfo && credInfo.porNE[x.ug+'|'+x.ne]!==undefined ? fmt2(credInfo.porNE[x.ug+'|'+x.ne]) : '—'}</td><td class="n">${fmt2(x.emp)}</td><td class="n">${fmt2(x.aliq)}</td><td class="n">${fmt2(x.liq)}</td><td class="n">${fmt2(x.apag)}</td><td class="n">${fmt2(x.pago)}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td colspan="4">Total</td><td class="n">${credInfo ? fmt2(credInfo.cred) : '—'}</td><td class="n">${fmt2(T(null,'emp'))}</td><td class="n">${fmt2(T(null,'aliq'))}</td><td class="n">${fmt2(T(null,'liq'))}</td><td class="n">${fmt2(T(null,'apag'))}</td><td class="n">${fmt2(T(null,'pago'))}</td></tr></tfoot></table></div>` : '<p class="dica" style="text-align:left">Nenhuma nota de empenho deste contrato no EXE/RAP.</p>'}
     </section>
-    ${histSecaoAntigo(FICHA_NES ? [...FICHA_NES].map(k => ({ug: k.split('|')[0], ne: k.split('|')[1]})) : [], 'contrato '+c)}
+    ${histSecaoAntigo(FICHA_NES ? [...FICHA_NES].map(k => ({ug: k.split('|')[0], ne: k.split('|')[1]})) : (b && b.nesBase || []), 'contrato '+c, {proc: (A && A.proc) || (b && b.proc) || '', ug: (A && A.ug) || (b && ((String(b.ug||'').match(/\d{6}/)||[])[0])) || '130010'})}
     <p class="rodape" style="margin:0">Posição: ${[usaE ? 'EXE '+rotMes(rE) : '', usaR ? 'RAP '+rotMes(rR) : ''].filter(Boolean).join(' · ')} · fontes: Contratos.gov.br (API), PNCP, Tesouro Gerencial (EXE/RAP)${b ? ' e Base Contratos' : ''}</p>
   </div>`;
 }
@@ -12801,9 +12801,13 @@ const histUG = ug => _histUG[ug] || (_histUG[ug] = (async () => {
   return lgpdObj(JSON.parse(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text()));
 })().catch(e => { delete _histUG[ug]; throw e; }));
 const histChave = e => { const u = String(e.ug||'').match(/\d{6}/), n = String(e.ne||'').toUpperCase().match(/\d{4}NE\d{6}/); return u && n ? u[0]+'|'+n[0] : ''; };
-async function histDados(nes){
-  const ks = [...new Set(nes.map(histChave).filter(Boolean))], ugs = [...new Set(ks.map(k => k.split('|')[0]))], D = {};
+async function histDados(nes, ex){
+  const ks0 = [...new Set(nes.map(histChave).filter(Boolean))], pd = String(ex && ex.proc || '').replace(/\D/g, ''), ugEx = String(ex && ex.ug || '').match(/\d{6}/);
+  const ugs = [...new Set(ks0.map(k => k.split('|')[0]).concat(pd && ugEx ? [ugEx[0]] : []))], D = {};
   await Promise.all(ugs.map(async u => { D[u] = await histUG(u); }));
+  // notas com o mesmo processo do contrato no Portal (as que o Contratos.gov.br não liga)
+  const ks = ks0.slice(), porProc = [];
+  if(pd.length >= 10) ugs.forEach(u => ((D[u].proc || {})[pd] || []).forEach(ne => { const k = u+'|'+ne; if(!ks.includes(k)){ ks.push(k); porProc.push(ne); } }));
   const A = {}; let gerado = '', faixa = [];
   ugs.forEach(u => { gerado = D[u].gerado; faixa = D[u].anos || faixa; });
   ks.forEach(k => { const [u, ne] = k.split('|'); (D[u].ne[ne] || []).forEach(([ano, pago, rap, docs]) => {
@@ -12812,24 +12816,25 @@ async function histDados(nes){
   const dt = s => { const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? +(m[3]+m[2]+m[1]) : 0; };
   const anos = Object.values(A).sort((a,b) => b.ano - a.ano); anos.forEach(y => y.docs.sort((a,b) => dt(b[0]) - dt(a[0])));
   const ult = anos.flatMap(y => y.docs).sort((a,b) => dt(b[0]) - dt(a[0]))[0];
-  return {anos, nKs: ks.length, nNE: new Set(anos.flatMap(y => [...y.nes])).size, tot: anos.reduce((s,y) => s + y.pago + y.rap, 0), ult: ult ? ult[0] : '', gerado, faixa};
+  return {anos, porProc, nKs: ks.length, nNE: new Set(anos.flatMap(y => [...y.nes])).size, tot: anos.reduce((s,y) => s + y.pago + y.rap, 0), ult: ult ? ult[0] : '', gerado, faixa};
 }
 const histR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 const histC = v => { const a = Math.abs(v||0); return 'R$ '+(a >= 1e6 ? (v/1e6).toLocaleString('pt-BR', {maximumFractionDigits:2})+' Mi' : a >= 1e3 ? (v/1e3).toLocaleString('pt-BR', {maximumFractionDigits:1})+' mil' : Number(v||0).toLocaleString('pt-BR', {maximumFractionDigits:2})); };
 const HIST_CHAMA = "(window.__histAbrir||parent.__histAbrir)";
 // bloco fechado (só carrega no clique): nes = [{ug, ne}], rot = 'contrato 00002/2019'
-window.__histSecao = (nes, rot) => {
-  const ks = [...new Set((nes||[]).map(histChave).filter(Boolean))];
+window.__histSecao = (nes, rot, ex) => {
+  const ks = [...new Set((nes||[]).map(histChave).filter(Boolean))], pd = String(ex && ex.proc || '').replace(/\D/g, ''), ugEx = (String(ex && ex.ug || '').match(/\d{6}/) || [''])[0];
+  const exA = pd.length >= 10 && ugEx ? ` data-proc="${pd}" data-ug="${ugEx}"` : '';
   const cab = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:2px solid #2e8a4f;padding-bottom:6px;margin-bottom:10px"><b style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#155a30">Histórico 2014–2025 · Portal da Transparência</b>`;
-  if(!ks.length) return `<section class="hist-box" style="margin:16px 0 8px">${cab}</div><p style="font-size:12.5px;color:#5f6f66;margin:0">Sem nota de empenho ligada: não há como buscar o histórico.</p></section>`;
-  return `<section class="hist-box" data-histbox data-nes="${ks.join(' ')}" data-rot="${String(rot||'').replace(/"/g,'&quot;')}" style="margin:16px 0 8px">${cab}<button type="button" onclick="${HIST_CHAMA}(this)" style="background:#155a30;color:#fff;border:0;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer">Carregar histórico</button></div>
-    <p style="font-size:12.5px;color:#5f6f66;margin:0">O que foi pago de 2014 a 2025 nas ${ks.length} nota(s) de empenho ligada(s) a este ${String(rot||'registro').split(' ')[0]}. Os dados ficam fora das bases de 2026 e só são lidos quando você pede.</p></section>`;
+  if(!ks.length && !exA) return `<section class="hist-box" style="margin:16px 0 8px">${cab}</div><p style="font-size:12.5px;color:#5f6f66;margin:0">Sem nota de empenho ligada: não há como buscar o histórico.</p></section>`;
+  return `<section class="hist-box" data-histbox data-nes="${ks.join(' ')}"${exA} data-rot="${String(rot||'').replace(/"/g,'&quot;')}" style="margin:16px 0 8px">${cab}<button type="button" onclick="${HIST_CHAMA}(this)" style="background:#155a30;color:#fff;border:0;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer">Carregar histórico</button></div>
+    <p style="font-size:12.5px;color:#5f6f66;margin:0">O que foi pago de 2014 a 2025 nas ${ks.length} nota(s) de empenho ligada(s) a este ${String(rot||'registro').split(' ')[0]}${exA ? ' e nas notas do mesmo processo no Portal' : ''}. Os dados ficam fora das bases de 2026 e só são lidos quando você pede.</p></section>`;
 };
 function histHTML(H, rot){
   if(!H.anos.length) return `<p style="font-size:12.5px;color:#5f6f66;margin:0">Nenhum pagamento de 2014 a 2025 nas ${H.nKs} nota(s) de empenho ligada(s) a este ${esc(String(rot||'registro').split(' ')[0])}${H.faixa.length ? ' (base do Portal: '+H.faixa[0]+'–'+H.faixa[H.faixa.length-1]+')' : ''}.</p>`;
   const mx = Math.max(...H.anos.map(y => y.pago + y.rap), 1), card = (r, v, d) => `<div style="background:${d ? '#155a30' : '#fff'};border-radius:10px;padding:10px 12px;box-shadow:0 2px 8px rgba(20,60,30,.08)"><div style="font-size:11.5px;font-weight:700;text-transform:uppercase;color:${d ? '#d9f0df' : '#4a5a50'}">${r}</div><div style="font-size:20px;font-weight:700;color:${d ? '#fff' : '#155a30'}">${v}</div></div>`;
   const anosPg = H.anos.filter(y => y.pago + y.rap > 0.005).length;
-  return `<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px">${card('Pago '+H.anos[H.anos.length-1].ano+'–'+H.anos[0].ano, histC(H.tot), 1)}${card('Notas de empenho com pagamento', H.nNE)}${card('Anos com pagamento', anosPg)}${card('Último pagamento', H.ult || '—')}</div>
+  return `<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px">${card('Pago '+H.anos[H.anos.length-1].ano+'–'+H.anos[0].ano, histC(H.tot), 1)}${card('Notas de empenho com pagamento', H.nNE)}${card('Anos com pagamento', anosPg)}${card('Último pagamento', H.ult || '—')}</div>${H.porProc && H.porProc.length ? `<p style="font-size:12.5px;background:#fff7e0;border-left:4px solid #d08c1a;border-radius:6px;padding:6px 10px;margin:0 0 10px">ℹ ${H.porProc.length} nota(s) achada(s) pelo <b>processo do contrato</b> no Portal (não estão ligadas ao contrato no Contratos.gov.br): <b>${H.porProc.map(esc).join(', ')}</b>. Confira se são deste contrato e, se forem, ligue-as no Contratos.gov.br.</p>` : ''}
     <div style="display:flex;gap:14px;font-size:12px;color:#4a5a50;margin:0 0 6px"><span><i style="display:inline-block;width:10px;height:10px;background:#e07b12;border-radius:2px"></i> Pago no ano</span><span><i style="display:inline-block;width:10px;height:10px;background:#5f9a35;border-radius:2px"></i> Pago em RAP (empenho de ano anterior)</span><span style="margin-left:auto">clique no ano para ver os documentos</span></div>
     ${H.anos.map(y => `<details style="border-bottom:1px solid #dfe9e1"><summary style="display:grid;grid-template-columns:52px minmax(0,1fr) 120px 110px 70px;gap:10px;align-items:center;padding:6px 4px;cursor:pointer;font-size:13px">
         <b>${y.ano}</b><span style="display:flex;height:12px;background:#eef4ef;border-radius:6px;overflow:hidden"><i style="width:${100*y.pago/mx}%;background:#e07b12"></i><i style="width:${100*y.rap/mx}%;background:#5f9a35"></i></span>
@@ -12841,9 +12846,9 @@ function histHTML(H, rot){
 }
 window.__histAbrir = async btn => {
   const box = btn.closest('[data-histbox]'); if(!box) return;
-  const nes = box.dataset.nes.split(' ').map(k => ({ug: k.split('|')[0], ne: k.split('|')[1]})), rot = box.dataset.rot || '';
+  const nes = box.dataset.nes.split(' ').filter(Boolean).map(k => ({ug: k.split('|')[0], ne: k.split('|')[1]})), rot = box.dataset.rot || '';
   btn.disabled = true; btn.textContent = 'Lendo o histórico…';
-  try{ const H = await histDados(nes); box._hist = H;
+  try{ const H = await histDados(nes, {proc: box.dataset.proc, ug: box.dataset.ug}); box._hist = H;
     btn.outerHTML = H.anos.length ? `<span style="display:flex;gap:6px"><button type="button" onclick="(window.__histExp||parent.__histExp)(this,'xl')" style="background:#1e7a3c;color:#fff;border:0;border-radius:8px;padding:5px 12px;font-weight:700;cursor:pointer">⬇ Excel</button><button type="button" onclick="(window.__histExp||parent.__histExp)(this,'pdf')" style="background:#fff;color:#155a30;border:1px solid #155a30;border-radius:8px;padding:5px 12px;font-weight:700;cursor:pointer">📄 PDF</button></span>` : '';
     const p = box.querySelector(':scope > p'); if(p) p.outerHTML = `<div class="hist-corpo">${histHTML(H, rot)}</div>`; }
   catch(e){ btn.disabled = false; btn.textContent = 'Tentar de novo'; const p = box.querySelector(':scope > p'); if(p) p.innerHTML = '⚠ '+esc(e.message); }
@@ -13080,7 +13085,7 @@ function rcPagAlt(C){
   <p class="ri-nota">${pg['Link PNCP'] ? `<a href="${esc(pg['Link PNCP'])}" target="_blank" rel="noopener">Contrato no PNCP ↗</a>` : 'Sem link do PNCP'}${pg['Link edital PNCP'] ? ` · <a href="${esc(pg['Link edital PNCP'])}" target="_blank" rel="noopener">Edital no PNCP ↗</a>` : ''}${pg['Página lida em'] ? ' · página do Contratos.gov.br lida em '+esc(pg['Página lida em']) : ''}</p>`;
 }
 function rcPagHist(C){
-  return `${rcCab(C, 'histórico 2014–2025')}<div>${riSec('Pagamentos de 2014 a 2025 · Portal da Transparência')}${window.__histSecao(C.o.nes, 'contrato '+C.o.num)}</div>`;
+  return `${rcCab(C, 'histórico 2014–2025')}<div>${riSec('Pagamentos de 2014 a 2025 · Portal da Transparência')}${window.__histSecao(C.o.nes, 'contrato '+C.o.num, {proc: C.o.proc, ug: C.o.ug})}</div>`;
 }
 const RC_ABAS = [['resumo','1 · Resumo do contrato'],['fin','2 · Execução financeira'],['fat','3 · Faturas e pagamentos'],['alt','4 · Alterações e documentos'],['hist','5 · Histórico 2014–2025']];
 function rcDoc(aba){

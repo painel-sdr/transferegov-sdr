@@ -65,6 +65,15 @@ def main(raiz, saida):
         except ValueError:
             return datetime.datetime.min
 
+    # notas de empenho por processo (campo "Processo" do empenho no Portal): acha as notas que o Contratos.gov.br não liga ao contrato
+    proc = {u: collections.defaultdict(set) for u in UGS}
+    for a in anos:
+        for r in ler(os.path.join(raiz, str(a), f'emp_{a}.csv')):
+            ug, ne = r.get('Código Unidade Gestora', ''), r.get('Código Empenho Resumido', '')
+            dig = ''.join(ch for ch in r.get('Processo', '') if ch.isdigit())
+            if ug in idx and ne in idx[ug] and len(dig) >= 10:
+                proc[ug][dig].add(ne)
+
     gerado = (datetime.datetime.utcnow() - datetime.timedelta(hours=3)).strftime('%d/%m/%Y %H:%M')
     for u in UGS:
         out = {}
@@ -77,7 +86,7 @@ def main(raiz, saida):
             out[ne] = lst
         c = os.path.join(saida, f'hist_{u}.json.gz')
         with gzip.open(c, 'wt', encoding='utf-8') as f:
-            json.dump({'gerado': gerado, 'ug': u, 'anos': anos, 'ne': out}, f, ensure_ascii=False, separators=(',', ':'))
+            json.dump({'gerado': gerado, 'ug': u, 'anos': anos, 'ne': out, 'proc': {k: sorted(v) for k, v in proc[u].items()}}, f, ensure_ascii=False, separators=(',', ':'))
         print(u, len(out), 'notas ·', os.path.getsize(c) // 1024, 'KB')
 
 
