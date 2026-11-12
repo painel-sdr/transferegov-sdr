@@ -172,7 +172,7 @@ CONFIG_TES = os.path.join(os.path.dirname(__file__), '..', 'config', 'viagens_te
 ATRIB = [('acao', r'^ACAO GOVERNO'), ('po', r'^PLANO ORCAMENTARIO'), ('ug', r'^UG EXECUTORA'), ('ugr', r'^UG RESPONSAVEL'), ('ptres', r'^PTRES'), ('pi', r'^PI$'),
          ('nd', r'^NATUREZA DESPESA DETALHADA'), ('ne', r'^NE CCOR$'), ('data', r'^NE CCOR - DIA EMISSAO'), ('fav', r'^NE CCOR - FAVORECIDO'), ('desc', r'^NE CCOR - DESCRICAO'), ('proc', r'^NE CCOR - NUM. PROCESSO|^NE CCOR - PROCESSO')]
 ITENS = [('emp', r'EMPENHAD'), ('rpp', r'RESTOS A PAGAR PROCESSADOS PAGOS'), ('rpnp', r'RESTOS A PAGAR NAO PROCESSADOS PAGOS'), ('liq', r'LIQUIDAD'), ('pago', r'^\d*:?\s*DESPESAS PAGAS')]
-VIAG_ND = re.compile(r'^(339014|339033|33903602|33903603|33903969)')
+VIAG_ND = re.compile(r'^(339014|339033|33903602|33903603|33903969|33903001|339093)')   # diárias, passagens, colaborador eventual, seguro-viagem, combustíveis (33903001) e indenizações (339093)
 
 
 def _na(t):

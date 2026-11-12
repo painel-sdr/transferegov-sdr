@@ -8159,7 +8159,7 @@ function viagDep(ug, ac, po){
   return ORC_DEP_FIXO[ac+'|'+po] || ORC_DEP_FIXO[ac] || (ac ? 'SDR · '+ac : '(sem ação)');
 }
 const VIAG_UGS = ['130010','130141','130255','135098','420013'];
-const viagTipoND = nd => /^339014/.test(nd) ? 'Diárias' : /^339033/.test(nd) ? 'Passagens' : /^3390360[23]/.test(nd) ? 'Colaborador eventual' : /^33903969/.test(nd) ? 'Seguro-viagem' : 'Outros';
+const viagTipoND = nd => /^339014/.test(nd) ? 'Diárias' : /^339033/.test(nd) ? 'Passagens' : /^3390360[23]/.test(nd) ? 'Colaborador eventual' : /^33903969/.test(nd) ? 'Seguro-viagem' : /^33903001/.test(nd) ? 'Combustível' : /^339093/.test(nd) ? 'Indenização' : 'Outros';
 // notas de empenho de viagem do Tesouro Gerencial (relatório VIAGENS NE: ações da SDR, qualquer UG executora)
 function viagTesouro(){
   const T = (DADOS.viag||{}).tesouro; if(!T || !T.nes) return [];
@@ -8174,13 +8174,13 @@ function viagTesHTML(TS){
   TS.forEach(o => { const d = dep[o.dep] || (dep[o.dep] = {dep:o.dep, e:{}, p:{}, E:0, P:0, S:0}); d.e[o.tipo] = (d.e[o.tipo]||0) + o.emp; d.p[o.tipo] = (d.p[o.tipo]||0) + o.pago; d.E += o.emp; d.P += o.pago; d.S += o.aPagar;
     const q = quem[o.quem] || (quem[o.quem] = {q:o.quem, E:0, P:0, n:0}); q.E += o.emp; q.P += o.pago; q.n++; });
   const D = Object.values(dep).sort((a, b) => b.E - a.E), Q = Object.values(quem).sort((a, b) => b.E - a.E), tot = D.reduce((a, d) => (a.E += d.E, a.P += d.P, a.S += d.S, a), {E:0, P:0, S:0});
-  const tp = ['Diárias', 'Passagens', 'Colaborador eventual', 'Seguro-viagem'];
+  const tp = ['Diárias', 'Passagens', 'Colaborador eventual', 'Seguro-viagem', 'Combustível', 'Indenização'].filter((t, i) => i < 4 || TS.some(o => o.tipo === t));
   const res = `<details class="vres" open><summary>Resumo por departamento · empenhado ${fBv(tot.E)} · pago ${fBv(tot.P)}</summary><table class="t"><thead><tr><th>Departamento</th>${tp.map(t => `<th class="num">${t}<small style="display:block;font-weight:400">empenhado</small></th>`).join('')}<th class="num">Empenhado</th><th class="num">Pago (+ RP)</th><th class="num">A pagar</th></tr></thead><tbody>${D.map(d => `<tr><td><b>${esc(d.dep)}</b></td>${tp.map(t => `<td class="num">${d.e[t] ? fBv(d.e[t]) : '—'}</td>`).join('')}<td class="num"><b>${fBv(d.E)}</b></td><td class="num">${fBv(d.P)}</td><td class="num">${fBv(d.S)}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td>${tp.map(t => `<td class="num">${fBv(D.reduce((a, d) => a + (d.e[t]||0), 0))}</td>`).join('')}<td class="num">${fBv(tot.E)}</td><td class="num">${fBv(tot.P)}</td><td class="num">${fBv(tot.S)}</td></tr></tfoot></table></details>
     <details class="vres"><summary>Quem executou · ${Q.length} UG(s)</summary><table class="t"><thead><tr><th>UG executora</th><th class="num">Notas</th><th class="num">Empenhado</th><th class="num">Pago (+ RP)</th></tr></thead><tbody>${Q.map(q => `<tr><td>${esc(q.q)}</td><td class="num">${q.n}</td><td class="num">${fBv(q.E)}</td><td class="num">${fBv(q.P)}</td></tr>`).join('')}</tbody></table></details>`;
   const cols = [['ne','Empenho'], ['data','Emissão'], ['tipo','Tipo','tag'], ['dep','Departamento'], ['acao','Ação · PO'], ['quem','Quem executou'], ['ugr','UGR'], ['nd','Natureza'], ['fav','Favorecido'], ['desc','Descrição','txt'], ['emp','Empenhado','n'], ['liq','Liquidado','n'], ['pago','Pago (+ RP)','n'], ['aPagar','A pagar','n']];
   return `<style>.vres{margin:0 0 12px}.vres>summary{cursor:pointer;font-weight:700;color:#155a30;font-size:13.5px;margin-bottom:6px}.vres small{font-weight:400;color:#7a877f}.vres table{font-size:12.5px}</style>` + res
     + tabela('viagtes', 'Empenhos de viagem · Tesouro Gerencial', cols, TS, {ordem:{campo:'emp', dir:-1}, arquivo:'viagens-sdr-empenhos-tesouro', filtrosTab:[['tipo','Tipo'], ['dep','Departamento'], ['acao','Ação · PO'], ['quem','Quem executou'], ['ano','Ano da nota'], ['ne','Empenho']]})
-    + `<p class="dica" style="text-align:left;margin-top:6px">Tesouro Gerencial, relatório VIAGENS NE${T && T.gerado_em ? ' (lido em '+esc(T.gerado_em)+')' : ''} · ações da SDR em qualquer UG executora (inclusive superintendências e a 130005) · naturezas 3390.14, 3390.33, 3390.36.02/03 e 3390.39.69 · departamento pela UGR (ou UG) e pela ação/PO · notas de 2024 e 2025 entram pelo RP pago em 2026.</p>`;
+    + `<p class="dica" style="text-align:left;margin-top:6px">Tesouro Gerencial, relatório VIAGENS NE${T && T.gerado_em ? ' (lido em '+esc(T.gerado_em)+')' : ''} · ações da SDR em qualquer UG executora (inclusive superintendências e a 130005) · naturezas 3390.14, 3390.33, 3390.36.02/03, 3390.39.69, 3390.30.01 (combustíveis) e 3390.93 (indenizações) · departamento pela UGR (ou UG) e pela ação/PO · notas de 2024 e 2025 entram pelo RP pago em 2026.</p>`;
 }
 const VIAG_ELEM = {'14':'Diárias', '36':'Diárias · colaborador eventual', '93':'Ressarcimento / indenização'};
 // gasto por gasto: cada pagamento de diária (ordem bancária do SCDP + nota de empenho) e cada passagem emitida (trecho)
@@ -8191,7 +8191,7 @@ function viagGastos(L){
   const lin = (d, o) => { o.pcdp = d.pcdp; o.nome = d.nome; o.destC = d.destC; o.ini = d.ini; o.dataO = dg(o.data); o.mes = o.dataO ? VIAG_MES[(o.dataO % 10000 / 100 | 0) - 1] + '/' + String(o.dataO / 10000 | 0).slice(2) : ''; out.push(o); };
   const TO = ((DADOS.viag||{}).tesouro||{}).obs || [];
   if(TO.length) TO.forEach(o => { if(!o.pcdp) return; const d = porBase.get(o.pcdp.split('-')[0]); if(!d) return; ligadas.add(d.pcdp);
-    lin(d, {data:o.data, tipo:/^3390360/.test(o.nd) ? 'Diárias · colaborador eventual' : 'Diárias', ug:o.ug, dep:viagDep(VIAG_UGS.includes(o.ugr) ? o.ugr : o.ug, o.acao, o.po), ne:o.ne, doc:o.doc, acao:o.acao ? o.acao+(o.po ? ' · PO '+o.po : '') : '', _ac:o.acao, _po:o.po, valor:o.valor, fonte:'Tesouro'}); });
+    lin(d, {data:o.data, tipo:/^3390360/.test(o.nd) ? 'Diárias · colaborador eventual' : /^339093/.test(o.nd) ? 'Indenização' : /^33903001/.test(o.nd) ? 'Combustível' : 'Diárias', ug:o.ug, dep:viagDep(VIAG_UGS.includes(o.ugr) ? o.ugr : o.ug, o.acao, o.po), ne:o.ne, doc:o.doc, acao:o.acao ? o.acao+(o.po ? ' · PO '+o.po : '') : '', _ac:o.acao, _po:o.po, valor:o.valor, fonte:'Tesouro'}); });
   const ligT = new Set(ligadas);   // com o Tesouro, o Portal completa só as viagens que o Tesouro não ligou
   if(G) (G.obne||[]).forEach(([ob, ne, v]) => { const o = G.ob[ob]; if(!o) return; const d = porBase.get(String(o[0]).split('-')[0]); if(!d || ligT.has(d.pcdp)) return;
     const n = G.ne[ne] || [], ac = n[3] || '', po = n[4] || '', ug = o[2];
