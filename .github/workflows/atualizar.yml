@@ -120,6 +120,16 @@ jobs:
               os.makedirs('saida/comunicados', exist_ok=True); shutil.copy(ant, novo); print('comunicados: leitura falhou, mantida a rodada anterior')
           PY
 
+      - name: Viagens a serviço (diárias e passagens · SCDP) das UGs SDR · Portal da Transparência
+        continue-on-error: true
+        run: |
+          ANO=$(date +%Y)
+          python scripts/viagens.py saida || true
+          if [ ! -s "saida/viagens/viagens_${ANO}.json" ]; then
+            mkdir -p saida/viagens
+            curl -sfL "https://raw.githubusercontent.com/${{ github.repository }}/dados/viagens/viagens_${ANO}.json" -o "saida/viagens/viagens_${ANO}.json" && echo "viagens: Portal falhou, mantida a rodada anterior" || rm -f "saida/viagens/viagens_${ANO}.json"
+          fi
+
       - name: Data de atualização de cada base (só muda quando o conteúdo muda)
         continue-on-error: true
         run: python scripts/datas_bases.py saida
