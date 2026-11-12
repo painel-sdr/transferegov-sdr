@@ -13248,6 +13248,7 @@ function rcGestor(C, M){
   // ritmo: médias dos últimos 12 e 6 meses fechados (dentro do período)
   const ult = n => { let s = 0, sem = 0; for(let i = 1; i <= n; i++){ const d = new Date(ano, hoje.getMonth() - i, 1), k = d.getFullYear()*100 + d.getMonth() + 1; if(k < kIni) continue; const v = pm.get(k) || 0; s += v; if(v < 0.01) sem++; } return {m: s / n, sem}; };
   const m12 = ult(12), m6 = ult(6), mensal = S.mensal > 0 ? S.mensal : (indet ? tot / 12 : tot / Math.max(1, (fim - ini) / MS));
+  const tRest = dias === null ? '' : dias < 60 ? dias+' dia(s)' : mRest.toLocaleString('pt-BR', {maximumFractionDigits:1})+' meses';
   const nec = !indet && mRest > 0.3 && falta > 0.5 ? Math.max(0, falta) / Math.max(1, mRest) : null;
   const proj = !indet && modo === 'serv' ? pago + m6.m * mRest : null, sobra = proj !== null ? tot - proj : null;
   const semMeses = (() => { const L = []; for(let i = 1; i <= 12; i++){ const d = new Date(ano, hoje.getMonth() - i, 1), k = d.getFullYear()*100 + d.getMonth() + 1; if(k >= kIni && (pm.get(k) || 0) < 0.01) L.push(['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][d.getMonth()]+'/'+String(d.getFullYear()).slice(2)); } return L.reverse(); })();
@@ -13268,7 +13269,7 @@ function rcGestor(C, M){
   const k5 = [
     ['Valor do contrato', C2(tot), modo === '12m' ? 'valor anual de referência' : modo === 'serv' ? Math.round((fim - ini) / MS)+' meses · '+C2(mensal)+'/mês' : 'teto da compra', ''],
     [modo === '12m' ? 'Pago em 12 meses' : 'Pago até hoje', C2(pago), pc(pPago)+' do contrato', '', `<div class="rg-bar"><i style="width:${Math.min(100, pPago*100).toFixed(1)}%"></i></div>`],
-    ['Falta pagar', modo === '12m' ? '—' : C2(Math.max(0, falta)), modo === '12m' ? 'contrato sem fim definido' : acima ? 'pagou '+C2(-falta)+' acima' : pc(Math.max(0, falta)/tot)+(dias > 0 ? ' · '+Math.max(0, Math.round(mRest))+' mes(es) de vigência' : ''), 'o'],
+    ['Falta pagar', modo === '12m' ? '—' : C2(Math.max(0, falta)), modo === '12m' ? 'contrato sem fim definido' : acima ? 'pagou '+C2(-falta)+' acima' : pc(Math.max(0, falta)/tot)+(dias > 0 ? ' · '+tRest+' de vigência' : ''), 'o'],
     ['Atraso hoje', devido === null || modo === '12m' ? '—' : C2(atraso), devido === null ? 'compra: sem previsto pelo tempo' : modo === '12m' ? '' : 'previsto '+C2(devido)+' × pago', atraso > tot * 0.05 ? 'r' : ''],
     ['Vencimento', indet ? 'Indeterminado' : riDt(fim), indet ? 'sem data de fim' : dias < 0 ? 'vencido há '+(-dias)+' dias' : dias+' dias'+(dias <= 120 ? ' · prazo de 120 dias já passou' : ''), dias !== null && dias <= 120 ? 'r' : '']];
   // velocímetro (opção 1 aprovada: verde e âmbar, tamanho reduzido)
@@ -13285,7 +13286,7 @@ function rcGestor(C, M){
   // régua da vigência: pontas com a data de início e de fim do contrato (período inteiro)
   const regua = (() => { const Lx = 4, W = 352, y1 = 24, y2 = 86, hh = 24, X = p => Lx + W * Math.min(1, Math.max(0, p)); let g = '';
     const dC = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
-    g += `<text x="${Lx}" y="${y1-7}" font-size="10" font-weight="700" fill="#2b3a31">${modo === '12m' ? 'Últimos 12 meses' : 'Tempo da vigência'}</text><text x="${(pTempo > .85 && pTempo < 1 ? X(pTempo)-4 : Lx+W).toFixed(1)}" y="${y1-7}" text-anchor="end" font-size="9" fill="#7a877f">${modo === '12m' ? '' : Math.round((fim - ini) / MS)+' meses · faltam '+Math.max(0, Math.round(mRest))+' mes(es)'}</text>`;
+    g += `<text x="${Lx}" y="${y1-7}" font-size="10" font-weight="700" fill="#2b3a31">${modo === '12m' ? 'Últimos 12 meses' : 'Tempo da vigência'}</text><text x="${(pTempo > .85 && pTempo < 1 ? X(pTempo)-4 : Lx+W).toFixed(1)}" y="${y1-7}" text-anchor="end" font-size="9" fill="#7a877f">${modo === '12m' ? '' : Math.round((fim - ini) / MS)+' meses · faltam '+tRest}</text>`;
     g += `<rect x="${Lx}" y="${y1}" width="${W}" height="${hh}" rx="5" fill="${CF}"/><rect x="${Lx}" y="${y1}" width="${(W*pTempo).toFixed(1)}" height="${hh}" rx="5" fill="${CT}"/>`;
     g += pTempo > .3 ? `<text x="${(X(pTempo)-6).toFixed(1)}" y="${y1+16}" text-anchor="end" font-size="11" font-weight="700" fill="#fff">${pc(pTempo)} do tempo</text>` : `<text x="${(X(pTempo)+6).toFixed(1)}" y="${y1+16}" font-size="11" font-weight="700" fill="${CT}">${pc(pTempo)} do tempo</text>`;
     // eixo: início e fim nas pontas; viradas de ano no meio (sem as que encostam nas pontas)
@@ -13311,7 +13312,7 @@ function rcGestor(C, M){
   if(sobra !== null && sobra > tot * 0.03 && dias > 0) ac.push(['b', 'Saldo no fim', 'Projeção: sobram ~'+C2(sobra)+'. Se o serviço foi menor, avaliar anulação de empenho e remanejamento.']);
   else if(sobra !== null && sobra < -tot * 0.03 && dias > 0) ac.push(['r', 'Valor não cobre até o fim', 'No ritmo atual faltam ~'+C2(-sobra)+' de valor contratado. Avaliar aditivo de valor.']);
   if(!ac.length) ac.push(['b', 'Acompanhar', 'Nenhuma providência automática: acompanhar faturas e pagamentos do mês.']);
-  const rit = [['Valor mensal do contrato', C2(mensal), '—'], ['Média últimos 12 meses', C2(m12.m), pc(m12.m / mensal)], ['Média últimos 6 meses', C2(m6.m), pc(m6.m / mensal)]].concat(nec !== null ? [['Para pagar o saldo até o fim', C2(nec), nec / mensal >= 2 ? (nec / mensal).toLocaleString('pt-BR', {maximumFractionDigits:0})+'× o mensal' : pc(nec / mensal), 1]] : []);
+  const rit = [['Valor mensal do contrato', C2(mensal), '—'], ['Média últimos 12 meses', C2(m12.m), pc(m12.m / mensal)], ['Média últimos 6 meses', C2(m6.m), pc(m6.m / mensal)]];
   const corR = x => x === '—' ? '' : /×/.test(x) ? '#b3261e' : parseInt(x) > 115 || parseInt(x) < 85 ? (parseInt(x) > 150 || parseInt(x) < 60 ? '#b3261e' : '#b8650a') : '#2e8a4f';
   return `<style>.rg-st{display:flex;gap:14px;align-items:center;border-radius:12px;padding:12px 16px;margin:4px 0 14px;border-left:6px solid}.rg-st.a{background:#fff6e6;border-color:#d08c1a}.rg-st.r{background:#fdecea;border-color:#b3261e}.rg-st.v{background:#eaf6ee;border-color:#2e8a4f}
 .rg-sem{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;flex:none}.rg-st.a .rg-sem{background:#e0a21a}.rg-st.r .rg-sem{background:#b3261e}.rg-st.v .rg-sem{background:#2e8a4f}
@@ -13329,7 +13330,12 @@ function rcGestor(C, M){
     <p class="ri-nota">${modo === '12m' ? 'Vigência indeterminada: compara o pago nos últimos 12 meses com o valor anual do contrato.' : 'O ponteiro mostra quanto do contrato foi pago; a marca azul, onde deveria estar pelo tempo. A parte amarela é o atraso de hoje.'} Pagamentos: Portal da Transparência até ${ano-1} + Tesouro de ${ano}${P.semUG && P.semUG.length ? ' (sem histórico do Portal para a UG '+P.semUG.join(', ')+': só '+ano+')' : ''}${modo === 'serv' && S.iniP && o.ini && +S.iniP !== +o.ini ? ' · período atual (prorrogado)' : ''}.</p>${rcConf(S)}</div>
     <div>${riSec('O que fazer')}${ac.slice(0, 3).map((a, i) => `<div class="rg-ac ${a[0]}"><b>${i+1}. ${esc(a[1])}</b>${esc(a[2])}</div>`).join('')}
       ${riSec('Ritmo de pagamento')}<table class="rg-t"><tr><th>Período</th><th>Pago/mês</th><th>× contrato</th></tr>${rit.map(r => `<tr><td>${r[3] ? '<b>'+r[0]+'</b>' : r[0]}</td><td>${r[3] ? '<b>'+r[1]+'/mês</b>' : r[1]}</td><td style="color:${corR(r[2])}">${r[3] ? '<b>'+r[2]+'</b>' : r[2]}</td></tr>`).join('')}</table>
-      ${nec !== null ? `<p class="ri-nota" style="text-align:left;margin-top:6px">Para pagar os ${C2(Math.max(0, falta))} que faltam nos ${Math.max(1, Math.round(mRest))} mes(es) de vigência, seria preciso pagar ${C2(nec)} por mês${nec / mensal >= 2 ? ` — <b style="color:#b3261e">${(nec / mensal).toLocaleString('pt-BR', {maximumFractionDigits:0})} vezes o valor mensal do contrato</b>. Na prática, esse saldo não deve ser executado: avaliar anulação do empenho ou aditivo de prazo` : nec / mensal > 1.15 ? ', acima do valor mensal do contrato' : ', dentro do valor mensal do contrato'}.</p>` : ''}</div></div>`;
+      ${nec !== null ? (() => { const cabe = mensal * mRest, mesesC = mensal > 0 ? falta / mensal : 0, ok = mesesC <= mRest * 1.15, fimTxt = fim.toLocaleDateString('pt-BR');
+        const ln = (t, v, cor) => `<tr><td>${t}</td><td style="text-align:right${cor ? ';color:'+cor : ''}"><b>${v}</b></td></tr>`;
+        return `<div style="border:1px solid ${ok ? '#cfe3d5' : '#f2c9c4'};background:${ok ? '#f4faf6' : '#fff7f6'};border-radius:10px;padding:8px 12px;margin-top:10px">
+          <b style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#155a30">Até o fim da vigência (${fimTxt})</b>
+          <table class="rg-t" style="margin-top:4px">${ln('Falta pagar', C2(Math.max(0, falta)))}${ln('Tempo que resta', tRest)}${mensal > 0 ? ln('Cabe pagar nesse tempo, no valor mensal ('+C2(mensal)+'/mês)', C2(cabe)) + ln('O saldo equivale a', mesesC.toLocaleString('pt-BR', {maximumFractionDigits:0})+' mês(es) de contrato', ok ? '' : '#b3261e') : ''}</table>
+          <p class="ri-nota" style="text-align:left;margin:6px 0 0">${ok ? 'O saldo cabe no prazo que resta, no ritmo normal do contrato.' : `<b style="color:#b3261e">O saldo não cabe no prazo:</b> faltam ${C2(Math.max(0, falta))}, mas em ${tRest} o contrato paga cerca de ${C2(cabe)}. Avaliar aditivo de prazo ou anulação do empenho.`}</p></div>`; })() : ''}</div></div>`;
 }
 function rcPagFin(C){
   const o = C.o, M = rcMensal(), H = RC.hist;
