@@ -124,7 +124,9 @@ jobs:
         continue-on-error: true
         run: |
           ANO=$(date +%Y)
-          python scripts/viagens.py saida || true
+          curl -sfL "https://raw.githubusercontent.com/${{ github.repository }}/dados/viagens/gastos_${ANO}.json" -o /tmp/gastos_ant.json || echo "sem gastos anteriores (lê o ano todo)"
+          python scripts/viagens.py saida /tmp/gastos_ant.json || true
+          if [ ! -s "saida/viagens/gastos_${ANO}.json" ] && [ -s /tmp/gastos_ant.json ]; then mkdir -p saida/viagens; cp /tmp/gastos_ant.json "saida/viagens/gastos_${ANO}.json"; echo "gastos: mantida a leitura anterior"; fi
           if [ ! -s "saida/viagens/viagens_${ANO}.json" ]; then
             mkdir -p saida/viagens
             curl -sfL "https://raw.githubusercontent.com/${{ github.repository }}/dados/viagens/viagens_${ANO}.json" -o "saida/viagens/viagens_${ANO}.json" && echo "viagens: Portal falhou, mantida a rodada anterior" || rm -f "saida/viagens/viagens_${ANO}.json"

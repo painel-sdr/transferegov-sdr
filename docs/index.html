@@ -8140,7 +8140,34 @@ async function lerViagens(){
     return {...r, ugN: VIAG_NUG[r.ug] || r.ug, iniD: ini, fimD: fim, mes: ini ? VIAG_MES[ini.getMonth()] : '', tipo: r.ext ? 'Internacional' : 'Nacional', total: (r.diar||0) + (r.pass||0), urgN: r.urg === 'SIM' ? 'Urgente' : 'Normal',
       ant: a, antF: a === null ? 'Sem passagem' : a <= 5 ? 'Até 5 dias' : a <= 9 ? '6 a 9 dias' : a <= 14 ? '10 a 14 dias' : '15 dias ou mais', dias: ini && fim ? Math.round((fim - ini) / 864e5) + 1 : 0,
       prazoPC: prazo, voltou: !!(fim && fim < hoje)}; });
-  return {linhas: L, cols: [], ano: J.ano, posicao: J.posicao || ''};
+  let G = null; try{ const r = await fetch(RAW_VIAG+'gastos_'+(J.ano||ano)+'.json?_='+Date.now(), {cache:'no-store'}); if(r.ok) G = await r.json(); }catch(e){}
+  return {linhas: L, cols: [], ano: J.ano, posicao: J.posicao || '', gastos: G};
+}
+// departamento pela UG e pela ação/PO da nota de empenho (mesma regra do Orçamento e Finanças)
+function viagDep(ug, ac, po){
+  if(DEP_ACAO_PO[ac+'|'+po]) return DEP_ACAO_PO[ac+'|'+po];
+  if(ug === '130010') return 'CEPLAC';
+  if(DEP_UG[ug]) return DEP_UG[ug];
+  return ORC_DEP_FIXO[ac+'|'+po] || ORC_DEP_FIXO[ac] || (ac ? 'SDR · '+ac : '(sem ação)');
+}
+const VIAG_ELEM = {'14':'Diárias', '36':'Diárias · colaborador eventual', '93':'Ressarcimento / indenização'};
+// gasto por gasto: cada pagamento de diária (ordem bancária do SCDP + nota de empenho) e cada passagem emitida (trecho)
+function viagGastos(L){
+  const G = (DADOS.viag||{}).gastos, dg = s => { const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? +(m[3]+m[2]+m[1]) : 0; };
+  const porBase = new Map(); L.forEach(d => porBase.set(d.pcdp.split('-')[0], d));
+  const out = [], ligadas = new Set();
+  const lin = (d, o) => { o.pcdp = d.pcdp; o.nome = d.nome; o.destC = d.destC; o.ini = d.ini; o.dataO = dg(o.data); o.mes = o.dataO ? VIAG_MES[(o.dataO % 10000 / 100 | 0) - 1] + '/' + String(o.dataO / 10000 | 0).slice(2) : ''; out.push(o); };
+  if(G) (G.obne||[]).forEach(([ob, ne, v]) => { const o = G.ob[ob]; if(!o) return; const d = porBase.get(String(o[0]).split('-')[0]); if(!d) return;
+    const n = G.ne[ne] || [], ac = n[3] || '', po = n[4] || '', ug = o[2];
+    ligadas.add(d.pcdp);
+    lin(d, {data:o[1], tipo:VIAG_ELEM[n[5]] || 'Diárias', ug, dep:viagDep(ug, ac, po), ne:n[0] || ne.slice(-12), doc:o[3], acao:ac ? ac+(po ? ' · PO '+po : '') : '', _ac:ac, _po:po, valor:v}); });
+  // diárias sem ordem bancária identificada (pagas antes da leitura ou com outro texto): valor do Portal de Viagens
+  L.forEach(d => { if(!ligadas.has(d.pcdp) && d.diar > 0.005) lin(d, {data:d.ini, tipo:'Diárias', ug:d.ug, dep:viagDep(d.ug, '', ''), ne:'não identificada', doc:'—', acao:'', valor:d.diar}); });
+  // passagens: pagas pela UG 130005; ação e departamento da diária da mesma viagem
+  const ref = new Map(); out.forEach(o => { if(o._ac && !ref.has(o.pcdp)) ref.set(o.pcdp, o); });
+  L.forEach(d => (d.psg||[]).forEach(p => { const r = ref.get(d.pcdp); lin(d, {data:p[0], tipo:'Passagem', ug:'130005', dep:r ? r.dep : viagDep(d.ug, '', ''), ne:'paga pela 130005', doc:p[1], acao:r ? r.acao : '', valor:p[2]}); }));
+  if(!G) L.forEach(d => { if(!(d.psg||[]).length && d.pass > 0.005) lin(d, {data:d.ini, tipo:'Passagem', ug:'130005', dep:viagDep(d.ug, '', ''), ne:'paga pela 130005', doc:'—', acao:'', valor:d.pass}); });
+  return out.sort((a, b) => a.dataO - b.dataO);
 }
 const RAW_VIAG = 'https://raw.githubusercontent.com/painel-sdr/transferegov-sdr/dados/viagens/';
 const fBv = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -8167,6 +8194,18 @@ function viagTab(cols, lista, ficha){
 }
 const viagXl = (tit, arq, cols, lista) => () => ({titulo:'Viagens SDR · '+tit, sub:'Portal da Transparência · Viagens a Serviço', arquivo:'viagens-sdr-'+arq,
   cab: cols.map(c => c[2] === 'n' ? {t:c[0], n:1} : {t:c[0]}), linhas: lista.map(d => cols.map(c => { const v = c[1](d); return v && v.txt !== undefined ? v.txt : v; }))});
+function viagResumo(GA){
+  const m = {}; GA.forEach(o => { const r = m[o.dep] || (m[o.dep] = {dep:o.dep, d:0, nd:0, p:0, np:0}); if(o.tipo === 'Passagem'){ r.p += o.valor; r.np++; } else { r.d += o.valor; r.nd++; } });
+  return Object.values(m).sort((a, b) => (b.d + b.p) - (a.d + a.p));
+}
+function viagGastosHTML(GA){
+  const R = viagResumo(GA), T = R.reduce((a, r) => (a.d += r.d, a.p += r.p, a.nd += r.nd, a.np += r.np, a), {d:0, p:0, nd:0, np:0}), G = (DADOS.viag||{}).gastos;
+  const res = `<details class="vres" open><summary>Resumo por departamento · ${fBv(T.d + T.p)} <small>(o botão "Extração em Excel" do topo baixa este resumo)</small></summary><table class="t"><thead><tr><th>Departamento</th><th class="num">Diárias</th><th class="num">Pagamentos</th><th class="num">Passagens</th><th class="num">Emissões</th><th class="num">Total</th></tr></thead><tbody>${R.map(r => `<tr><td><b>${esc(r.dep)}</b></td><td class="num">${fBv(r.d)}</td><td class="num">${r.nd}</td><td class="num">${fBv(r.p)}</td><td class="num">${r.np}</td><td class="num"><b>${fBv(r.d + r.p)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td class="num">${fBv(T.d)}</td><td class="num">${T.nd}</td><td class="num">${fBv(T.p)}</td><td class="num">${T.np}</td><td class="num">${fBv(T.d + T.p)}</td></tr></tfoot></table></details>`;
+  const cols = [['data','Data'], ['tipo','Tipo','tag'], ['pcdp','PCDP'], ['nome','Servidor'], ['dep','Departamento'], ['acao','Ação · PO'], ['ug','UG'], ['ne','Empenho'], ['doc','Documento / trecho'], ['destC','Destino'], ['valor','Valor','n']];
+  return `<style>.vres{margin:0 0 12px}.vres>summary{cursor:pointer;font-weight:700;color:#155a30;font-size:13.5px;margin-bottom:6px}.vres small{font-weight:400;color:#7a877f}.vres table{font-size:12.5px}</style>` + res
+    + tabela('viaggas', 'Gastos das viagens · linha por linha', cols, GA, {ordem:{campo:'dataO', dir:1}, arquivo:'viagens-sdr-gastos', filtrosTab:[['tipo','Tipo'], ['dep','Departamento'], ['acao','Ação · PO'], ['ne','Empenho'], ['pcdp','PCDP'], ['nome','Servidor'], ['mes','Mês']]})
+    + `<p class="dica" style="text-align:left;margin-top:6px">Diárias: ordem bancária do SCDP ("PCDP … P/ PGTO. DE … DIÁRIAS") e a nota de empenho que ela pagou · Portal da Transparência, Despesas${G && G.ate ? ' (lido até '+G.ate.slice(6)+'/'+G.ate.slice(4,6)+'/'+G.ate.slice(0,4)+')' : ' (ainda sem a leitura do robô: valores do Portal de Viagens)'}. Passagens: pagas pela UG 130005, por trecho; ação e departamento da diária da mesma viagem. Departamento pela UG e pela ação/PO da nota (regra do Orçamento e Finanças).</p>`;
+}
 function viagPCSit(d, hoje){
   if(!d.voltou) return {cl:'c', t:'Viagem não terminou'};
   const dl = Math.round((d.prazoPC - hoje) / 864e5);
@@ -8243,7 +8282,7 @@ document.addEventListener('click', e => {
 // atalhos do menu lateral (Agenda, Prestação de contas, Controle de teto)
 window.__viagIr = async function(alvo){
   if(alvo === 'teto'){ PP_EXP.viag = 'teto'; if(VIEW && VIEW.id === 'viag') render(); return; }
-  const i = {ag:0, pc:4}[alvo]; if(i === undefined) return;
+  const i = {ag:0, gas:4, pc:5}[alvo]; if(i === undefined) return;
   const t0 = Date.now(); while(!(PP_TAB.viag && PP_TAB.viag[i]) && Date.now() - t0 < 20000) await new Promise(ok => setTimeout(ok, 200));
   abrirPPTab('viag', i);
 };
@@ -8267,7 +8306,7 @@ VIEWS.viag = {
     const kp = `<div class="vk">${k('d','Viagens', intN(L.length), intN(L.length - nI) + ' nacionais · ' + intN(nI) + ' internacionais', 'data-viagtab="1"')}${k('','Gasto total', fmtC(tot), 'diárias ' + fmtC(S('diar')) + ' · passagens ' + fmtC(S('pass')), 'data-viagtab="1"')}${k('','Teto do ano', tetoT ? fmtC(tetoT) : '—', tetoT ? Math.round(100 * tot / tetoT) + '% usado · sobra ' + fmtC(Math.max(0, tetoT - tot)) : 'sem teto para estas UGs', 'data-viagteto="1"')}${k('','Custo médio', fmtC(L.length ? tot / L.length : 0), 'por viagem', 'data-viagtab="1"')}${k('r','Urgentes', intN(urg.length), Math.round(100 * urg.length / Math.max(1, L.length)) + '% das viagens', 'data-campo="urgN" data-valor="Urgente"')}</div>`;
     const selU = selDe('urgN').map(String).includes('Urgente');
     const ac = (cl, t, n, s, attr, on) => `<div class="${n ? cl : 'g'} ${on ? 'on' : ''}" ${n && attr ? attr : ''}><p>${t}</p><b>${n}</b><small>${s}</small></div>`;
-    const acao = `<div class="va">${ac('r','Viagem urgente', urg.length, 'pedido fora do prazo de 15 dias', 'data-campo="urgN" data-valor="Urgente" role="button" tabindex="0"', selU)}${ac('o','Passagem comprada com menos de 15 dias', menos15.length, 'de ' + comP.length + ' com passagem', 'data-viagtab="1" role="button" tabindex="0"')}${ac('o','Servidor com mais de 30 diárias', s30.length, s30.slice(0, 2).map(x => x.nome.split(' ')[0]).join(', ') || 'limite anual (Nota Técnica)', 'data-viagtab="2" role="button" tabindex="0"')}${ac('p','Viajam nos próximos 7 dias', prox.length, emCurso.length ? emCurso.length + ' em viagem agora' : 'conferir passagem e diárias', 'data-viagtab="0" role="button" tabindex="0"')}${ac('y','Prestação de contas', pcV.length, 'vencendo ou vencida · conferir entrega', 'data-viagtab="4" role="button" tabindex="0"')}</div>`;
+    const acao = `<div class="va">${ac('r','Viagem urgente', urg.length, 'pedido fora do prazo de 15 dias', 'data-campo="urgN" data-valor="Urgente" role="button" tabindex="0"', selU)}${ac('o','Passagem comprada com menos de 15 dias', menos15.length, 'de ' + comP.length + ' com passagem', 'data-viagtab="1" role="button" tabindex="0"')}${ac('o','Servidor com mais de 30 diárias', s30.length, s30.slice(0, 2).map(x => x.nome.split(' ')[0]).join(', ') || 'limite anual (Nota Técnica)', 'data-viagtab="2" role="button" tabindex="0"')}${ac('p','Viajam nos próximos 7 dias', prox.length, emCurso.length ? emCurso.length + ' em viagem agora' : 'conferir passagem e diárias', 'data-viagtab="0" role="button" tabindex="0"')}${ac('y','Prestação de contas', pcV.length, 'vencendo ou vencida · conferir entrega', 'data-viagtab="5" role="button" tabindex="0"')}</div>`;
     const ano = V.ano || hoje.getFullYear(), ini = new Date(ano, 0, 1), frac = Math.min(1, Math.max(0, (hoje - ini) / (365 * 864e5)));
     const teto = () => `<table class="vt"><tr><th>UG</th><th style="text-align:left">Consumo do teto</th><th>Gasto</th><th>Teto</th><th>Sobra</th><th>%</th></tr>${ugs.map(u => { const g = soma(L.filter(d => d.ugN === u), 'total'), t = VIAG_TETO[u] || 0, p = t ? g / t : 0, c = !t ? 'c' : p > .85 ? 'r' : p > frac ? 'o' : 'v', col = {r:'#b3261e', o:'#d4a017', v:'#1f7a43', c:'#9aa7a0'}[c];
         return `<tr><td><b>${esc(u)}</b></td><td class="bar"><div><i style="width:${Math.min(100, p * 100).toFixed(1)}%;background:${col}"></i><u style="left:${(frac * 100).toFixed(1)}%"></u></div></td><td>${fBv(g)}</td><td>${t ? fmtC(t) : '—'}</td><td>${t ? fmtC(Math.max(0, t - g)) : '—'}</td><td><span class="pill ${c}">${t ? Math.round(p * 100) + '%' : 'sem teto'}</span></td></tr>`; }).join('')}</table>
@@ -8300,6 +8339,7 @@ VIEWS.viag = {
     const cSv = [['Servidor', s => s.nome], ['Cargo', s => s.cargo], ['UG', s => [...s.ugs].join(', ')], ['Viagens', s => String(s.n)], ['Nº de diárias', s => String(s.ndi).replace('.', ',') + (s.ndi > 30 ? ' · acima de 30' : '')], ['Diárias', s => s.diar, 'n'], ['Passagens', s => s.pass, 'n'], ['Total', s => s.total, 'n']];
     const lIn = ord(L.filter(d => d.ext), (a, b) => porIni(b, a));
     const cIn = [['PCDP', d => d.pcdp], ['Servidor', d => d.nome], ['Destino', d => d.dest], ['Ida', d => d.ini], ['Volta', d => d.fim], ['Nº de diárias', d => String(d.ndi).replace('.', ',')], ['Diárias', d => d.diar, 'n'], ['Passagens', d => d.pass, 'n'], ['Total', d => d.total, 'n']];
+    const GA = viagGastos(L);
     const lPC = ord(L.filter(d => d.voltou), (a, b) => (a.prazoPC || 0) - (b.prazoPC || 0)).reverse();
     const cPC = [['PCDP', d => d.pcdp], ['Servidor', d => d.nome], ['UG', d => d.ugN], ['Tipo', d => d.tipo], ['Volta', d => d.fim], ['Prazo da prestação', d => d.prazoPC.toLocaleDateString('pt-BR')], ['Situação do prazo', d => { const p = viagPCSit(d, hoje); return {html:`<span class="pill ${p.cl}">${esc(p.t)}</span>`, txt:p.t}; }]];
     const tabs = [
@@ -8307,6 +8347,7 @@ VIEWS.viag = {
       ['Diárias e passagens', intN(L.length) + ' PCDPs', () => viagTab(cDP, lDP), viagXl('diárias e passagens', 'pcdp', cDP, lDP)],
       ['Por servidor', intN(porServ.length) + ' servidores · ' + intN(s30.length) + ' acima de 30 diárias', () => viagTab(cSv, porServ, false), viagXl('por servidor', 'servidor', cSv, porServ)],
       ['Internacionais e seguro', intN(nI) + ' viagens · seguro pago pela 130005', () => viagTab(cIn, lIn) + '<p class="dica" style="text-align:left;margin-top:8px">O seguro-viagem e as passagens são pagos de forma central pela UG 130005 (não aparecem como gasto da UG SDR). Internacional com ônus: SCRI com 20 dias de antecedência e Nota Técnica.</p>', viagXl('internacionais', 'internacionais', cIn, lIn)],
+      ['Gastos das viagens', intN(GA.length) + ' lançamentos · gasto por gasto, com empenho e ação', () => viagGastosHTML(GA), () => { const R = viagResumo(GA); return {titulo:'Viagens SDR · resumo dos gastos por departamento', sub:'Portal da Transparência', arquivo:'viagens-sdr-resumo-departamento', cab:[{t:'Departamento'}, {t:'Diárias', n:1}, {t:'Pagamentos', n:1, inteiro:1}, {t:'Passagens', n:1}, {t:'Emissões', n:1, inteiro:1}, {t:'Total', n:1}], linhas:R.map(r => [r.dep, r.d, r.nd, r.p, r.np, r.d + r.p])}; }],
       ['Prestação de contas', 'prazo de 5 dias (nacional) ou 30 dias (internacional) após a volta', () => '<p class="dica" style="text-align:left;margin:0 0 8px">O Portal não informa se a prestação foi entregue: a entrega virá da planilha "Controle de SCDP" da equipe. Prestação pendente impede nova viagem.</p>' + viagTab(cPC, lPC), viagXl('prestação de contas', 'prestacao', cPC, lPC)]];
     return CSS_VIAG + chips() + `
     ${ppSec('Situação geral', 'Portal da Transparência · viagens com diárias pagas pelas UGs SDR em ' + ano)}
@@ -14418,7 +14459,7 @@ function preCarregar(){
     ['', [['visao','▦','Visão geral']]],
     ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)'],['ctrsdr','📄','Contratos SDR'],['despesas','🧾','Despesas previstas'],['conferencia','✔','Conferência de Contratos'],['relctr','📄','Relatório do contrato'],['_relctr','📊','Relatório de gestão de contratos'],['alertactr','🔔','Alerta Contratos']]],
     ['ORÇAMENTO E FINANÇAS', [['orcacao','🏛','Orçamento por ações'],['exe','$','Financeiro EXE'],['rap','⏱','Financeiro RAP'],['exerap','⇄','EXE + RAP'],['_relorc','📊','Relatório de gestão orçamentária e financeira'],['cronorc','📅','Cronograma orçamentário'],['alertaorc','🔔','Alerta Orç & Fin']]],
-    ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['_relviag','📊','Relatório de gestão de viagens'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
+    ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viaggas','🧾','Gastos das viagens'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['_relviag','📊','Relatório de gestão de viagens'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
     ['PARCERIAS', [['parc','🤝','Parceria SDR',[['geral','Visão geral'],['prop','Propostas'],['inst','Instrumentos vigentes'],['pc','Prestação de contas']]],
                    ['prop','📝','Propostas SDR'],['conv','📋','Execução Convênio/TF 420013'],['repasse','🏠','Contrato de Repasse'],['relinst','📄','Relatório do instrumento'],['captacao','💡','Captação de Emendas',[['ind','Emenda Individual']]],['indic','🎯','Indicadores'],['_rel','📊','Relatório de gestão de parcerias'],['cronparc','📅','Calendário de parcerias'],['alertaparc','🔔','Alerta Parcerias']]],
     ['TED', [['tedapi','✉','TED GERAL SDR'],['ted','👥','TED EQUIPE SDR'],['_relted','📊','Relatório de gestão de TED'],['alertated','🔔','Alerta TED']]],
