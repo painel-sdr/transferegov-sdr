@@ -13276,13 +13276,20 @@ function rcGestor(C, M){
   const CP = acima ? '#b3261e' : '#1f7a43', CA = '#f6d58a', CT = '#1f4e79', CF = '#e8eee9', CTX = '#9a6a00', temPrev = devido !== null && modo !== '12m';
   const gauge = (() => { const cx = 100, cy = 100, r = 72, ang = p => Math.PI * (1 - Math.min(1, Math.max(0, p))), pt = (p, rr) => [cx + rr*Math.cos(ang(p)), cy - rr*Math.sin(ang(p))];
     const arc = (p0, p1, c) => { if(p1 <= p0) return ''; const [a, b] = pt(p0, r), [x, y] = pt(p1, r); return `<path d="M${a.toFixed(1)},${b.toFixed(1)}A${r},${r} 0 0 1 ${x.toFixed(1)},${y.toFixed(1)}" fill="none" stroke="${c}" stroke-width="16"/>`; };
-    let g = arc(0, 1, CF) + arc(0, Math.min(1, pPago), CP) + (temPrev ? arc(Math.min(1, pPago), pTempo, CA) : '');
+    let g = arc(0, 1, CF) + (temPrev ? arc(Math.min(1, pPago), pTempo, CA) : '');
+    g += arc(0, Math.min(1, pPago), CP);
+    // anos do contrato em volta do velocímetro, afastados do arco · passar o mouse mostra o valor pago no ano
+    const porAno = new Map(); pm.forEach((v, k) => { if(k >= kIni && v) porAno.set(Math.floor(k / 100), (porAno.get(Math.floor(k / 100)) || 0) + v); });
+    const anosC = []; if(modo !== '12m') for(let y = ini.getFullYear(); y <= fim.getFullYear(); y++) anosC.push(y);
+    anosC.forEach((y, i) => { const v = porAno.get(y) || 0, fut = y > ano, p = anosC.length === 1 ? .5 : .04 + .92 * i / (anosC.length - 1), [lx, ly] = pt(p, r + 27);
+      const tip = fut ? `title="${y}: ano ainda não chegou"` : `data-tip-s="${y} · ${v > 0.005 ? 'pago no ano ('+pc(v / tot)+' do contrato)' : 'sem pagamento'}|${v}"`;
+      g += `<g style="cursor:help" ${tip}><circle cx="${lx.toFixed(1)}" cy="${(ly - 3).toFixed(1)}" r="12" fill="transparent"/><text x="${lx.toFixed(1)}" y="${(ly).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="${fut ? '#c3ccc7' : v > 0.005 ? '#155a30' : '#9aa7a0'}">${y}</text></g>`; });
     if(temPrev){ const [t1, t2] = pt(pTempo, r-12), [t3, t4] = pt(pTempo, r+12); g += `<line x1="${t1.toFixed(1)}" y1="${t2.toFixed(1)}" x2="${t3.toFixed(1)}" y2="${t4.toFixed(1)}" stroke="${CT}" stroke-width="3"/>`; }
     const [nx, ny] = pt(Math.min(1, pPago), r-24);
     g += `<line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="#2b3a31" stroke-width="3" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="5" fill="#2b3a31"/>
       <text x="${cx}" y="${cy-26}" text-anchor="middle" font-size="22" font-weight="800" fill="${CP}">${pc(pPago)}</text><text x="${cx}" y="${cy-13}" text-anchor="middle" font-size="8.5" fill="#5f6f66">${modo === '12m' ? 'do valor anual pago' : 'do contrato pago'}</text>
       ${temPrev ? `<text x="${cx}" y="${cy+20}" text-anchor="middle" font-size="9.5" font-weight="700"><tspan fill="${CT}">▍previsto ${pc(pTempo)}</tspan>${atraso > 0.5 ? `<tspan fill="${CTX}"> · atraso ${C2(atraso)}</tspan>` : ''}</text>` : ''}`;
-    return `<svg viewBox="0 0 200 128" width="200" style="max-width:100%" role="img" aria-label="Velocímetro: ${pc(pPago)} pago">${g}</svg>`; })();
+    return `<svg viewBox="-24 -16 248 144" width="230" style="max-width:100%" role="img" aria-label="Velocímetro: ${pc(pPago)} pago">${g}</svg>`; })();
   // régua da vigência: pontas com a data de início e de fim do contrato (período inteiro)
   const regua = (() => { const Lx = 4, W = 352, y1 = 24, y2 = 86, hh = 24, X = p => Lx + W * Math.min(1, Math.max(0, p)); let g = '';
     const dC = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'});
