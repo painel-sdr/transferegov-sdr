@@ -8205,6 +8205,8 @@ function viagGastos(L){
   if(!G) L.forEach(d => { if(!(d.psg||[]).length && d.pass > 0.005) lin(d, {data:d.ini, tipo:'Passagem', ug:'130005', dep:viagDep(d.ug, '', ''), ne:'paga pela 130005', doc:'—', acao:'', valor:d.pass}); });
   return out.sort((a, b) => a.dataO - b.dataO);
 }
+let VIAG_SUS_ABERTA = false;
+document.addEventListener('toggle', e => { if(e.target.classList && e.target.classList.contains('vsus')) VIAG_SUS_ABERTA = e.target.open; }, true);
 const RAW_VIAG = 'https://raw.githubusercontent.com/painel-sdr/transferegov-sdr/dados/viagens/';
 const fBv = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 const CSS_VIAG = `<style>
@@ -8234,12 +8236,13 @@ function viagResumo(GA){
   const m = {}; GA.forEach(o => { const r = m[o.dep] || (m[o.dep] = {dep:o.dep, d:0, nd:0, p:0, np:0}); if(o.tipo === 'Passagem'){ r.p += o.valor; r.np++; } else { r.d += o.valor; r.nd++; } });
   return Object.values(m).sort((a, b) => (b.d + b.p) - (a.d + a.p));
 }
-function viagGastosHTML(GA){
+function viagGastosHTML(GA, tid){
+  tid = tid || 'viaggas';
   const R = viagResumo(GA), T = R.reduce((a, r) => (a.d += r.d, a.p += r.p, a.nd += r.nd, a.np += r.np, a), {d:0, p:0, nd:0, np:0}), G = (DADOS.viag||{}).gastos;
   const res = `<details class="vres" open><summary>Resumo por departamento · ${fBv(T.d + T.p)} <small>(o botão "Extração em Excel" do topo baixa este resumo)</small></summary><table class="t"><thead><tr><th>Departamento</th><th class="num">Diárias</th><th class="num">Pagamentos</th><th class="num">Passagens</th><th class="num">Emissões</th><th class="num">Total</th></tr></thead><tbody>${R.map(r => `<tr><td><b>${esc(r.dep)}</b></td><td class="num">${fBv(r.d)}</td><td class="num">${r.nd}</td><td class="num">${fBv(r.p)}</td><td class="num">${r.np}</td><td class="num"><b>${fBv(r.d + r.p)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td class="num">${fBv(T.d)}</td><td class="num">${T.nd}</td><td class="num">${fBv(T.p)}</td><td class="num">${T.np}</td><td class="num">${fBv(T.d + T.p)}</td></tr></tfoot></table></details>`;
   const cols = [['data','Data'], ['tipo','Tipo','tag'], ['pcdp','PCDP'], ['nome','Servidor'], ['dep','Departamento'], ['acao','Ação · PO'], ['ug','UG'], ['ne','Empenho'], ['doc','Documento / trecho'], ['destC','Destino'], ['valor','Valor','n']];
   return `<style>.vres{margin:0 0 12px}.vres>summary{cursor:pointer;font-weight:700;color:#155a30;font-size:13.5px;margin-bottom:6px}.vres small{font-weight:400;color:#7a877f}.vres table{font-size:12.5px}</style>` + res
-    + tabela('viaggas', 'Gastos das viagens · linha por linha', cols, GA, {ordem:{campo:'dataO', dir:1}, arquivo:'viagens-sdr-gastos', filtrosTab:[['tipo','Tipo'], ['dep','Departamento'], ['acao','Ação · PO'], ['ne','Empenho'], ['pcdp','PCDP'], ['nome','Servidor'], ['mes','Mês']]})
+    + tabela(tid, 'Gastos das viagens · linha por linha', cols, GA, {ordem:{campo:'dataO', dir:1}, arquivo:'viagens-sdr-gastos', filtrosTab:[['tipo','Tipo'], ['dep','Departamento'], ['acao','Ação · PO'], ['ne','Empenho'], ['pcdp','PCDP'], ['nome','Servidor'], ['mes','Mês']]})
     + `<p class="dica" style="text-align:left;margin-top:6px">Diárias: ordem bancária do SCDP ("PCDP … P/ PGTO. DE … DIÁRIAS") e a nota de empenho que ela pagou · Portal da Transparência, Despesas${G && G.ate ? ' (lido até '+G.ate.slice(6)+'/'+G.ate.slice(4,6)+'/'+G.ate.slice(0,4)+')' : ' (ainda sem a leitura do robô: valores do Portal de Viagens)'}. Passagens: pagas pela UG 130005, por trecho; ação e departamento da diária da mesma viagem. Departamento pela UG e pela ação/PO da nota (regra do Orçamento e Finanças).</p>`;
 }
 function viagPCSit(d, hoje){
@@ -8395,6 +8398,7 @@ VIEWS.viag = {
     ${ppExplorar(ops)}
     ${ppSec('Tabelas detalhadas', 'abrem sob demanda (com Excel) · clique na linha para abrir a viagem')}
     ${ppTabelas(tabs)}
+    <details class="card vsus" ${VIAG_SUS_ABERTA ? 'open' : ''} style="margin-top:14px;padding:12px 16px"><summary style="cursor:pointer;font-weight:700;color:#155a30;font-size:14.5px">🧾 Gastos das viagens · linha por linha · ${intN(GA.length)} lançamentos · ${fBv(soma(GA, 'valor'))} <small style="font-weight:400;color:#7a877f">· clique para abrir ou fechar · acompanha os filtros da tela</small></summary><div style="margin-top:10px">${viagGastosHTML(GA, 'viaggasL')}</div></details>
     <p class="rodape">Portal da Transparência, Viagens a Serviço ${ano}${V.posicao ? ' (posição de ' + esc(V.posicao) + ')' : ''} · viagens com diárias pagas pelas UGs 420013, 130010, 130141, 130255 e 135098 · passagens e seguro são pagos pela 130005 · teto de exemplo até a planilha da equipe</p>`;
   }
 };
