@@ -225,9 +225,11 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') fecharFicha(); 
 const UG_SDR_NOME = {'420013':'Secretaria de Desenvolvimento Rural','130141':'Coord.-Geral de Parcerias Institucionais','130010':'CEPLAC','130255':'Coord.-Geral de Modernização e Apoio à Produção','135098':'Caixa Econômica Federal/MA'};
 function fichaNE(o, t){
   const L = o.nes || [];
+  const avF = (o.ptF||[]).length ? `<p class="obs" style="background:#fff3e0;color:#7a4a00"><b>⚠ O relatório "EMPENHOS TED" do Tesouro Gerencial não traz o PTRES ${o.ptF.map(esc).join(', ')}.</b> Os empenhos da unidade nesse PTRES não aparecem aqui: incluir no filtro do relatório e rodar o robô.</p>` : '';
+  if(!L.length && avF) return `<div class="sb">Empenhos da unidade descentralizada</div>${avF}`;
   if(!L.length) return `<div class="sb">Empenhos da unidade descentralizada</div><p class="obs" style="background:#f4f6f8;color:#6b7a86">${o.nc>0?'Nenhum empenho encontrado no Tesouro para a UG '+esc(o.ugr)+' com os PTRES das notas de crédito deste TED.':'Sem crédito descentralizado: ainda não há o que empenhar.'}</p>`;
   const T = o.neT, pg = T[2]+T[3], comp = L.some(x => x[11]);
-  return `<div class="sb">Empenhos da unidade descentralizada · UG ${esc(o.ugr)}</div>
+  return `<div class="sb">Empenhos da unidade descentralizada · UG ${esc(o.ugr)}</div>${avF}
    <div class="vl" style="grid-template-columns:repeat(4,1fr)"><div style="--c:#2e8a57"><span>Empenhado</span><b>${R$(T[0])}</b></div><div style="--c:#5b6eae"><span>Empenhado a pagar</span><b>${R$(Math.max(0, T[0]-pg))}</b></div>
     <div style="--c:#1e6b45"><span>Pago (ano + restos a pagar)</span><b>${R$(pg)}</b></div><div style="--c:#b7860b"><span>Descentralizado sem empenho</span><b>${R$(Math.max(0, o.nc - T[0]))}</b></div></div>
    <div class="br"><div><span>Execução da unidade</span><b>${pct(T[0],o.nc)} empenhado · ${pct(pg,o.nc)} pago</b></div><i><em style="width:${Math.min(100, o.nc ? pg/o.nc*100 : 0).toFixed(1)}%;background:#1e6b45"></em></i></div>

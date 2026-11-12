@@ -145,6 +145,10 @@ def parcerias(saida):
 
 def ted(saida):
     T = ler(os.path.join(saida, 'ted', 'ted_base_atualizada.csv'))
+    try:
+        ptF = {k: v['ptF'] for k, v in json.load(open(os.path.join(saida, 'ted', 'ted_ficha.json'), encoding='utf-8')).items() if v.get('ptF')}
+    except Exception:
+        ptF = {}
     out = []
     EQ = {'130010', '420013'}
     for menu, filtro in (('ted', lambda r: r['UG descentralizadora'] in EQ or r['UG descentralizada'] in EQ),
@@ -167,7 +171,11 @@ def ted(saida):
         out.append(alerta(menu, 'y', 'vig90', 'Vigência vence em 31 a 90 dias', 'Acompanhar a execução e o prazo.', [I(r, f'vence em {d(r)} dia(s)') for r in v90]))
         semnc = [r for r in exe if f(r.get('Descentralizado NC (API)')) == 0 and f(r.get('NC no Tesouro')) == 0 and r.get('Enviado / recebido') == 'Enviado']
         out.append(alerta(menu, 'r', 'semnc', 'TED em execução sem crédito descentralizado (sem NC)', 'Emitir a nota de crédito ou conferir no Tesouro se a NC foi emitida e ainda não aparece no relatório.', [I(r, 'sem NC') for r in semnc]))
-        ncsemne = [r for r in exe if (f(r.get('Descentralizado NC (API)')) > 0 or f(r.get('NC no Tesouro')) > 0) and f(r.get('Empenhado pela unidade (NE)')) == 0 and r.get('Enviado / recebido') == 'Enviado']
+        kT = lambda r: re.sub(r'[^0-9A-Z]', '', (r.get('Nº TED') or '').upper().split(' ')[0]).lstrip('0')
+        fora = [r for r in exe if ptF.get(kT(r))]
+        out.append(alerta(menu, 'r', 'ptresne', 'PTRES fora do relatório "EMPENHOS TED" (Tesouro Gerencial)', 'Incluir o PTRES no filtro do relatório EMPENHOS TED no Tesouro Gerencial e rodar o robô: sem isso o painel não mostra os empenhos da unidade e o TED pode aparecer como "sem empenho".',
+                          [I(r, 'PTRES ' + ', '.join(ptF[kT(r)]) + ' fora do relatório') for r in fora]))
+        ncsemne = [r for r in exe if not ptF.get(kT(r)) and (f(r.get('Descentralizado NC (API)')) > 0 or f(r.get('NC no Tesouro')) > 0) and f(r.get('Empenhado pela unidade (NE)')) == 0 and r.get('Enviado / recebido') == 'Enviado']
         out.append(alerta(menu, 'y', 'ncsemne', 'Crédito descentralizado sem empenho pela unidade', 'Cobrar da unidade descentralizada o empenho do crédito recebido.', [I(r, 'NC sem empenho') for r in ncsemne]))
         comp = [r for r in L if f(r.get('A comprovar (Tesouro)')) > 0 and d(r) is not None and d(r) < -60]
         out.append(alerta(menu, 'y', 'comprovar', 'Saldo a comprovar com a vigência encerrada há mais de 60 dias', 'Cobrar o relatório de cumprimento do objeto e a comprovação no SIAFI.', [I(r, 'a comprovar no Tesouro') for r in comp]))

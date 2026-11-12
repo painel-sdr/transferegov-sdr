@@ -725,6 +725,10 @@ def ted(pasta):
                 o['obT'] = round(o['obT'] + sum(x[4] for x in pg_), 2)
             if not comp:
                 o['neT'] = [round(a_ + b_, 2) for a_, b_ in zip(o['neT'], v)]
+    # PTRES das NCs de TED em execução que o relatório "EMPENHOS TED" (Tesouro Gerencial) não traz: sem eles o painel não acha os empenhos (12/11/2026)
+    cobertos = {e['ptres'].strip() for e in ler(tp, 'ted_tesouro_ne.csv') if e.get('ptres')}
+    for o in linhas:
+        o['ptF'] = sorted({str(x[5]).strip() for x in o.get('ncs') or [] if str(x[5]).strip()} - cobertos) if cobertos and o.get('fase') == 'Em execução' else []
     for o in linhas:
         o['nes'] = sorted(o['nes'], key=lambda x: (x[1][6:10], x[1][3:5], x[1][:2]), reverse=True)[:60]
         o['obs'] = sorted(o.get('obs') or [], key=lambda x: (x[1][6:10], x[1][3:5], x[1][:2]), reverse=True)[:120]
@@ -985,7 +989,7 @@ def ted(pasta):
         t = o.get('tes') or {}
         fic[k] = dict(fir=o.get('fir') or 0, nc=o.get('nc') or 0, pf=o.get('pf') or 0, ar=o.get('ar') or 0, neT=o.get('neT') or [0, 0, 0, 0],
                       tes={c: t.get(c) for c in ('fir', 'nc', 'rep', 'aRep', 'aComp', 'comp')} if t else None,
-                      ncs=o.get('ncs') or [], provs=o.get('provs') or [], pfs=o.get('pfs') or [], nes=o.get('nes') or [], obs=o.get('obs') or [], obT=o.get('obT') or 0, nca=o.get('nca') or [], acao=o.get('acao', ''), fase=o.get('fase', ''), firOrig=o.get('firOrig'), ajValor=o.get('ajValor'), ugd=o.get('ugd', ''))
+                      ncs=o.get('ncs') or [], provs=o.get('provs') or [], pfs=o.get('pfs') or [], nes=o.get('nes') or [], obs=o.get('obs') or [], obT=o.get('obT') or 0, nca=o.get('nca') or [], acao=o.get('acao', ''), fase=o.get('fase', ''), firOrig=o.get('firOrig'), ajValor=o.get('ajValor'), ugd=o.get('ugd', ''), ptF=o.get('ptF') or [])
     with open(os.path.join(tp, 'ted_ficha.json'), 'w', encoding='utf-8') as fh:
         json.dump(fic, fh, ensure_ascii=False, separators=(',', ':'))
     print(f'ted/ted_ficha.json · {len(fic)} TEDs', flush=True)
