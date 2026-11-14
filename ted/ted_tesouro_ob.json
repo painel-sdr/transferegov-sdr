@@ -1,0 +1,11 @@
+{
+ "gerado_em": "14/11/2026 15:35",
+ "fontes": [
+  {
+   "link": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8khlUawIDFMPUSOMjki7m2RN3mIuL7E-n5h7-bneKZ2aitrRrxyr56LArOeSWQx2A261o2pOZ531z/pub?gid=804982778&single=true&output=csv",
+   "erro": "não achei as colunas \"NE CCor\" e \"OB\"",
+   "ok": false
+  }
+ ],
+ "linhas": 0
+}

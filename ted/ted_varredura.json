@@ -1,0 +1,25 @@
+{
+ "gerado_em": "14/11/2026 15:36",
+ "problemas": 163,
+ "teds_com_problema": 90,
+ "por_categoria": {
+  "NC cita outro TED": 1,
+  "NC maior que o firmado": 9,
+  "PF cita outro TED": 1,
+  "PF maior que o TED": 34,
+  "RP divergente": 1,
+  "Situação × vigência": 3,
+  "Empenho em mais de um TED": 28,
+  "Empenho maior que a NC": 7,
+  "Fim da vigência divergente": 3,
+  "Mesmo processo com outro nº": 20,
+  "PF maior que a NC": 25,
+  "Valor firmado divergente": 5,
+  "PF para outra UG": 26
+ },
+ "por_gravidade": {
+  "alta": 49,
+  "média": 88,
+  "baixa": 26
+ }
+}

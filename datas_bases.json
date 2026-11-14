@@ -1,0 +1,132 @@
+{
+ "gerado_em": "14/11/2026 12:38",
+ "bases": {
+  "transferegov": {
+   "nome": "Transferegov · dados abertos",
+   "tipo": "robô",
+   "hash": "2edb489230328e1e45f7847cb045f94a9c41c2b171db1d166d023bb68fbba471",
+   "linhas": 1000589,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "11/11/2026 21:57",
+   "carga": "09/11/2026 06:34:43"
+  },
+  "obras": {
+   "nome": "Obrasgov · obras e medições",
+   "tipo": "robô",
+   "hash": "9462455782c63ec7fd353c1d9803b85ffcc1e89e664388f7023f0aed28e5efb3",
+   "linhas": 3539,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "10/11/2026 07:11"
+  },
+  "contratos": {
+   "nome": "Contratos.gov.br · API",
+   "tipo": "robô",
+   "hash": "1306e08c68fadd814966e6dd325573aebc2df***.832.191-**d0a822be4f80a406",
+   "linhas": 8443,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "14/11/2026 12:38"
+  },
+  "ted_api": {
+   "nome": "TED · API do Transferegov",
+   "tipo": "robô",
+   "hash": "e7dd870cf36d64baf76349695a7cb3e127f54631f4b4d85d2806f88e397dd556",
+   "linhas": 205,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "13/11/2026 12:45"
+  },
+  "ted_tesouro": {
+   "nome": "TED · Tesouro Gerencial (NC, PF, NE, OB)",
+   "tipo": "robô",
+   "hash": "180f37518645013449754cd2d5f79835242ff3d63352b343862ef11db1b36e8d",
+   "linhas": 5671,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "14/11/2026 07:03"
+  },
+  "orcamento": {
+   "nome": "Orçamento · BASE ORÇAMENTO SDR (Tesouro Gerencial)",
+   "tipo": "robô",
+   "hash": "3fb74bb63c3ea8d5529ec4d1ddec031a9ecb1b59de4a1cda5e46a5d0d8eb7534",
+   "linhas": 762,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "14/11/2026 07:03"
+  },
+  "emendas": {
+   "nome": "Emendas · SIOP",
+   "tipo": "robô",
+   "hash": "0a1b6c55c7d177561e94936004ae4fddb02ea0950838de17230cb477c22b7119",
+   "linhas": 0,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "11/11/2026 07:17"
+  },
+  "pl_base": {
+   "nome": "Base Contratos (CEPLAC)",
+   "tipo": "planilha",
+   "hash": "7792a159cf588e3c6f528d0d3ca6e231e48032391ac9431e9b5881742b884887",
+   "linhas": 60,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "12/11/2026 12:56"
+  },
+  "pl_despesas": {
+   "nome": "Novas despesas previstas",
+   "tipo": "planilha",
+   "hash": "1344a9ad8765a434aea72bf950e308599dfc7cf63c12f8ce806773aecf43ec69",
+   "linhas": 86,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "12/11/2026 16:53"
+  },
+  "pl_siop": {
+   "nome": "SIOP SDR (departamentos e PLOA)",
+   "tipo": "planilha",
+   "hash": "cb75e2c4b77afaba3368d36187adc3873dc3e492f0903bd6474236fd09e65196",
+   "linhas": 66,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "07/11/2026 07:01"
+  },
+  "pl_parc": {
+   "nome": "BASE GERAL Convênio e Termo",
+   "tipo": "planilha",
+   "hash": "8570b1f2d93685dab2d171e8f809220a7e08382f006c65f49bfd26630b95a454",
+   "linhas": 32040,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "03/11/2026 08:15"
+  },
+  "pl_prop": {
+   "nome": "BASE PROPOSTAS",
+   "tipo": "planilha",
+   "hash": "2dc178716de3ee9c69de86dedbdb5b5d1afe3f25c6193aab841bcbd2bcdf62ff",
+   "linhas": 105,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "11/11/2026 17:00"
+  },
+  "pl_conv": {
+   "nome": "BASE CONV. E TERMO (420013)",
+   "tipo": "planilha",
+   "hash": "72cb0370d1598f9dd2138f2d672a7af38bc69c75643e54034140dfbadf1750e1",
+   "linhas": 993,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "13/11/2026 16:51"
+  },
+  "pl_ted": {
+   "nome": "TED equipe (vigentes, dispensa, prestação de contas, aprovados)",
+   "tipo": "planilha",
+   "hash": "b9eb84d552129a46909fc7ea6e434e1e415c***.829.646-**ddcea14ec5c10628f",
+   "linhas": 163,
+   "ok": true,
+   "conferido": "14/11/2026 12:38",
+   "atualizado": "14/11/2026 12:38"
+  }
+ }
+}

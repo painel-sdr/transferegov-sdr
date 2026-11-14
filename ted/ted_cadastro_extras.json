@@ -1,0 +1,1437 @@
+{
+ "gerado_em": "14/11/2026 15:35",
+ "dispensas": [
+  {
+   "processo": "21000.021482/2026-59",
+   "recebedora": "Embrapa Meio-Norte",
+   "departamento": "DECAP",
+   "valor": 234000.0,
+   "aba": "Dispensa de TED",
+   "situacao": "Em execução",
+   "objeto": "Pegada de carbono do leite bovino produzido no estado do Piauí"
+  },
+  {
+   "processo": "21000.023087/2026-19",
+   "recebedora": "Embrapa Sede",
+   "departamento": "SDR",
+   "valor": 150000.0,
+   "aba": "Dispensa de TED",
+   "situacao": "Em execução",
+   "objeto": "Apoiar a realização da Feira Brasil na Mesa, uma iniciativa da Embrapa e do Governo Federal, evento realizado de 23 a 25 de abril em Planaltina/DF."
+  },
+  {
+   "processo": "21000.042350/2025-80",
+   "recebedora": "Universidade Tecnológica Federal do Paraná - UTFPR",
+   "departamento": "DEPROS",
+   "valor": 91000.0,
+   "aba": "Dispensa de TED",
+   "situacao": "Em execução",
+   "objeto": "Realizar o mapeamento de solos na região Oeste do Paraná, na microbacia hidrográfica do Rio Dourado, dos municipios de Medianeira, Matelândia e Serranópolis do Iguaçu. Utilizando as diretrizes e metodologias do PronaSolos, conforme o Sistema Brasileiro de Classificação de Solos."
+  },
+  {
+   "processo": "21000.048417/2026-71",
+   "recebedora": "Universidade Federal do Agreste de Pernambuco - UFAPE",
+   "departamento": "DECAP",
+   "valor": 233036.69,
+   "aba": "Dispensa de TED",
+   "situacao": "Em execução",
+   "objeto": "Promover a participação institucional da Universidade Federal do Agreste de Pernambuco (UFAPE) na 33ª Agrinordeste"
+  },
+  {
+   "processo": "21000.069465/2026-01",
+   "recebedora": "Embrapa Maranhão",
+   "departamento": "DECAP",
+   "valor": 84000.0,
+   "aba": "Dispensa de TED",
+   "situacao": "Em execução",
+   "objeto": "Difundir tecnologias sustentáveis para a agropecuária maranhense, por meio da participação da Embrapa na Expoema, feira agropecuária realizada no município de São Luís, estado do Maranhão."
+  },
+  {
+   "processo": "21000.074475/2025-79",
+   "recebedora": "Embrapa Amazônia Oriental",
+   "departamento": "DEPROS",
+   "valor": 234000.0,
+   "aba": "Dispensa de TED",
+   "situacao": "Ofício Solicita esclarecimentos sobre a prestação de contas",
+   "objeto": "Apoio logístico e operacional ao funcionamento da AGRIZONE durante a COP30, compreendendo serviços de manutenção, conservação, segurança e suprimento destinados à adequada preparação das instalações da Embrapa Amazônia Oriental em Belém/PA."
+  },
+  {
+   "processo": "21000.074909/2025-31",
+   "recebedora": "Ministério do Desenvolvimento Agrário e Agricultura Familiar",
+   "departamento": "DEPROS",
+   "valor": 50574.74,
+   "aba": "Dispensa de TED",
+   "situacao": "Prestação de contas pendente, aguarda tramitar",
+   "objeto": "O presente plano de trabalho tem por objetivo a execução de ações voltadas à promoção da sustentabilidade na agricultura, à valorização da biodiversidade brasileira e à conscientização sobre a preservação ambiental, em conformidade com os compromissos assumidos pelo Brasil na COP30."
+  },
+  {
+   "processo": "21000.081467/2025-89",
+   "recebedora": "Embrapa Meio-Norte",
+   "departamento": "DECAP",
+   "valor": 200000.0,
+   "aba": "Dispensa de TED",
+   "situacao": "Em execução",
+   "objeto": "Transferência de tecnologias visando segurança alimentar de rebanhos no período seco no Semiárido"
+  },
+  {
+   "processo": "21000.048975/2026-36",
+   "recebedora": "Embrapa Maranhão",
+   "departamento": "DECAP",
+   "valor": 300000.0,
+   "aba": "TED vigente",
+   "situacao": "",
+   "objeto": "Difundir tecnologias sustentáveis para a agropecuária maranhense, por meio da participação da Embrapa na Expoimp, feira agropecuária realizada no município de Imperatriz, estado do Maranhão."
+  },
+  {
+   "processo": "21000.068735/2026-58",
+   "recebedora": "Universidade Federal de Alagoas - UFAL",
+   "departamento": "DECAP",
+   "valor": 6010000.0,
+   "aba": "TED vigente",
+   "situacao": "",
+   "objeto": "Promover o fortalecimento institucional, gerencial e cooperativista de 15 cooperativas agropecuárias da agricultura familiar em Alagoas, por meio de diagnóstico multidimensional, formação continuada, planejamento estratégico e gestão orientada para resultados, com suporte administrativo e financeiro"
+  }
+ ],
+ "planos_sem_no": [
+  {
+   "plano": "00001420230139-002514",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Trigo",
+   "situacao_plano": "EM_ELABORACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 300000.0,
+   "objeto": "Capacitar consultores técnicos em boas práticas de manejo do solo e da água e diversificação de cultivos, visando a melhoria da qualidade biológica, física e química dos solos agrícolas para elevar a estabilidade produtiva de lavouras e a rentabilidade de propriedades rurais no Rio Grande do Sul, du"
+  },
+  {
+   "plano": "30879320250002-005341",
+   "ug_desc": "130141",
+   "recebedora": "Universidade Federal de Catalão",
+   "situacao_plano": "EM_ELABORACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 4900000.0,
+   "objeto": "Estudo PROSPECÇÃO e processamento de remineralizadores de solo (ReMinerar)"
+  },
+  {
+   "plano": "00352020260001-005802",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Rural do Semi-Árido",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 300000.0,
+   "objeto": "O presente projeto tem por objeto a contratação de serviços técnicos especializados para apoio à coleta de dados e ao monitoramento das ações da 2a etapa do Plano Nordeste +Sustentável, por meio da alocação de bolsistas nas Superintendências Federais de Agricultura e Pecuária (SFAs) dos estados abra"
+  },
+  {
+   "plano": "30879320260001-006290",
+   "ug_desc": "130141",
+   "recebedora": "Universidade Federal de Pernambuco",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 5030896.7,
+   "objeto": "Promover o lançamento e a valorização da raça Berganês, de excepcional capacidade produtiva de carne ovina,priorizando o incremento dos índices produtivos, a otimização do aproveitamento nutricional e oaprimoramento do patrimônio genético dos planteis, mediante a disseminação de inovações tecnológic"
+  },
+  {
+   "plano": "30879320260007-006307",
+   "ug_desc": "130141",
+   "recebedora": "Companhia de Desenvolvimento dos Vales do São Francisco e do Parnaíba",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 39350466.89,
+   "objeto": "Execução de obras de pavimentação em municípios no Estado do Ceará, na área de atuação da 14ª Superintendência Regional da Codevasf."
+  },
+  {
+   "plano": "00352020260004-006398",
+   "ug_desc": "420013",
+   "recebedora": "Ministério do Trabalho e Emprego",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 188445.16,
+   "objeto": "O presente plano de trabalho tem por objeto a aquisição de itens patrimoniais necessários ao melhor desenvolvimento das atividades finalísticas da Superintendência Regional do Trabalho e Emprego em Minas Gerais, em sua área de Fiscalização do Trabalho, mais propriamente para aplicação no Projeto de "
+  },
+  {
+   "plano": "30879320260006-006404",
+   "ug_desc": "130141",
+   "recebedora": "Instituto Nacional de Pesquisa do Pantanal",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1652876.66,
+   "objeto": "Fomentar a pesquisa de fortalecimento da agricultura familiar por meio da verticalização da produção agroindustrial em Mato Grosso, priorizando a identificação dos entraves no desenvolvimento dos Arranjos Produtivos Locais (APLs) do beneficiamento da castanha do Baru e Apicultura na Bacia do Alto Pa"
+  },
+  {
+   "plano": "30879320260006-006475",
+   "ug_desc": "130141",
+   "recebedora": "Universidade Federal de Alagoas",
+   "situacao_plano": "EM_ELABORACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 18000000.0,
+   "objeto": "Aprimorar a capacidade institucional, produtiva, agroindustrial e comercial de cooperativas da agricultura familiar em Alagoas, por meio de formação, investimentos estruturantes e acompanhamento técnico continuado."
+  },
+  {
+   "plano": "30879320260004-006769",
+   "ug_desc": "130141",
+   "recebedora": "Departamento Nacional de Obras Contra as Secas",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1891830.17,
+   "objeto": "Apoio à infraestrutura produtiva através da realização de serviços de pavimentação no Estado da Paraíba."
+  },
+  {
+   "plano": "00352020260006-006783",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Sul de Minas Gerais",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 191000.0,
+   "objeto": "Aquisição de máquinas, implementos e equipamentos agrícolas de menor porte para modernização da Fazenda Escola do IFSULDEMINAS – Campus Muzambinho, como infraestrutura de ensino, pesquisa, extensão e demonstração de tecnologias aplicáveis à agricultura familiar, incluindo apoio à agroindústria e à l"
+  },
+  {
+   "plano": "30879320250001-004338",
+   "ug_desc": "130141",
+   "recebedora": "Companhia de Desenvolvimento dos Vales do São Francisco e do Parnaíba",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 25000000.0,
+   "objeto": "Execução de obras de pavimentação na área de atuação da 14ª Superintendência Regional da CODEVASF no Estado do Ceará"
+  },
+  {
+   "plano": "00352020250007-005042",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Meio Ambiente",
+   "situacao_plano": "ANALISE_APROVADA",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 450000.0,
+   "objeto": "Avaliar e comparar as perdas na cadeia produtiva do morango por meio da coleta de informações nos sistemas produção orgânico, convencional e produção integrada."
+  },
+  {
+   "plano": "00352020250013-005085",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de Mato Grosso",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 10200000.0,
+   "objeto": "Promover educação e formação rural para desenvolvimento de pequenos produtores com inovação, sustentabilidade, agroecologia e empreendedorismo, visando a qualificação e fortalecimento de cadeias produtivas locais."
+  },
+  {
+   "plano": "30879320250012-005574",
+   "ug_desc": "130141",
+   "recebedora": "Fundação Universidade Federal de Mato Grosso do Sul",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 4000000.0,
+   "objeto": "Desenvolver Núcleos de Educação em Agroecologia Comunitária do Estado de Mato Grosso do Sul, com foco na agricultura familiar, bioeconomia e sustentabilidade produtiva."
+  },
+  {
+   "plano": "00001420230077-002316",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "ANALISE_APROVADA",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 150000000.0,
+   "objeto": "Promover uma agricultura sustentável na Amazônia por meio da transferência de tecnologia voltada ao fortalecimento dos sistemas agroflorestais, manejo madeireiro e não madeireiro e arranjos produtivos locais, em municípios prioritários de acordo com a Portaria GM/MMA Nº 834 de 9 de novembro de 2023 "
+  },
+  {
+   "plano": "00001420230106-002360",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Estado do Rio de Janeiro",
+   "situacao_plano": "EM_ELABORACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 525000.0,
+   "objeto": "APOIO À ESTRUTURAÇÃO DE LABORATÓRIO PARA BIOPROSPECÇÃO DE BACTÉRIAS ENDOFÍTICAS PROMOTORAS DE CRESCIMENTO EM PLANTAS PARA USO COMO BIOINSUMO NA AGRICULTURA NACIONAL."
+  },
+  {
+   "plano": "00001420230105-002430",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal de Campina Grande",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 500000.0,
+   "objeto": "O objeto principal do Projeto Agrolab, liderado pela Universidade Federal de Campina Grande através do Núcleo de Inovação e Transferência de Tecnologia (NITT), é promover a inovação e o desenvolvimento sustentável no setor agrícola do semiárido nordes􀆟no. Este projeto foca em fortalecer a transferên"
+  },
+  {
+   "plano": "00001420240005-003137",
+   "ug_desc": "130141",
+   "recebedora": "Companhia de Desenvolvimento dos Vales do São Francisco e do Parnaíba",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 400000.0,
+   "objeto": "Implantação de usina de produção de energia fotovoltaica no PPI Bebedouro, localizado no município de Petrolina/PE."
+  },
+  {
+   "plano": "00001420240005-003181",
+   "ug_desc": "130141",
+   "recebedora": "Embrapa Cerrados",
+   "situacao_plano": "EM_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2500000.0,
+   "objeto": "Constituir a primeira etapa de um Ambiente Promotor de Inovação – API vinculado à Embrapa, por meio da Embrapa Cerrados, a ser designado HeveaHub, com foco em processos de inovação aberta para o fortalecimento da cadeia produtiva da borracha natural, tendo como papel fundamental viabilizar soluções "
+  },
+  {
+   "plano": "00001420220087-000829",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Suínos e Aves",
+   "situacao_plano": "EM_COMPLEMENTACAO",
+   "situacao_termo": "ENVIADO",
+   "processo": "21000.023836/2022-76",
+   "valor": 200000.0,
+   "objeto": "Prover informações técnicas direcionadas à produtores, cooperativas e agroindústrias por meio de cartilhas, manuais e workshops técnicos visando a disseminação, capacitação das boas práticas na produção de frangos e perus, visando aumentar a imunocompetência dos animais, redução e racionalização do "
+  },
+  {
+   "plano": "00001420220082-000917",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Cerrados",
+   "situacao_plano": "EM_ELABORACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 300000.0,
+   "objeto": "Quantificar a biomassa e estoques de carbono da parte aérea, serrapilheira e das raízes e estoques de C e N do solo em experimento de seringueira com 10, 20 e 30 anos de idade em área de Cerrado."
+  },
+  {
+   "plano": "00001420230010-001449",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal de Mato Grosso",
+   "situacao_plano": "EM_COMPLEMENTACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2826073.6,
+   "objeto": "Projeto para capacitação de produtores, estudantes, responsáveis técnicos e técnicos da rede de assistênciatécnica pública e privada em boas práticas agropecuárias e produção agropecuária sustentável, com atuaçãoconcentrada e aplicação nos Municípios de Vila Bela da Santíssima Trindade, Vale de São "
+  },
+  {
+   "plano": "00001420230041-002188",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Agrossilvipastoril",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2500000.0,
+   "objeto": "Termo de Execução Descentralizada com o objeto de validação do porta-enxerto do maracujá, sistema de produção de novilhas (PPS) em sistemas integrados e o desenvolvimento de dois softwares para gerenciamento do PPS."
+  },
+  {
+   "plano": "00001420230044-002196",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Pesca e Aquicultura",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1000000.0,
+   "objeto": "Fortalecimento do Programa de intensificação sustentável de sistemas de produção de bovinos no Tocantins (Programa ABC Corte e Balde Cheio em Rede)."
+  },
+  {
+   "plano": "00001420230030-002197",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Cerrados",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2000000.0,
+   "objeto": "Desenvolvimento de plataforma inédita para monitoramento da saúde dos solos brasileiros, o que está vinculado, entre outros fatores, ao nível de atividade biológica, biodiversidade e ao efeito da aplicação de bioinsumos, baseada em análises laboratoriais e modelagem geoespacial; e de índice para ava"
+  },
+  {
+   "plano": "00001420230043-002219",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Rondônia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1150000.0,
+   "objeto": "Realização de pesquisa e capacitação de técnicos, com foco em cacau e pecuária bovina de corte e leite, para fortalecer a agropecuária sustentável no Estado de Rondônia, e validação de indicadores de sustentabilidade para sistemas agroflorestais."
+  },
+  {
+   "plano": "00001420230036-002221",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Agricultura Digital",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 995102.18,
+   "objeto": "Ações de pesquisa e desenvolvimento em modelagem bioeconômica para avaliar os potenciais impactos socioeconômicos e ambientais do restabelecimento da capacidade produtiva das pastagens brasileiras e da conversão de pastagens em lavouras."
+  },
+  {
+   "plano": "00001420230042-002237",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Cocais",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1100000.0,
+   "objeto": "Ações de promoção da inovação tecnológica e organizacional para o fortalecimento de cadeias produtivas estratégicas para o desenvolvimento de produtores e suas organizações em territórios do Programa Amazônia Mais Sustentável no Estado do Maranhão."
+  },
+  {
+   "plano": "00001420230046-002239",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Cocais",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 600000.0,
+   "objeto": "É objeto deste TED realizar ações de capacitação e introdução de tecnologias de ILPF para fortalecer a cadeia da bovinocultura de corte na região do Médio Mearim, no Maranhão."
+  },
+  {
+   "plano": "00001420230053-002242",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Semi-Árido",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1275000.0,
+   "objeto": "Tecnologias para aumentar a resiliência e promover o fortalecimento da mandiocultura e da bovinocultura leiteira"
+  },
+  {
+   "plano": "00001420230035-002243",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Cerrados",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2995476.0,
+   "objeto": "Desenvolvimento e validação de processos agropecuários para recuperação direta de pastagens e sistemas integrados de produção baseados em leguminosas forrageiras."
+  },
+  {
+   "plano": "00001420230049-002247",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Mandioca e Fruticultura",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 820000.0,
+   "objeto": "Apoiar, no âmbito da Rede RENIVA, a produção e disponibilização de matrizes Elite de mandioca para  mandiocultores sob abrangência do programa Nordeste+sustentável"
+  },
+  {
+   "plano": "00001420230022-002249",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal de Mato Grosso do Sul",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 5000000.0,
+   "objeto": "Desenvolvimento de pesquisa científica e tecnológica com ações estruturantes para promoção do fortalecimento, sustentabilidade, desenvolvimento, beneficiamento das cadeias produtivas e da bioeconomia do bioma cerrado/pantanal, para compor as ações prioritárias do Projeto Pantanal + Sustentável no Es"
+  },
+  {
+   "plano": "00001420230040-002251",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Amazônia Oriental",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2500000.0,
+   "objeto": "Fortalecimento de cadeias produtivas prioritárias nas regiões de integração Xingu, Marajó e Baixo Tocantins, territórios priorizados pelo plano Amazônia + Sustentável no estado do Pará."
+  },
+  {
+   "plano": "00001420230020-002253",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Oeste da Bahia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 4500000.0,
+   "objeto": "Promover a Recuperação de Áreas Degradadas por meio de levantamento de informações, desenvolvimento de metodologias para sistemas agroflorestais e troca de experiências junto aos produtores rurais na região do Oeste da Bahia."
+  },
+  {
+   "plano": "00001420230023-002259",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Roraima",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1000000.0,
+   "objeto": "Recuperação de áreas degradas por meio do desenvolvimento e adaptação de tecnologias para sistemas agrofl orestais."
+  },
+  {
+   "plano": "00001420230050-002262",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Meio-Norte",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1245000.0,
+   "objeto": "Mapeamento, transferência e difusão de tecnologias para fortalecimento da organização, da competitividade e da sustentabilidade da apicultura, da meliponicultura e da ovinocaprinocultura no semiárido do meio-norte brasileiro."
+  },
+  {
+   "plano": "00001420230027-002282",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Tecnológica Federal do Paraná",
+   "situacao_plano": "EM_COMPLEMENTACAO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 250000.0,
+   "objeto": "Projetar e desenvolver um ambiente de software para suporte ao mapeamento em tempo real de pragas em frutíferas, que permita a interconexão e transmissão de dados por meio de dispositivos IoT de captura de insetos (Armadilhas eletrônicas)"
+  },
+  {
+   "plano": "00001420230056-002288",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal de Alagoas",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2200000.0,
+   "objeto": "Implantação de sistemas Agroflorestais em quintais produtivos como ferramentas para o desenvolvimento socioeconômico do estado de Alagoas com base na Rota da Fruticultura."
+  },
+  {
+   "plano": "00001420230021-002289",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal de Mato Grosso",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 5000000.0,
+   "objeto": "Estruturação dos Serviços de Inspeção Municipal via Consórcio para equivalência ao SISBI-POA"
+  },
+  {
+   "plano": "00001420230034-002294",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Pecuária Sudeste",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 500000.0,
+   "objeto": "Diagnóstico da degradação de pastagens no Brasil: protocolo e plano de coleta de dados em campo para construção de base de dados georreferenciada com vistas ao desenvolvimento e aprimoramento de métodos de diagnóstico de degradação em pastagens em todo o território nacional."
+  },
+  {
+   "plano": "00001420230072-002297",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Pecuária Sudeste",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1000000.0,
+   "objeto": "Execução de programa de capacitação e transferência de tecnologia denominado \"Pecuária de baixo carbono: fundamentos e princípios para o futuro”, que tem como foco principal ampliar o conhecimento sobre a produção pecuária de baixo impacto na emissão dos gases de efeito estufa. O treinamento destina"
+  },
+  {
+   "plano": "00001420230028-002305",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Tecnológica Federal do Paraná",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 834240.0,
+   "objeto": "Desenvolvimento da região Oeste do Paraná a partir das agendas estratégicas de conectividade rural e inteligência informacional para apoiar o ecossistema do agronegócio."
+  },
+  {
+   "plano": "00001420230025-002306",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Tecnológica Federal do Paraná",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 750000.0,
+   "objeto": "Implementar um circuito de inovação para mulheres no agronegócio, abrangendo desenvolvimento de inovações, promoção da competitividade e sustentabilidade, gestão de dados agropecuários e promoção de sistemas agroalimentares, com atividades estruturadas para aprendizado e aplicação prática. O foco é "
+  },
+  {
+   "plano": "00001420230032-002307",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Recursos Genéticos e Biotecnologia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2482029.0,
+   "objeto": "Mapeamento, caracterização ecológica e socioeconômica, difusão de tecnologias, capacitação técnica e promoção da cadeia produtiva de sistemas silvipastoris com espécies nativas de Cerrado."
+  },
+  {
+   "plano": "00001420230052-002308",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Norte de Minas Gerais",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 3300000.0,
+   "objeto": "Apoiar o sistema de produção de mandioca na microrregião de Salinas, por meio da instalação da rede RENIVA, disponibilizando material propagativo com qualidade genética e fitossanitária para aumento da produtividade e qualidade da mandioca de mesa e de indústria."
+  },
+  {
+   "plano": "00001420230019-002313",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 3800000.0,
+   "objeto": "Desenvolvimento de base de conhecimento e de ecossistema de big data e Analyse visando a centralização, integração, interoperabilidade disponibilização de dados e informações no âmbito da agricultura brasileira"
+  },
+  {
+   "plano": "00001420230017-002314",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2800000.0,
+   "objeto": "Desenvolvimento de sistema para o acompanhamento e monitoramento de projetos, voltados ao desenvolvimento agropecuário sustentável, no âmbito da Secretaria de Inovação, Desenvolvimento Sustentável e Irrigação – SDI, do Ministério da Agricultura e Pecuária."
+  },
+  {
+   "plano": "00001420230047-002315",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Caprinos e Ovinos",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2750000.0,
+   "objeto": "Impulsionar o desenvolvimento da caprinocultura e ovinocultura da região semiárida por meio da inovação tecnológica, adoção de sistemas sustentáveis resilientes à seca e adaptados às mudanças climáticas e ampliação de acesso a mercados com agregação de valor aos produtos em territórios produtivos do"
+  },
+  {
+   "plano": "00001420230085-002318",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de Mato Grosso",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 10000000.0,
+   "objeto": "Realizar pesquisas aplicada e inovadoras visando a produção e plantio de 100 mil mudas de no mínimo 10 espécies nativas nos biomas Cerrado e Pantanal, oferecer assistência técnica para o plantio e a manutenção pós-plantio, com o objetivo de impulsionar a silvicultura de espécies nativas nestes bioma"
+  },
+  {
+   "plano": "00001420230082-002320",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Roraima",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1100000.0,
+   "objeto": "Fortalecer as atividades de hortifruti no Território Central e as do cacau e do açaí no Território Sul de Roraima."
+  },
+  {
+   "plano": "00001420240001-002321",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade de Brasília",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 13181750.0,
+   "objeto": "Fomentar ações de inovação e modernização do agronegócio no Brasil, e consolidar o programa AgroHub Brasil do Ministério da Agricultura e Pecuária como catalisador da inovação agropecuária no país."
+  },
+  {
+   "plano": "00001420230026-002322",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade de Brasília",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 2522125.0,
+   "objeto": "Solução de desafios tecnológicos do Ministério da Agricultura e Pecuária através de inovação aberta e incentivos para startups inovadoras"
+  },
+  {
+   "plano": "00001420230089-002323",
+   "ug_desc": "420013",
+   "recebedora": "Universidade da Integração Internacional da Lusofonia Afro-Brasileira",
+   "situacao_plano": "EM_COMPLEMENTACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 30000000.0,
+   "objeto": "O presente Termo tem como objeto promover estudos, ações de capacitação de inovação tecnológica e acompanhamento técnico para o fortalecimento e desenvolvimento da produção agropecuária sustentável,priorizando os territórios abrangidos pelo Plano Nordeste + Sustentável."
+  },
+  {
+   "plano": "00001420230024-002324",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 12000000.0,
+   "objeto": "Projeto de desenvolvimento de cadeias produtivas florestais, em unidades de produção agropecuária, visando a produção e plantio de mudas nativas e exóticas, assistência técnica e monitoramento do desenvolvimento florestal usando painel de acompanhamento dos plantios subsidiados por políticas pública"
+  },
+  {
+   "plano": "00001420230051-002325",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Tabuleiros Costeiros",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 850000.0,
+   "objeto": "Executar ações de capacitação, educação fitossanitária, levantamento da ocorrência visandoa prevenção de epidemias de alto risco para a cocoicultura e ampliação das práticassustentáveis para carcinicultura no interior do Nordeste do Brasil."
+  },
+  {
+   "plano": "00001420230055-002326",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Amapá",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1100000.0,
+   "objeto": "Promover a difusão de inovações participativas e sustentáveis nas cadeias produtivas da mandioca e da aquicultura no território dos Lagos, e da pesca artesanal, da carcinicultura e da castanha no território Sul, no estado do Amapá."
+  },
+  {
+   "plano": "00001420230084-002329",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 10000000.0,
+   "objeto": "Realização de pesquisa aplicada e desenvolvimento tecnológico com vistas à implantação de ferramenta tecnológica para o registro, controle, monitoramento, integração e comercialização decontratos inteligentes baseados em créditos de carbono no âmbito de florestas plantadas."
+  },
+  {
+   "plano": "00001420230081-002331",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal de Santa Maria",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 467600.0,
+   "objeto": "Desenvolvimento e difusão de tecnologia para a impressão 4D de alimentos."
+  },
+  {
+   "plano": "00001420230033-002333",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Pecuária Sul",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1933728.0,
+   "objeto": "Viabilizar o Programa de Fomento à Recuperação de Pastagens Degradadas no Bioma Pampa pelo uso do Método Integrado de Recuperação de Pastagens Degradadas - MIRAPASTO."
+  },
+  {
+   "plano": "00001420230083-002335",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia Goiano",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 10500000.0,
+   "objeto": "Desenvolver pesquisa básica e aplicada visando caracterizar a atual situação de áreas degradadas no Centro-Oeste e subsidiar a recuperação dessas áreas, por meio da delimitação geográfica e série histórica de evolução da degradação, propiciando o planejamento da recuperação ambiental, com fornecimen"
+  },
+  {
+   "plano": "00001420230076-002338",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Rural da Amazônia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 30000000.0,
+   "objeto": "Promover estudos, capacitação, ações de inovação e transferência de tecnologias, e acompanhamento técnico para o fortalecimento e desenvolvimento de cadeias produtivas agropecuárias na Amazônia, priorizando os territórios do Plano Amazônia + Sustentável."
+  },
+  {
+   "plano": "00001420230048-002340",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Hortaliças",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 503550.0,
+   "objeto": "Produção de hortaliças sob cultivo protegido às margens do Canal do Sertão em Alagoas."
+  },
+  {
+   "plano": "00001420230079-002341",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia Goiano",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 7500000.0,
+   "objeto": "Desenvolvimento de pesquisa aplicada para fomento de metodologias de gestão participativa de projetos estratégicos de cooperação nacional e internacional, com enfoque em gênero e juventude, visando o aprimoramento da atuação da Coordenação-Geral de Operações Estratégicas (CGOE), do Departamento de R"
+  },
+  {
+   "plano": "00001420230037-002342",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Gado de Corte",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2499816.0,
+   "objeto": "Avaliação de sistemas de produção pecuários diversificados, com base em pastagens, com objetivo de reduzir a idade de abate e mitigar impactos ambientais."
+  },
+  {
+   "plano": "00001420230090-002344",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 20000000.0,
+   "objeto": "Desenvolvimento de pesquisa aplicada com vistas ao fortalecimento de cadeias produtivas sustentáveis de produtos florestais madeireiros e não madeireiros, promovendo inovação,comercialização e acesso a mercados no bioma Mata Atlântica."
+  },
+  {
+   "plano": "00001420230092-002345",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de Goiás",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 20000000.0,
+   "objeto": "Desenvolvimento de pesquisa aplicada com vistas ao fortalecimento de cadeias produtivas sustentáveis de produtos florestais madeireiros e não madeireiros, promovendo inovação, comercialização e acesso a mercados no bioma Cerrado."
+  },
+  {
+   "plano": "00001420230075-002347",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Recursos Genéticos e Biotecnologia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 8600000.0,
+   "objeto": "Fortalecimento dos Bancos Genéticos como fonte de material biológico para inovação agropecuária e bioeconomia."
+  },
+  {
+   "plano": "00001420230091-002348",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia Goiano",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 10000000.0,
+   "objeto": "Pesquisa  aplicada  com  vistas  a  apoiar  a  Secretaria  de  Inovação,  Desenvolvimento Sustentável,  Irrigação  e  Cooperativismo  (SDI)  em  estratégias  de  gestão  de  projetos estratégicos  de  cooperação,  nacionais  e  internacionais,  para  o  desenvolvimento  de  uma agricultura sustentáv"
+  },
+  {
+   "plano": "00001420230058-002352",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2356200.0,
+   "objeto": "Contribuir para a estruturação de cadeias produtivas agropecuárias tradicionais do Nordeste e do norte do Espírito Santo e de Minas Gerais no âmbito das atividades do Nordeste+Sustentável (NE+S)."
+  },
+  {
+   "plano": "00001420230095-002354",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Rio Grande do Norte",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1282710.24,
+   "objeto": "Aperfeiçoamento e disseminação de práticas e tecnologias sociais (com implantação de unidade beneficiadora) para fortalecimento da pesca artesanal no município de Tibau do Sul - RN, visando contribuir com a promoção da segurança ambiental e alimentar bem como para a agregação de valor ao pescado."
+  },
+  {
+   "plano": "00001420230080-002355",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Mandioca e Fruticultura",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1607980.0,
+   "objeto": "Apoio à utilização da técnica de criopreservação como estratégia para cópias de segurança de cultivos estratégicos para a segurança alimentar da população brasileira."
+  },
+  {
+   "plano": "00001420230031-002358",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Soja",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1189320.0,
+   "objeto": "Desenvolvimento de metodologias e equipamentos de baixo custo que permitam avaliar a emissão de GEE em tempo real em condições controladas, visando calibração, e no campo, visando validação, contribuindo, assim, para quantificações mais precisas e em larga escala com a finalidade de orientar polític"
+  },
+  {
+   "plano": "00001420230102-002359",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal de Mato Grosso",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 30000000.0,
+   "objeto": "O presente Termo tem como objeto promover estudos, ações de capacitação de inovação tecnológica eacompanhamento técnico para o fortalecimento e desenvolvimento da produção agropecuária sustentável,priorizando as populações e os territórios abrangidos pelo Bioma Pantanal."
+  },
+  {
+   "plano": "00001420230104-002363",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Recursos Genéticos e Biotecnologia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1711969.75,
+   "objeto": "Fortalecimento e atualização tecnológica da Plataforma Alelo para gestão de recursos genéticos para agropecuária e alimentação."
+  },
+  {
+   "plano": "00001420230088-002364",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 15000000.0,
+   "objeto": "Projeto de desenvolvimento de cadeias produtivas visando a inclusão produtiva de pequenos e médios agricultores e o incentivo a práticas sustentáveis que valorizem os produtos agropecuários."
+  },
+  {
+   "plano": "00001420230111-002365",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal do Amapá",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 14000000.0,
+   "objeto": "Promover a Produção e Sustentabilidade da Agricultura Irrigada para o Fortalecimento da Agricultura Familiar nos Estados do Amazonas, Amapá e Mato Grosso.."
+  },
+  {
+   "plano": "00001420230109-002366",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal do Amapá",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 20000000.0,
+   "objeto": "Promover o avanço da pequena produção sob irrigação através da disseminação do uso de tecnologias de uso conservacionista do recurso hídrico com a utilização de kits de irrigação na Região Norte do Brasil."
+  },
+  {
+   "plano": "00001420230097-002367",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Hortaliças",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1000000.0,
+   "objeto": "Biofábrica-Escola da Embrapa para desenvolvimento tecnológico e capacitação de agentes da cadeia produtiva de hortaliças nas boas práticas de fabricação e uso de bioinsumos."
+  },
+  {
+   "plano": "00001420220131-002371",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Recursos Genéticos e Biotecnologia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1305000.0,
+   "objeto": "Disponibilizar cepas de microrganismos para biofábricas comerciais ou on-farm via especificação de referência, assim como treinar responsáveis técnicos de biofábricas em fermentação de fungos."
+  },
+  {
+   "plano": "00001420230120-002372",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 15000000.0,
+   "objeto": "Promover capacitação de pequenos e médios produtores através da oferta de capacitação técnica e gerencial para uma agricultura sustentável, no bioma Cerrado."
+  },
+  {
+   "plano": "00001420230114-002374",
+   "ug_desc": "420013",
+   "recebedora": "Universidade da Integração Internacional da Lusofonia Afro-Brasileira",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 35000000.0,
+   "objeto": "Promover apoio e o fortalecimento da produção agrícola, promovendo o reflorestamento em áreas degradadas e arecuperação de ecossistemas em estados da região norte e centro oeste do país."
+  },
+  {
+   "plano": "00001420230096-002375",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Semi-Árido",
+   "situacao_plano": "EM_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1076750.0,
+   "objeto": "Execução de ação de apoio ao Programa Nacional de Bioinsumos com atividade complementar à iniciativa Bionova do MAPA, denominada Bionova Semiárido - Apoio ao estabelecimento de startups especializadas na produção de produtos e serviços relacionados aos bioinsumos na região do Semiárido"
+  },
+  {
+   "plano": "00001420230119-002376",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 20000000.0,
+   "objeto": "Fortalecer organizações socioprodutivas, através de apoio a transferência de tecnologia, inovação, comercialização e acesso a mercados."
+  },
+  {
+   "plano": "00001420230045-002377",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Agroindústria Tropical",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 550226.0,
+   "objeto": "Apoio a estruturação de Vitrines tecnológicas para revitalização da cajucultura no Litoral Leste e no Vale do Jaguaribe - CE"
+  },
+  {
+   "plano": "00001420230108-002378",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal do Amapá",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 10000000.0,
+   "objeto": "Promover a estruturação produtiva dos pequenos agricultores familiares com o uso da agricultura irrigada e boas práticas de produção sustentável com o uso de tecnologias conservacionistas dos recursos hídricos e da implementação de kits de irrigação."
+  },
+  {
+   "plano": "00001420230118-002379",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "EM_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 15000000.0,
+   "objeto": "Promover capacitação de pequenos e médios produtores através da oferta de capacitação técnica e gerencial para uma agricultura sustentável, no bioma Mata Atlântica."
+  },
+  {
+   "plano": "00001420230054-002381",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 3200000.0,
+   "objeto": "Fortalecimento das cadeias de valor agropecuárias prioritárias, com a elaboração de Planos de Diagnósticos Produtivos (PDPs) nos Territórios cobertos pelo PNE+S e elaboração de Planos de Negócios dos APLs selecionados."
+  },
+  {
+   "plano": "00001420230117-002382",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Rio Grande do Norte",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 20000000.0,
+   "objeto": "Estimular a produção sustentável de micro e pequenos produtores por meio da disseminação de informações sobre cultivo de hortaliças e educação de manejo com ferramentas e insumos para produção."
+  },
+  {
+   "plano": "00001420230038-002383",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Milho e Sorgo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1000000.0,
+   "objeto": "Modificação do sistema produtivo na região central de MG pela recuperação de pastagem degradada e conversão para produção de grãos: soja, milho e trigo."
+  },
+  {
+   "plano": "00001420230100-002384",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal de Viçosa",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 12769496.1,
+   "objeto": "Promover o desenvolvimento sócio econômico das cooperativas agropecuárias brasileiras por meio deações de capacitação e fomento de estratégias de intercooperação institucional."
+  },
+  {
+   "plano": "00001420230112-002385",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Rio Grande do Norte",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 20000000.0,
+   "objeto": "Promover o avanço da pequena produção sob irrigação através da disseminação do uso de tecnologias de uso conservacionista do recurso hídrico com a utilização de kits de irrigação."
+  },
+  {
+   "plano": "00001420230110-002387",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de Mato Grosso",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 15000000.0,
+   "objeto": "Promover o apoio a produção de produtores dos estados líderes em queimadas e desmatamento para aperfeiçoamento de técnicas de manejo, promoção do reflorestamento e de prevenção de desmatamento e queimadas."
+  },
+  {
+   "plano": "00001420230071-002388",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Gado de Leite",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 478984.0,
+   "objeto": "O projeto “PEGADA DE CARBONO DO LEITE NO BRASIL: MÉTRICAS E ALTERNATIVAS PARA DESCARBONIZAÇÃO” institui uma cooperação técnico-científica e institucional entre a DECAP/SDI/MAPA e a Embrapa Gado de Leite, com vistas à cooperação no âmbito do Programa Nacional de Cadeias Agropecuárias Descarbonizadas,"
+  },
+  {
+   "plano": "00001420230087-002394",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Rural da Amazônia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 5000000.0,
+   "objeto": "Fortalecer a cadeia produtiva da pecuária bubalina por meio do melhoramento genético utilizando a Inseminação Artificial (IA) e Produção in vitro de Embriões, bem como Manejo, Boas Práticas de Produção e Bem-Estar Animal para promover a Agricultura Familiar, Micro e Pequenos Produtores nos Estados d"
+  },
+  {
+   "plano": "00001420230060-002395",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Rural da Amazônia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 13500000.0,
+   "objeto": "Promover a Sustentabilidade da pecuária bovina por Meio do Melhoramento Genético utilizando a Inseminação Artificial (IA), Manejo e Boas Práticas de Produção para o Fortalecimento daAgricultura Familiar, Micro e Pequenos Produtores nos Estados do Amazonas, Amapá e Mato Grosso."
+  },
+  {
+   "plano": "00001420230116-002397",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Rural da Amazônia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 30000000.0,
+   "objeto": "Promover a sustentabilidade de rebanho bovino e ovino e caprino através do melhoramento genético e assistência técnica para agricultores familiares, micro e pequenos produtores."
+  },
+  {
+   "plano": "00001420230061-002398",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal de Lavras",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 371280.0,
+   "objeto": "Quantificação e classificação dos riscos associados à utilização de antimicrobianos em propriedades produtoras de leite e queijo de Minas Gerais, a fim subsidiar políticas públicas para fomentar o uso racional de antimicrobianos na bovinocultura leiteira e promover a capacitação dos produtores a par"
+  },
+  {
+   "plano": "00001420230113-002400",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade de Brasília",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1102392.12,
+   "objeto": "“Modernização da gestão estratégica das Indicações Geográficas e Selo Arte” institui uma cooperação técnico-científica e institucional entre a DECAP/SDI/MAPA e a Fundação Universidade de Brasília - FUB, por meio do CENTRO DE GESTÃO E INOVAÇÃO NA AGRICULTURA FAMILIAR (CEGAFI) da Faculdade Planaltina,"
+  },
+  {
+   "plano": "00001420230093-002401",
+   "ug_desc": "420013",
+   "recebedora": "Empresa Brasileira de Pesquisa Agropecuária",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 488862.0,
+   "objeto": "Criação de um programa de assessoramento tecnico-cientifico em politicas globais relacionadas à agricultura, visando contribuir com a orientação e fortalecimento do pais em foruns globais de interesse para a agricultura brasileira"
+  },
+  {
+   "plano": "00001420230098-002403",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de São Paulo",
+   "situacao_plano": "ANALISE_APROVADA",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2996118.5,
+   "objeto": "Programa piloto de apoio, treinamento, estudo e internacionalização de Indicações Geográficas reconhecidas no Brasil, especificamente do Estado de São Paulo ou Espírito Santo, com vistas à abertura de mercado na União Europeia."
+  },
+  {
+   "plano": "00001420230099-002404",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de São Paulo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1995356.0,
+   "objeto": "Desenvolver e implementar um novo modelo de incubação voltado para Indicações Geográficas (IGs) e MarcasColetivas (MC) em parceria com o Ministério da Agricultura, Pecuária e Abastecimento (MAPA)."
+  },
+  {
+   "plano": "00001420230078-002406",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal da Bahia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1200000.0,
+   "objeto": ": Estudos e Pesquisas para o depósito da solicitação de registros de Indicações Geográficas de produtos agropecuários da Bahia, ao Instituto Nacional da Propriedade Industrial – INPI, e de estruturação de IG pós-registro."
+  },
+  {
+   "plano": "00001420230123-002408",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Rio Grande do Norte",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 497655.6,
+   "objeto": "Fomentar e estruturar o ambiente de inovação e modernização do agronegócio do Estado do Rio Grande do Norte por meio de projetos inovadores de investimentos em tecnologia e sustentabilidade."
+  },
+  {
+   "plano": "00001420230107-002410",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade de Brasília",
+   "situacao_plano": "EM_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 2765338.8,
+   "objeto": "Acompanhamento do mercado de bioinsumos no Brasil a partir da caracterização das inovações em curso nos setores público e privado e da avaliação do grau de adoção, atual e potencial, pelos produtores rurais, visando a geração de dados atualizados, independentes e abrangentes para subsidiar as ações "
+  },
+  {
+   "plano": "00001420230124-002414",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade de Brasília",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 13181750.0,
+   "objeto": "Fomentar ações de inovação e modernização do agronegócio no Brasil, e consolidar o programa AgroHub Brasil do Ministério da Agricultura e Pecuária como catalisador da inovação agropecuária no país."
+  },
+  {
+   "plano": "00001420230101-002416",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Rio de Janeiro",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1574696.0,
+   "objeto": "Desenvolvimento de ferramentas de comparação técnica, econômica e ambiental de diferentes configurações de biorrefinarias com foco inicial nas cadeias produtivas do café e da macaúba, dos biomas cerrado e amazônico, com vistas à implementação dos conceitos de economia circular e neo-industrialização"
+  },
+  {
+   "plano": "00001420230122-002417",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Oeste da Bahia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 8903930.68,
+   "objeto": "Implantação da Unidade de Desenvolvimento de Inovação e Pesquisa Aplicada para o Agro da Região Oeste da Bahia e desenvolvimento de metodologias para sistemas agroflorestais e troca de experiências junto aos produtores rurais na região do Oeste da Bahia."
+  },
+  {
+   "plano": "00001420230065-002420",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal do Pampa",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1800000.0,
+   "objeto": "Projetos de fomento das políticas públicas de certificações artesanais, para fortalecer e qualificartécnicos e produtores quanto aos processos exigidos para adesão aos selos ARTE e QueijoArtesanal."
+  },
+  {
+   "plano": "00001420230126-002424",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Agrobiologia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 10000000.0,
+   "objeto": "Este termo abrange um conjunto de ações relacionadas à temática dos Bioinsumos, com ênfase na fixação biológica de nitrogênio (FBN) em pastagens e gramíneas, como milho e cana-de-açúcar. O objetivo principal é acelerar o desenvolvimento de ativos e introduzir novos inoculantes no mercado e apoiar de"
+  },
+  {
+   "plano": "00001420230130-002429",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal de Santa Maria",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 5000000.0,
+   "objeto": "Fornecer subsídios para o estudo acerca da demanda mundial de ingredientes processados para alimentos, identificandopilares necessários ao processo de construção de uma política pública de fomento e estímulo à industrialização."
+  },
+  {
+   "plano": "00001420230029-002438",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Mandioca e Fruticultura",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 1060000.0,
+   "objeto": "Atender demanda da Cadeia Produtiva da Banana por variedade resistente às doenças Murcha de Fusarium e Sigatoka Negra e Amarela, que vêm comprometendo a produção de forma drástica, dando sustentabilidade ao Sistema Agroalimentar da Cultura."
+  },
+  {
+   "plano": "00001420230057-002439",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Oswaldo Cruz",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 3000000.0,
+   "objeto": "Promover ações de capacitação, formação e intercâmbio contribuindo para a promoção da saúde, recuperação e reflorestamento de agroecossistemas e implementação de Sistemas Agroflorestais na construção de Territórios Saudáveis e Sustentáveis."
+  },
+  {
+   "plano": "00001420230094-002443",
+   "ug_desc": "420013",
+   "recebedora": "Fundação Universidade Federal de Sergipe",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 5778800.0,
+   "objeto": "Promover o desenvolvimento regional sustentável, científico e de inovação agrodigital por intermédio da implantação do complexo de laboratórios de digestão anaeróbia, energias renováveis, automação, visão computacional e armazenamento de produtos agrícolas na Universidade Federal de Sergipe – UFS/Ca"
+  },
+  {
+   "plano": "00001420230131-002448",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Amazônia Ocidental",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 600000.0,
+   "objeto": "PIT PAU-ROSA - Projeto de Inovação Tecnológica para a domesticação e cultivo do PAU-ROSA - Desenvolvimento e validação de um protocolo de produção em larga escala de mudas por enraizamento de estacas/miniestacas de matrizes selecionadas de Pau Rosa, como base para o desenvolvimento de um Sistema de "
+  },
+  {
+   "plano": "00001420230132-002449",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Agricultura Digital",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "EM_ELABORACAO",
+   "processo": "",
+   "valor": 500000.0,
+   "objeto": "Fortalecimento da estrutura de governança e operacionalização do Corredor de Inovação Agropecuária do Estado de São Paulo (CorredorAgroSP)."
+  },
+  {
+   "plano": "00001420230133-002457",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Fluminense",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 30000000.0,
+   "objeto": "O presente Termo tem como objeto promover estudos, ações de capacitação de inovação tecnológica e acompanhamento técnico para o fortalecimento e desenvolvimento da produção agropecuária sustentável, priorizando os territórios abrangidos pelo Plano Nordeste + Sustentável."
+  },
+  {
+   "plano": "00001420230135-002462",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Fluminense",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 35000000.0,
+   "objeto": "Promover apoio e o fortalecimento da produção agrícola e a recuperação de ecossistemas em estados da região norte e centro oeste do país."
+  },
+  {
+   "plano": "00001420230136-002465",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Agricultura Digital",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 30000000.0,
+   "objeto": "Desenvolvimento, implementação e operacionalização da Plataforma AgroBrasil+Sustentável."
+  },
+  {
+   "plano": "00001420230134-002467",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Agricultura Digital",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 5000000.0,
+   "objeto": "Distritos Agro Tecnológicos no Brasil (DAT-Brasil) como mecanismo de transformação para adoção de tecnologias de agricultura digital, aumento da eficiência produtiva e redução de desigualdades regionais em complementariedade ao Projeto Rural+Conectado."
+  },
+  {
+   "plano": "00001420230138-002488",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Meio Ambiente",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1664355.0,
+   "objeto": "Monitoramento dos estoques de carbono e balanço das emissões de gases de efeito estufa em Unidades de Referência Tecnológica na abordagem MRV - Monitoramento, Relato e Verificação para o estabelecimento de uma rede de referência regional de coeficientes de carbono no solo relacionadas a adoção de SP"
+  },
+  {
+   "plano": "00001420230137-002496",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Meio Ambiente",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1061588.0,
+   "objeto": "Contribuir para o fortalecimento do Plano ABC+ estimulando a adoção de sistemas, práticas, produtos e processos para a produção sustentável, especialmente para as Práticas para a Recuperação de Pastagens degradas (PRPD), considerando a necessidade de redução da expansão áreas de pastagens sobre flor"
+  },
+  {
+   "plano": "00001420230140-002515",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de Goiás",
+   "situacao_plano": "ENVIADO_ANALISE",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 8000000.0,
+   "objeto": "Desenvolvimento de pesquisa aplicada visando o estudo de ferramenta tecnológica em formato de aplicativo para smartphone e tablet, voltado para aprimorar a comunicação inclusiva e assistiva entre a comunidade agro e as bases de dados governamentais, com recursos assistivos, visando facilitar o acess"
+  },
+  {
+   "plano": "00001420220046-000396",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal Fluminense",
+   "situacao_plano": "EM_COMPLEMENTACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 22706000.0,
+   "objeto": "Execução de projeto de pesquisa, desenvolvimento e inovação tecnológicos para o fortalecimento das ações da agropecuária sustentável"
+  },
+  {
+   "plano": "00001420220079-000730",
+   "ug_desc": "420013",
+   "recebedora": "Ministério da Ciência, Tecnologia e Inovações",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 1000000.0,
+   "objeto": "Prover soluções inovadoras por meio de ações de infraestrutura avançada em TIC para atender à Comissão Executiva do Plano da Lavoura Cacaueira - CEPLAC/SDI e ao Instituto Nacional de Meteorologia - INMET/SDI, em parceria com a Rede Nacional de Ensino e Pesquisa (RNP)."
+  },
+  {
+   "plano": "00001420220112-000861",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Recursos Genéticos e Biotecnologia",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 5000000.0,
+   "objeto": "Apoiar e fortalecer as pesquisas da Embrapa Recursos Genéticos e Biotecnologia, através da revitalizaçãoda infraestrutura, aquisição de equipamentos e materiais para uso nos projetos de pesquisadesenvolvimento e inovação em especial para temas de biologia sintética avançada."
+  },
+  {
+   "plano": "00001420220077-000866",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal do Espírito Santo",
+   "situacao_plano": "EM_ELABORACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 5500000.0,
+   "objeto": "Fortalecimento do ABC + a partir da abordagem integrada da paisagem em propriedades rurais com a implementação de infraestrutura tecnológica para produção de mudas das principais espécies nativas da Mata Atlântica, para subsidiar a recomposição florestal, visando a redução dos passivos ambientais e "
+  },
+  {
+   "plano": "00001420220077-000867",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia de Mato Grosso",
+   "situacao_plano": "EM_ELABORACAO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 380000.0,
+   "objeto": "Aquisição de Usina Fotovoltaica e Drone Pulverizador para Estruturação do Centro de Referência Agroalimentar de Canarana – IFMT Confresa visando o apoio técnico e qualificação profissional aos produtores de Canarana-MT, prioritariamente aos produtores de pulses, amendoim, gergelim e feijões especiai"
+  },
+  {
+   "plano": "00001420220084-000868",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Milho e Sorgo",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 350000.0,
+   "objeto": "Transferência de tecnologia e alavancagens para o Sistema de Cultivo Intercalar Antecipado (Antecipe) – Sistema de produção disruptivo para impactos na produção de grãos e cadeias associadas"
+  },
+  {
+   "plano": "00001420220102-000889",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Pecuária Sul",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 228441.5,
+   "objeto": "Projeto Silvipastoril na Região da Campanha do Rio Grande do Sul (Fase 3)"
+  },
+  {
+   "plano": "00001420220099-000892",
+   "ug_desc": "420013",
+   "recebedora": "Embrapa Pecuária Sul",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 100000.0,
+   "objeto": "Uso do resíduo da indústria de azeite de oliva como alternativa de suplemento alimentar de bovinos de corte em terminação para promover o desenvolvimento sustentável e contribuir para redução das emissões de GEE, bem como conhecer o perfil de ácidos graxos e as características organolépticas da"
+  },
+  {
+   "plano": "00001420220121-000906",
+   "ug_desc": "420013",
+   "recebedora": "Instituto Federal de Educação, Ciência e Tecnologia do Norte de Minas Gerais",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 3470849.04,
+   "objeto": "Implantação de laboratório de solos no IFNMG- campus Arinos ampliando infraestrutura tecnológica para promover o atendimento aos alunos e produtores rurais da região noroeste e norte de Minas Gerais."
+  },
+  {
+   "plano": "00001420220092-000908",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal de Campina Grande",
+   "situacao_plano": "REJEITADO",
+   "situacao_termo": "ENVIADO",
+   "processo": "21000.098085/2021-61",
+   "valor": 148632.0,
+   "objeto": "Instalação de uma Unidade de Referência Tecnológica (URT`s) do Sistema Integração Lavoura-Pecuária-Floresta (ILPF) e do Sistema Plantio Direto na palha (SPD) voltado para as condições do Semiárido, na Universidade Federal de Campina Grande (UFCG) no Centro de Desenvolvimento Sustentável do Semiárido"
+  },
+  {
+   "plano": "00001420220077-000934",
+   "ug_desc": "420013",
+   "recebedora": "Universidade Federal de Santa Maria",
+   "situacao_plano": "ANALISE_APROVADA",
+   "situacao_termo": "",
+   "processo": "",
+   "valor": 3000000.0,
+   "objeto": "Implantar um sistema indutor da inovação e empreendedorismo na área de foodtechs do Parque Tecnológico da UFSM, o FoodTech FabLab, através de instalação de infraestrutura física e equipamentos, bem como de capacitações e treinamentos."
+  }
+ ]
+}

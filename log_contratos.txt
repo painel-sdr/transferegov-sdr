@@ -1,0 +1,3 @@
+Contratos.gov.br: reaproveitados os arquivos de hoje (233 contratos)
+  Base Contratos: 59 contratos · UGs citadas: 130010, 130122, 130126, 130128, 130129, 151889
+  Base Contratos: 73 contrato(s) da API casados pelo processo ou número + CNPJ

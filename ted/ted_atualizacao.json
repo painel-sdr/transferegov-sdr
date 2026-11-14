@@ -1,0 +1,40 @@
+{
+ "data_api": {
+  "data_ultima_atualizacao": "2026-11-14T06:00:54"
+ },
+ "gerado_em": "14/11/2026 12:34",
+ "teds": 241,
+ "por_situacao": {
+  "Enviado · APROVADO": 98,
+  "Recebido · APROVADO": 3,
+  "Enviado · EM_ELABORACAO": 7,
+  "Enviado · ENVIADO_ANALISE": 12,
+  "Enviado · REJEITADO": 102,
+  "Enviado · ANALISE_APROVADA": 10,
+  "Enviado · EM_ANALISE": 4,
+  "Enviado · EM_COMPLEMENTACAO": 5
+ },
+ "log": [
+  "/programas: 5782 registros",
+  "/programas-acoes-orcamentarias: 6537 registros",
+  "/planos-acao: 6573 registros",
+  "/termos-execucao: 5277 registros",
+  "/notas-credito: 12113 registros",
+  "/eventos: 19667 registros",
+  "/programacoes-financeiras: 18947 registros",
+  "/programacoes-financeiras-trf: 21163 registros",
+  "/planos-trabalho-cronogramas: 14521 registros",
+  "/planos-acao-analises: 6047 registros",
+  "/planos-acao-pareceres: 8877 registros",
+  "/planos-acao-metas: 23749 registros",
+  "TEDs no escopo das UGs da SDR: 241",
+  "gravou ted_planilha.csv · 241 linhas",
+  "gravou ted_notas_credito.csv · 183 linhas",
+  "gravou ted_eventos.csv · 325 linhas",
+  "gravou ted_programacoes.csv · 242 linhas",
+  "gravou ted_cronograma.csv · 292 linhas",
+  "gravou ted_analises_pareceres.csv · 500 linhas",
+  "gravou ted_metas.csv · 1128 linhas",
+  "gravou ted_programas.csv · 231 linhas"
+ ]
+}
