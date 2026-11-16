@@ -88,6 +88,8 @@ details{border:1px solid #cfdcd3;border-radius:8px;margin:10px 0;overflow:hidden
 .wrap{max-width:none}body>#impressao{display:block!important}.aviso-imp{max-width:980px;margin:0 auto 10px;font:13px Arial,sans-serif;color:#444}@media print{.aviso-imp{display:none}body{padding:0}}</style></head>
 <body><div class="moldura"></div><p class="aviso-imp">Na janela de impressão, escolha <b>Salvar como PDF</b> em "Destino".</p><div style="font:11px Arial,sans-serif;color:#5a6672;text-align:right;margin:0 auto 6px;max-width:980px">Extraído em ${new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})} · Painel SDR 2026</div>${c.outerHTML}
 <script>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();},600);});<\/script></body></html>`;
+  // no celular (ou dentro do Google Sites) o painel monta o PDF pronto, na orientação certa
+  try{ const P = window.parent !== window && parent.__pdfEmbutido && parent.__pdfDireto; if(P) return P(html, titulo || 'ficha'); }catch(e){}
   let w = null; try{ w = window.open('', '_blank'); }catch(e){}
   if(w && w.document){ w.document.open(); w.document.write(html); w.document.close(); return; }
   try{ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));

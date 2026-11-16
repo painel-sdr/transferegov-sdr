@@ -9580,7 +9580,11 @@ function carimboExt(){ return `<div class="ext-data" style="font:11px Arial,sans
 // Painel incorporado no Google Sites "por URL": o quadro do Sites bloqueia a impressão (window.print) da aba que abrimos.
 // Nesse caso o PDF é montado aqui mesmo (html2pdf) e baixado como arquivo .pdf.
 const EMBUTIDO = (() => { try{ return window.top !== window; }catch(e){ return true; } })();
-window.__pdfEmbutido = EMBUTIDO;
+// celular/tablet: o navegador ignora a folha deitada (@page landscape) e imprime em retrato, cortando tudo.
+// Então no celular o PDF é montado aqui (html2pdf) e baixado pronto, na orientação certa, sem a janela de impressão.
+const CELULAR = (() => { try{ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer:coarse)').matches && Math.min(screen.width, screen.height) < 820); }catch(e){ return false; } })();
+const PDF_ARQ = EMBUTIDO || CELULAR;
+window.__pdfEmbutido = PDF_ARQ;
 function avisoPDF(txt, erro){
   let a = document.getElementById('avisoPDF');
   if(!a){ a = document.createElement('div'); a.id = 'avisoPDF'; a.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99999;max-width:420px;background:#155a30;color:#fff;border-radius:12px;padding:12px 16px;font:14px Barlow,Arial,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.3)'; document.body.appendChild(a); }
@@ -9600,17 +9604,20 @@ async function pdfDireto(html, arquivo){
     await new Promise((ok, falha) => { s.onload = ok; s.onerror = () => falha(new Error('não carregou o gerador de PDF')); d.head.appendChild(s); });
     const nome = String(arquivo || 'relatorio').replace(/[^\w-]+/g, '_') + '.pdf';
     // as opções nascem dentro do quadro (o html2pdf confere "é Array?" no próprio quadro)
+    const pgs = limpo.match(/@page\s*\{[^}]*\}/gi) || [], deitada = !pgs.length || /landscape/i.test(pgs[pgs.length-1]);    // a orientação vem do próprio documento (a última regra @page vale)
+    const larg = deitada ? 1120 : 800;
+    fr.style.width = larg + 'px'; d.body.style.width = larg + 'px';
     const op = fr.contentWindow.JSON.parse(JSON.stringify({margin: [7, 7, 9, 7], filename: nome, image: {type: 'jpeg', quality: 0.95},
-      html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1120}, jsPDF: {unit: 'mm', format: 'a4', orientation: 'landscape'},
+      html2canvas: {scale: CELULAR ? 1.5 : 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: larg}, jsPDF: {unit: 'mm', format: 'a4', orientation: deitada ? 'landscape' : 'portrait'},
       pagebreak: {mode: ['css', 'legacy'], before: '.pg', avoid: ['tr', '.ri-al', '.ri-k > div']}}));
     await fr.contentWindow.html2pdf().set(op).from(d.body).save();
     avisoPDF('✓ PDF baixado: '+esc(nome)+'<br><small>confira a pasta de downloads do navegador</small>');
-  }catch(e){ avisoPDF('Não foi possível gerar o PDF aqui dentro do Google Sites ('+esc(e.message)+').<br><small>Abra o painel direto em <b>painel-sdr.github.io/transferegov-sdr</b> e gere de lá.</small>', true); }
+  }catch(e){ avisoPDF((CELULAR && !EMBUTIDO ? 'Não foi possível gerar o PDF no celular (' : 'Não foi possível gerar o PDF aqui dentro do Google Sites (')+esc(e.message)+').<br><small>'+(CELULAR && !EMBUTIDO ? 'Tente de novo ou gere pelo computador.' : 'Abra o painel direto em <b>painel-sdr.github.io/transferegov-sdr</b> e gere de lá.')+'</small>', true); }
   finally{ setTimeout(() => fr.remove(), 1500); }
 }
 window.__pdfDireto = pdfDireto;
 function abrirPDF(html, arquivo){
-  if(EMBUTIDO) return pdfDireto(html, arquivo);
+  if(PDF_ARQ) return pdfDireto(html, arquivo);
   // dentro do Google Sites a impressão direta é bloqueada: abre numa aba própria (ou baixa o arquivo, se a aba for bloqueada)
   let w = null;
   try{ w = window.open('', '_blank'); }catch(e){}
@@ -13747,7 +13754,7 @@ document.addEventListener('click', async e => {
   const c = e.target.closest('[data-rgcmp]'); if(c){ RG.cmp = c.dataset.rgcmp; rgJanela(); return; }
   const g = e.target.closest('[data-rggerar]'); if(g){
     g.disabled = true; g.textContent = 'Montando o relatório…';
-    let jan = null; if(!EMBUTIDO) try{ jan = window.open('', '_blank'); if(jan && jan.document) jan.document.write('<p style="font:16px Arial;padding:30px">Montando o relatório…</p>'); }catch(x){}
+    let jan = null; if(!PDF_ARQ) try{ jan = window.open('', '_blank'); if(jan && jan.document) jan.document.write('<p style="font:16px Arial;padding:30px">Montando o relatório…</p>'); }catch(x){}
     try{ const P = w.relPeriodo(RG.tipo, RG.per), html = RG.modelo === 'orc' ? await rgOrc(P) : RG.modelo === 'ctr' ? await rgCtr(P) : RG.modelo === 'viag' ? await rgViag(P) : await rgTed(P);
       if(jan && jan.document){ jan.document.open(); jan.document.write(html); jan.document.close(); } else abrirPDF(html, 'relatorio-'+RG.modelo+'-'+RG.per);
       f.hidden = true; }
