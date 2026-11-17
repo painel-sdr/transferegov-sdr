@@ -611,11 +611,18 @@ def interpretar_ne(linhas):
 
 def ler_ne(pasta_saida):
     urls = [l.strip() for l in open(CONFIG_NE, encoding='utf-8') if l.strip() and not l.strip().startswith('#')] if os.path.exists(CONFIG_NE) else []
-    todas, info = [], []
+    todas, info, f_pt, f_ug = [], [], set(), set()
     for u in urls:
         try:
-            out = interpretar_ne(list(csv.reader(io.StringIO(baixar(u)))))
+            linhas_ = list(csv.reader(io.StringIO(baixar(u))))
+            out = interpretar_ne(linhas_)
             todas += out
+            # filtro do relatório (texto no topo da aba): PTRES e UGs executoras que o relatório cobre = o nosso controle
+            filtro = ' '.join(c for l in linhas_[:20] for c in l if 'PTRES' in c or 'UG Executora' in c)
+            if 'PTRES' in filtro:
+                f_pt.update(re.findall(r'"(\d{6})"', filtro.split('PTRES', 1)[1]))
+            if 'UG Executora' in filtro:
+                f_ug.update(re.findall(r'"(\d{6})"', filtro.split('UG Executora', 1)[1].split('PTRES', 1)[0]))
             info.append({'link': u, 'linhas': len(out), 'ok': True})
             print(f'Tesouro TED NE: {len(out)} empenhos em {u[-60:]}', flush=True)
         except Exception as e:
@@ -627,7 +634,7 @@ def ler_ne(pasta_saida):
         w = csv.DictWriter(fh, fieldnames=campos)
         w.writeheader()
         w.writerows(todas)
-    json.dump({'gerado_em': time.strftime('%d/%m/%Y %H:%M'), 'fontes': info, 'linhas': len(todas)},
+    json.dump({'gerado_em': time.strftime('%d/%m/%Y %H:%M'), 'fontes': info, 'linhas': len(todas), 'filtro_ptres': sorted(f_pt), 'filtro_ug': sorted(f_ug)},
               open(os.path.join(pasta_saida, 'ted', 'ted_tesouro_ne.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     return todas
 

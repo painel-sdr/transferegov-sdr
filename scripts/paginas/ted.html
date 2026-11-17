@@ -230,7 +230,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') fecharFicha(); 
 const UG_SDR_NOME = {'420013':'Secretaria de Desenvolvimento Rural','130141':'Coord.-Geral de Parcerias Institucionais','130010':'CEPLAC','130255':'Coord.-Geral de Modernização e Apoio à Produção','135098':'Caixa Econômica Federal/MA'};
 function fichaNE(o, t){
   const L = o.nes || [];
-  const avF = (o.ptF||[]).length ? `<p class="obs" style="background:#fff3e0;color:#7a4a00"><b>⚠ O relatório "EMPENHOS TED" do Tesouro Gerencial não traz o PTRES ${o.ptF.map(esc).join(', ')}.</b> Os empenhos da unidade nesse PTRES não aparecem aqui: incluir no filtro do relatório e rodar o robô.</p>` : '';
+  const avF = (o.ptF||[]).length ? `<p class="obs" style="background:#fff3e0;color:#7a4a00"><b>⚠ O relatório "EMPENHOS TED" do Tesouro Gerencial não traz: ${o.ptF.map(x => /^(PTRES|UG) /.test(x) ? x : 'PTRES ' + x).map(esc).join(', ')}.</b> Os empenhos da unidade não aparecem aqui: incluir no filtro do relatório (PTRES ou UG executora) e rodar o robô.</p>` : '';
   if(!L.length && avF) return `<div class="sb">Empenhos da unidade descentralizada</div>${avF}`;
   if(!L.length) return `<div class="sb">Empenhos da unidade descentralizada</div><p class="obs" style="background:#f4f6f8;color:#6b7a86">${o.nc>0?'Nenhum empenho encontrado no Tesouro para a UG '+esc(o.ugr)+' com os PTRES das notas de crédito deste TED.':'Sem crédito descentralizado: ainda não há o que empenhar.'}</p>`;
   const T = o.neT, pg = T[2]+T[3], comp = L.some(x => x[11]);
