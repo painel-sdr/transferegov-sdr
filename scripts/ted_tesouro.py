@@ -80,6 +80,25 @@ METRICAS = [(None, r'TRANSFERENCIAS FINANCEIRAS|ADIANTAMENTO|CONTROLE DE PROGRAM
             ('dev', r'DEVOLV|DEVOLUC|NAO REPASSADO|ANULAD')]
 
 
+# nome das contas do PCASP pelo código: o nome vem como "= A COMPROVAR" e, se a aba for gravada sem o apóstrofo, o Google
+# Planilhas lê como fórmula e mostra #ERROR! — aí o robô perdia a conta (a comprovar, comprovado…). Com o código, recupera o nome.
+CONTA_NOME = {'113823800': 'ADIANTAMENTO - TERMO EXECUCAO DESCENTRALIZADA', '218920600': 'TRANSFERENCIAS FINANCEIRAS A COMPROVAR - TED',
+              '711210201': 'VALORES FIRMADOS', '799913600': 'CONTROLE DE PROGRAMACAO ORCAMENTARIA - TED', '811210201': 'A RECEBER',
+              '811210202': 'A COMPROVAR', '812210201': 'A REPASSAR', '812210202': 'A COMPROVAR', '812210203': 'COMPROVADO',
+              '812210204': 'A APROVAR', '812210205': 'APROVADO', '812210206': 'VALOR NAO REPASSADO/DEVOLVIDO', '812210211': 'CONCLUIDO',
+              '822121201': 'LIBERACAO DE REPASSE A PROGR POR DESC EXTERNA', '822121204': 'REPASSE LIBERADO POR DESCENTRALIZACAO EXTERNA',
+              '822140901': 'RP AUTORIZADO POR DESTAQUE - INSCRICAO', '822140902': 'RP AUTORIZADO POR DESTAQUE A PROGRAMAR',
+              '822141000': 'RESTOS A PAGAR LIBERADOS POR DESTAQUE', '822221201': 'RECEBIMENTO DE REPASSE A PROGR POR DESC EXT',
+              '822240902': 'RP AUTORIZADO POR DESTAQUE A PROGRAMAR', '899913600': 'CONTROLE DE PROGRAMACAO ORCAMENTARIA - TED'}
+
+
+def conserta_conta(rot):
+    m = re.match(r'\s*(\d{9})\b(.*)', rot)
+    if m and (re.search(r'#(ERROR|NAME|REF|VALUE)', m.group(2)) or not m.group(2).strip()) and m.group(1) in CONTA_NOME:
+        return m.group(1) + ' = ' + CONTA_NOME[m.group(1)]
+    return re.sub(r'^=\s*', '', rot) if rot.startswith('=') else rot
+
+
 def metrica(titulo):
     t = na(titulo)
     for k, rx in METRICAS:
@@ -196,6 +215,7 @@ def interpretar(linhas, origem=''):
             v = num(l[c])
             if v is None:
                 continue
+            rot = conserta_conta(rot)
             o['contas'][rot] = round(o['contas'].get(rot, 0) + v, 2)
             m = metrica(rot)
             if m == 'fir':      # "Valor da transferência" e "Valores firmados" são o mesmo número: fica o maior
