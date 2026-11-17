@@ -525,6 +525,15 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
 @keyframes gtg{to{transform:rotate(360deg)}}
 #gt .gt-aviso{font-size:11.5px;color:#7a877f;text-align:center;margin:18px 0 0;line-height:1.4}
 #gt [data-tela]{display:none}#gt [data-tela].on{display:block}
+#gt .gt-tipo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px}
+#gt .gt-tipo label{border:1.5px solid #cfdcd3;border-radius:12px;padding:9px 10px;cursor:pointer;background:#fff;display:block;text-align:left}
+#gt .gt-tipo input{position:absolute;opacity:0;pointer-events:none}
+#gt .gt-tipo b{display:block;color:#133a2a;font-size:14.5px}#gt .gt-tipo small{color:#5f6f66;font-size:12px;line-height:1.25;display:block}
+#gt .gt-tipo label.on{border-color:#22743d;background:#eef7ef;box-shadow:0 0 0 3px #2f8a4c22}
+#gt .gt-areas{background:#f4f8f5;border-radius:10px;padding:9px 10px;margin:0 0 12px;text-align:left}
+#gt .gt-areas p{margin:0 0 6px;font-size:12px;font-weight:600;color:#3d5a4b}
+#gt .gt-areas div{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px}
+#gt .gt-areas label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:#1d2b24;cursor:pointer}#gt .gt-areas input{accent-color:#22743d;width:16px;height:16px}
 @media (max-width:760px){
   #gt{background:radial-gradient(900px 600px at 80% 110%,#7a6a2a 0,#1c4a33 45%,#0d2a1f 80%)}
   #gt .gt-bg,#gt .gt-txt,#gt .gt-selo,#gt .so-pc{display:none}
@@ -549,6 +558,8 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
   #gt .gt-lk{color:#f6f2eab0}#gt .gt-lk a{color:#f6bd4a}
   #gt .gt-ok{background:#f2b33d33;color:#f6bd4a}#gt .gt-gira{border-color:#ffffff33;border-top-color:#f6bd4a}
   #gt .gt-aviso{color:#f6f2ea88}
+  #gt .gt-tipo label{background:#ffffffeb;border-color:transparent}#gt .gt-tipo label.on{background:#fff6dc;box-shadow:0 0 0 3px #f2b33d88}
+  #gt .gt-areas{background:#ffffffeb}
 }
 </style>
 <div id="gt" class="tela-gira" role="dialog" aria-modal="true" aria-label="Acesso ao Painel SDR">
@@ -592,6 +603,12 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
         <div class="gt-campo"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><input id="gt-semail" type="email" autocomplete="email" inputmode="email" placeholder="nome@agro.gov.br"></div>
         <label class="gt-l" for="gt-suni">Unidade / setor</label>
         <div class="gt-campo"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M9 21v-5h6v5M8 9h2M14 9h2M8 13h2M14 13h2"/></svg></span><input id="gt-suni" placeholder="Ex.: DECAP, CGPI, CEPLAC"></div>
+        <label class="gt-l">Tipo de acesso</label>
+        <div class="gt-tipo" id="gt-tipo"><label><input type="radio" name="gt-tipo" value="ADMINISTRADOR"><b>Administrador</b><small>acesso geral a todo o painel</small></label><label><input type="radio" name="gt-tipo" value="EXECUTOR"><b>Executor</b><small>só as áreas em que trabalha</small></label></div>
+        <div class="gt-areas" id="gt-areas" hidden><p>Áreas do executor (pode marcar mais de uma)</p><div>
+          <label><input type="checkbox" value="CONTRATOS"> Contratos</label><label><input type="checkbox" value="PARCERIAS"> Parcerias</label>
+          <label><input type="checkbox" value="TED"> TED</label><label><input type="checkbox" value="DIARIAS"> Diárias e passagens</label>
+          <label><input type="checkbox" value="ORCAMENTO"> Orçamento e finanças</label></div></div>
         <button class="gt-bt" type="submit">Enviar solicitação →</button>
         <p class="gt-lk">Já tem acesso? <a data-ir="entrar">Entrar</a></p>
       </form>
@@ -607,6 +624,8 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
   var URL_ACESSO = 'https://script.google.com/macros/s/AKfycbzFZv8kdVXR8qoS6Eeasfbg4kpGU8udGA8rG5vnHzs6TNguDRp_4mdL-5SoSr6oUbqV8A/exec';          // link /exec do Apps Script "acesso-painel" (vazio = painel sem senha)
   var CHAVE = 'sdrAcesso1';
   var gt = document.getElementById('gt');
+  // perfil de acesso: ADMINISTRADOR (tudo) ou "EXECUTOR: CONTRATOS, TED…" (só essas áreas + Ajuda). Lido pelo painel (podeTela).
+  window.sdrPerfil = function(){ if(!URL_ACESSO) return 'ADMINISTRADOR'; try{ var s = JSON.parse(localStorage.getItem(CHAVE) || 'null'); return (s && s.perfil) || 'ADMINISTRADOR'; }catch(e){ return 'ADMINISTRADOR'; } };
   if(!URL_ACESSO){ gt.remove(); return; }
   document.documentElement.classList.add('gt-on');
   var $ = function(id){ return document.getElementById(id); };
@@ -642,11 +661,14 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
     gt.classList.add('saindo');
     document.documentElement.classList.remove('gt-on');
     setTimeout(function(){ gt.remove(); }, 400);
+    try{ if(window.__sdrAplicarPerfil) window.__sdrAplicarPerfil(); }catch(e){}
     var n = 0, t = setInterval(function(){
       var av = document.getElementById('sdr-aviso');
       if(av && !document.getElementById('gt-sair')){
         var s = ler(), a = document.createElement('span');
-        a.innerHTML = ' · ' + (s && s.email ? 'Conectado como <b>' + esc(s.email) + '</b> · ' : '') + '<a id="gt-sair" href="#" style="color:#155a30;font-weight:700">Sair</a>';
+        var pf = String((s && s.perfil) || 'ADMINISTRADOR'), NA = {CONTRATOS:'Contratos', PARCERIAS:'Parcerias', TED:'TED', DIARIAS:'Diárias', ORCAMENTO:'Orçamento'};
+        var pfTxt = /^EXECUTOR/.test(pf) ? 'Executor: ' + (pf.replace(/^EXECUTOR:?\s*/, '').split(/,\s*/).filter(Boolean).map(function(x){ return NA[x] || x; }).join(', ') || 'só Ajuda') : 'Administrador';
+        a.innerHTML = ' · ' + (s && s.email ? 'Conectado como <b>' + esc(s.email) + '</b> (' + esc(pfTxt) + ') · ' : '') + '<a id="gt-sair" href="#" style="color:#155a30;font-weight:700">Sair</a>';
         av.appendChild(a);
         document.getElementById('gt-sair').onclick = function(e){ e.preventDefault(); window.sdrSair(); };
       }
@@ -687,7 +709,7 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
     ocupado(form, true);
     api({acao: 'entrar', email: EMAIL, codigo: cod, lembrar: $('gt-lembrar').checked}).then(function(r){
       ocupado(form, false);
-      if(r.ok){ gravar({token: r.token, exp: r.exp, email: EMAIL, nome: r.nome || ''}); liberar(); }
+      if(r.ok){ gravar({token: r.token, exp: r.exp, email: EMAIL, nome: r.nome || '', perfil: r.perfil || 'ADMINISTRADOR'}); liberar(); }
       else{
         $('gt-cod').value = '';
         if(r.vencido) msg(esc(r.msg) + ' <a id="gt-novo">Pedir novo código</a>');
@@ -699,12 +721,21 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
   $('gt-f-codigo').addEventListener('submit', function(e){ e.preventDefault(); entrar(this); });
   $('gt-cod').addEventListener('input', function(){ this.value = this.value.replace(/\D/g, '').slice(0, 6); if(this.value.length === 6) entrar($('gt-f-codigo')); });
 
+  $('gt-tipo').addEventListener('change', function(){
+    [].forEach.call(this.querySelectorAll('label'), function(l){ l.classList.toggle('on', l.querySelector('input').checked); });
+    var ex = !!gt.querySelector('input[name="gt-tipo"][value="EXECUTOR"]:checked'); $('gt-areas').hidden = !ex;
+  });
   $('gt-f-sol').addEventListener('submit', function(e){
     e.preventDefault(); var form = this;
-    var o = {acao: 'solicitar', nome: $('gt-snome').value.trim(), email: $('gt-semail').value.trim().toLowerCase(), unidade: $('gt-suni').value.trim()};
+    var tp = gt.querySelector('input[name="gt-tipo"]:checked');
+    var o = {acao: 'solicitar', nome: $('gt-snome').value.trim(), email: $('gt-semail').value.trim().toLowerCase(), unidade: $('gt-suni').value.trim(),
+             perfil: tp ? tp.value : '', areas: [].map.call(gt.querySelectorAll('#gt-areas input:checked'), function(i){ return i.value; })};
     if(o.nome.length < 3){ msg('Digite seu nome completo.'); return; }
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)){ msg('Digite um e-mail válido.'); return; }
     if(!o.unidade){ msg('Informe sua unidade ou setor.'); return; }
+    if(!o.perfil){ msg('Escolha o tipo de acesso: Administrador ou Executor.'); return; }
+    if(o.perfil === 'EXECUTOR' && !o.areas.length){ msg('Marque pelo menos uma área do executor.'); return; }
+    if(o.perfil !== 'EXECUTOR') o.areas = [];
     ocupado(form, true);
     api(o).then(function(r){
       ocupado(form, false);
@@ -719,7 +750,7 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
   if(s && s.token && s.exp > Date.now()){
     tela('gira');
     api({acao: 'checar', token: s.token}).then(function(r){
-      if(r.ok) liberar();
+      if(r.ok){ if(r.perfil && r.perfil !== s.perfil){ s.perfil = r.perfil; gravar(s); } liberar(); }   // o perfil vale o que está hoje na planilha
       else{ limpar(); tela('entrar'); if(r.msg) msg(esc(r.msg) + ' Entre de novo.', 'info'); }
     }).catch(function(){ liberar(); });   // servidor fora do ar: quem já tinha passe válido continua entrando
   }else{
@@ -8404,6 +8435,7 @@ VIEWS.viag = {
   }
 };
 function ir(id){
+  try{ if(window.parent!==window && VIEWS[id] && parent.__sdrPodeAntiga && !parent.__sdrPodeAntiga(id)){ parent.__sdrBloq(id); return; } }catch(e){}   // perfil de acesso (executor)
   if(window.parent!==window && (FORA[id] || !VIEWS[id])){ try{ parent.postMessage({painelSDR: FORA[id]||'menu'}, '*'); }catch(e){} return; }
   try{ history.replaceState(null, '', '#'+id); }catch(e){}
   document.querySelectorAll('.nav-sel').forEach(s => s.value = VIEWS[id] ? id : 'menu');
@@ -13709,6 +13741,7 @@ function rgVar(a, b, bomSobe, pct){
 }
 // ---------- janela de emissão ----------
 async function rgAbrir(modelo){
+  if(!podeRel(modelo)){ avisoBloqueio(); return; }
   const w = await garantirAntigo(); if(RG.modelo !== modelo){ RG.ugs = []; RG.acoes = []; RG.fases = []; RG.cats = []; } RG.modelo = modelo;
   if(!RG.per || !w.relPeriodos(RG.tipo).some(p => p[0] === RG.per)){ const L = w.relPeriodos(RG.tipo); RG.per = (L[1]||L[0])[0]; }
   if(modelo === 'orc'){ try{ await carregarVisao('exe'); }catch(e){} } else if(modelo === 'viag'){ try{ await w.dados('viag'); }catch(e){} } else if(modelo === 'ctr'){ try{ await rgCarregarCtr(); }catch(e){} } else { try{ await rgCarregarTed(); }catch(e){} }
@@ -14117,8 +14150,59 @@ window.relExtrasParc = relExtrasParc; window.rgAbrir = rgAbrir;
 .rg-sel{border:1px solid #c9d6cd;border-radius:8px;padding:7px 10px;font:inherit}.rg-rec{display:grid;gap:8px}.rg-rec label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600}
 .rg-gerar{margin-top:14px;width:100%;background:#1e7a3c;color:#fff;border:0;border-radius:9px;padding:11px;font:inherit;font-weight:700;font-size:15px;cursor:pointer}.rg-nota{font-size:12.5px;color:#5f6f66;margin:8px 0 0}`; document.head.appendChild(st); })();
 
+// =====================================================================
+// PERFIS DE ACESSO · Administrador (tudo) ou Executor (só as áreas do perfil). Ajuda e cartilhas: livres.
+// O perfil vem do controle de acesso (planilha ACESSOS PAINEL SDR, coluna Perfil). O bloqueio é na tela do painel.
+// =====================================================================
+const AREA_NOME = {CONTRATOS:'Contratos', PARCERIAS:'Parcerias', TED:'TED', DIARIAS:'Diárias e passagens', ORCAMENTO:'Orçamento e finanças'};
+const AREA_TELA = {
+  contratos:'CONTRATOS', busca:'CONTRATOS', ctrsdr:'CONTRATOS', despesas:'CONTRATOS', conferencia:'CONTRATOS', relctr:'CONTRATOS', alertactr:'CONTRATOS',
+  orcacao:'ORCAMENTO', orcamento:'ORCAMENTO', financeiro:'ORCAMENTO', exe:'ORCAMENTO', rap:'ORCAMENTO', exerap:'ORCAMENTO', cronorc:'ORCAMENTO', alertaorc:'ORCAMENTO',
+  viag:'DIARIAS', viagmat:'DIARIAS', viagalerta:'DIARIAS',
+  parc:'PARCERIAS', prop:'PARCERIAS', conv:'PARCERIAS', repasse:'PARCERIAS', relinst:'PARCERIAS', captacao:'PARCERIAS', indic:'PARCERIAS', cronparc:'PARCERIAS', alertaparc:'PARCERIAS',
+  tedapi:'TED', ted:'TED', alertated:'TED'};
+const TELA_LIVRE = new Set(['portmapa', 'acoessdr', 'assist', 'metodo']);
+const RG_AREA = {orc:'ORCAMENTO', ctr:'CONTRATOS', ted:'TED', viag:'DIARIAS'};
+const AREA_INICIO = {CONTRATOS:'contratos', ORCAMENTO:'orcacao', DIARIAS:'viag', PARCERIAS:'parc', TED:'ted'};
+function perfilAtual(){
+  let p = 'ADMINISTRADOR'; try{ if(window.sdrPerfil) p = window.sdrPerfil(); }catch(e){}
+  p = String(p || '').toUpperCase();
+  if(!/^EXECUTOR/.test(p)) return {admin:true, areas:Object.keys(AREA_NOME)};
+  return {admin:false, areas:Object.keys(AREA_NOME).filter(k => p.includes(k))};
+}
+function podeTela(t){
+  const P = perfilAtual(); if(P.admin) return true;
+  if(!t || t === 'menu') t = 'visao';
+  if(TELA_LIVRE.has(t)) return true;
+  if(/^_viag/.test(t)) t = 'viag'; if(t === '_rel') t = 'parc';
+  if(/^_rel/.test(t)) return P.areas.includes(RG_AREA[t.slice(4)]);
+  return P.areas.includes(AREA_TELA[t]);
+}
+const podeRel = m => { const P = perfilAtual(); return P.admin || P.areas.includes(RG_AREA[m]); };
+function primeiraLiberada(){ const P = perfilAtual(); return P.admin ? 'visao' : (P.areas.length ? AREA_INICIO[P.areas[0]] : 'metodo'); }
+function avisoBloqueio(){
+  const P = perfilAtual(); let a = document.getElementById('avisoBloq');
+  if(!a){ a = document.createElement('div'); a.id = 'avisoBloq'; a.setAttribute('role', 'alert');
+    a.style.cssText = 'position:fixed;left:calc(var(--sbw,0px) + 20px);right:20px;bottom:18px;z-index:9999;background:#fff;border:1px solid #f0c9c4;border-left:5px solid #c0392b;border-radius:10px;padding:11px 14px;font:14px Barlow,Arial,sans-serif;color:#1d2b24;box-shadow:0 10px 26px rgba(0,0,0,.2)';
+    document.body.appendChild(a); }
+  const lib = P.areas.map(k => AREA_NOME[k]).concat(['Ajuda']).join(', ');
+  a.innerHTML = '<b style="color:#a3271b">🔒 Área bloqueada para o seu perfil.</b> Você tem acesso a: '+esc(lib)+'. Para incluir outra área, peça à COAPI. <a href="#" style="float:right;color:#5f6f66;text-decoration:none" onclick="this.parentNode.hidden=true;return false">✕</a>';
+  a.hidden = false; clearTimeout(a._t); a._t = setTimeout(() => { a.hidden = true; }, 9000);
+}
+window.__sdrPode = podeTela;
+// telas internas do painel anterior (quadro): só bloqueia as que têm área conhecida (e a Visão geral)
+window.__sdrPodeAntiga = id => id === 'visao' ? podeTela('visao') : (!AREA_TELA[id] || podeTela(id));
+window.__sdrBloq = () => avisoBloqueio();
+let IR_N = 0;
+window.__sdrAplicarPerfil = () => {
+  try{ if(window.__sdrTravarSb) window.__sdrTravarSb(); }catch(e){}
+  let h = ''; try{ h = location.hash.slice(1); }catch(e){}
+  if(!podeTela(h || 'visao')) ir(primeiraLiberada());
+};
 async function ir(tela, sel){
   if(!tela || tela==='menu') tela = 'visao';
+  if(!podeTela(tela)){ if(IR_N > 0 || tela !== 'visao') avisoBloqueio(); const alvo = primeiraLiberada(); if(alvo === tela) return; tela = alvo; }
+  IR_N++;
   { const vx = document.getElementById('v-extra'); if(vx) vx.hidden = true; }
   if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='portmapa' || tela==='acoessdr' || tela==='viagmat' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
   if(TELAS_ANTIGAS.includes(tela)){
@@ -14537,6 +14621,7 @@ function preCarregar(){
   #sbar .sb-it.on{background:#c0392b;color:#fff;font-weight:600}
   #sbar .sb-it em{margin-left:auto;font-style:normal;font-size:10px;border:1px solid #8fb89b;border-radius:9px;padding:0 6px;color:#cfe6d6;white-space:nowrap}
   #sbar .sb-it.off{opacity:.55;cursor:default}
+  #sbar .sb-it.lk,#sbar .sb-gr.lk{opacity:.45}#sbar .sb-it.lk .tx::after,#sbar .sb-gr.lk span::after{content:" 🔒";font-size:11px}
   #sbar .sb-sub{padding:4px 9px 4px 38px;font-size:12.8px;color:#cfe6d6;border-radius:7px;cursor:pointer;display:block;border:0;background:none;width:100%;text-align:left;font:inherit;font-size:12.8px}
   #sbar .sb-sub:hover{background:rgba(255,255,255,.07)}#sbar .sb-sub.on{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:3px}
   #sbar .sb-pe{font-size:11px;color:#8fb89b;padding:9px 14px;border-top:1px solid rgba(255,255,255,.12)}
@@ -14644,6 +14729,12 @@ function preCarregar(){
     nav.querySelectorAll('.sb-subs').forEach(d => d.style.display = d.dataset.pai === t ? '' : 'none');
     nav.querySelectorAll('.sb-sub').forEach(b => b.classList.toggle('on', b.dataset.sbpai === t && (b.dataset.sbaba === aba || (['inst','emp','prog','mov','obras'].includes(aba) && b.dataset.sbaba === 'inst'))));
   }
+  // perfil executor: itens fora do perfil ficam com cadeado (clicar mostra o aviso); grupo todo bloqueado também
+  function travarSb(){
+    nav.querySelectorAll('.sb-it[data-sbir]').forEach(b => { const lk = !podeTela(b.dataset.sbir === 'menu' ? 'visao' : b.dataset.sbir); b.classList.toggle('lk', lk); b.title = lk ? 'Bloqueado para o seu perfil' : b.textContent.trim(); });
+    nav.querySelectorAll('[data-sbgr]').forEach(g => { const c = nav.querySelector(`[data-sbgrc="${g.dataset.sbgr}"]`); const it = c ? [...c.querySelectorAll('.sb-it[data-sbir]')] : []; g.classList.toggle('lk', it.length > 0 && it.every(b => b.classList.contains('lk'))); });
+  }
+  window.__sdrTravarSb = travarSb; travarSb();
   marcar(); setInterval(marcar, 900);
 })();
 </script>
