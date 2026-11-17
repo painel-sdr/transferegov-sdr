@@ -431,6 +431,17 @@ def ler_pf(pasta_saida):
         except Exception as e:
             info.append({'link': u, 'erro': str(e)[:200], 'ok': False})
             print(f'Tesouro TED PF: erro em {u[-60:]}: {e}', flush=True)
+    # a mesma linha de PF vinda de duas abas (TED PF e TED_PF_DEV trazem as devoluções) conta uma vez só
+    vistos, sem_rep = set(), []
+    for r in todas:
+        k = (r['ted'], r['doc'], r['categoria'], r['fonte'], r['valor'], r['evento'], r['obs'])
+        if k in vistos:
+            continue
+        vistos.add(k); sem_rep.append(r)
+    if len(sem_rep) < len(todas):
+        print(f'Tesouro TED PF: {len(todas) - len(sem_rep)} linha(s) repetida(s) entre abas ignorada(s)', flush=True)
+        info.append({'repetidas_ignoradas': len(todas) - len(sem_rep)})
+    todas = sem_rep
     os.makedirs(os.path.join(pasta_saida, 'ted'), exist_ok=True)
     campos = ['ted', 'data', 'doc', 'tipo', 'ug_emit', 'ug_fav', 'nome_fav', 'categoria', 'fonte', 'obs', 'valor', 'evento', 'evento_nome']
     with open(os.path.join(pasta_saida, 'ted', 'ted_tesouro_pf.csv'), 'w', encoding='utf-8', newline='') as fh:
