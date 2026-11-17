@@ -740,8 +740,8 @@ def ted(pasta):
     for o in linhas:
         if not cobertos or o.get('fase') != 'Em execução':
             o['ptF'] = []; continue
-        env_ = [x for x in o.get('ncs') or [] if str(x[2]).strip() in SDR_ and str(x[3]).strip() not in SDR_]   # NC enviada pela SDR a outra unidade
-        o['ptF'] = ['PTRES ' + p for p in sorted({str(x[5]).strip() for x in o.get('ncs') or [] if str(x[5]).strip()} - cobertos)] + \
+        env_ = [x for x in o.get('ncs') or [] if str(x[2]).strip() in SDR_ and str(x[3]).strip() not in SDR_]   # NC enviada pela SDR a outra unidade (TED recebido pela SDR fica fora: outro relatório)
+        o['ptF'] = ['PTRES ' + p for p in sorted({str(x[5]).strip() for x in env_ if str(x[5]).strip()} - cobertos)] + \
                    (['UG ' + u for u in sorted({str(x[3]).strip() for x in env_} - f_ug)] if f_ug else [])
     for o in linhas:
         o['nes'] = sorted(o['nes'], key=lambda x: (x[1][6:10], x[1][3:5], x[1][:2]), reverse=True)[:60]
