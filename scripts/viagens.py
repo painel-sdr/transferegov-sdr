@@ -201,8 +201,10 @@ def _linhas_tg(linhas, atrib, itens_rx, chave):
         return None
     pos = sorted((i, k) for k, rx in atrib for i in [achar(rx)] if i is not None)
     itens = {}
-    for l in L[max(0, ih - 4): ih + 4]:
+    for l in L[ih: ih + 4]:      # só as linhas de título (o texto do filtro, acima, cita "RESTOS A PAGAR PROCESSADOS PAGOS" e confundia a coluna)
         for i, c in enumerate(l):
+            if len(c) > 80:
+                continue
             for k, rx in itens_rx:
                 if i not in itens and k not in itens.values() and re.search(rx, _na(c)):
                     itens[i] = k; break
