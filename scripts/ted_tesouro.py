@@ -425,6 +425,7 @@ def ler_pf(pasta_saida):
     for u in urls:
         try:
             out = interpretar_pf(list(csv.reader(io.StringIO(baixar(u)))))
+            for r in out: r['_aba'] = u
             todas += out
             info.append({'link': u, 'linhas': len(out), 'ok': True})
             print(f'Tesouro TED PF: {len(out)} documentos em {u[-60:]}', flush=True)
@@ -432,16 +433,43 @@ def ler_pf(pasta_saida):
             info.append({'link': u, 'erro': str(e)[:200], 'ok': False})
             print(f'Tesouro TED PF: erro em {u[-60:]}: {e}', flush=True)
     # a mesma linha de PF vinda de duas abas (TED PF e TED_PF_DEV trazem as devoluções) conta uma vez só
-    vistos, sem_rep = set(), []
+    # (só entre abas diferentes: dentro da mesma aba, linhas iguais são itens diferentes da PF, ex.: vinculação 400 e 408)
+    # (a aba de devolução traz o evento e a principal não: a chave não usa o evento, e o evento passa para a linha que fica)
+    vistos, sem_rep = {}, []
     for r in todas:
-        k = (r['ted'], r['doc'], r['categoria'], r['fonte'], r['valor'], r['evento'], r['obs'])
-        if k in vistos:
+        k = (r['ted'], r['ug_emit'], r['doc'], r['categoria'], r['fonte'], r['valor'], r['obs'])
+        if k in vistos and vistos[k]['_aba'] != r['_aba']:
+            if r['evento'] and not vistos[k]['evento']:
+                vistos[k]['evento'], vistos[k]['evento_nome'] = r['evento'], r['evento_nome']
             continue
-        vistos.add(k); sem_rep.append(r)
+        vistos.setdefault(k, r); sem_rep.append(r)
     if len(sem_rep) < len(todas):
         print(f'Tesouro TED PF: {len(todas) - len(sem_rep)} linha(s) repetida(s) entre abas ignorada(s)', flush=True)
         info.append({'repetidas_ignoradas': len(todas) - len(sem_rep)})
     todas = sem_rep
+    # O valor do relatório (movimento da conta contábil) não se divide pelos itens da PF (categoria, fonte, vinculação):
+    # uma PF com n itens aparece em n linhas, cada uma com o total do documento multiplicado por n² (ex.: TED 999575,
+    # PF 2026PF000125 com 2 itens: R$ 3.068.000 virou 2 linhas de R$ 12.272.000). Quando todas as linhas do mesmo
+    # TED+PF trazem o mesmo valor, junta numa linha só com o total certo (valor ÷ n²).
+    grupos = {}
+    for r in todas:
+        grupos.setdefault((r['ted'], r['ug_emit'], r['doc'], r['evento']), []).append(r)   # 130141…PF000024 e 240256…PF000024 são PFs diferentes
+    todas, corrigidos = [], 0
+    for L in grupos.values():
+        vals = {r['valor'] for r in L}
+        if len(L) > 1 and len(vals) == 1 and isinstance(L[0]['valor'], float) and L[0]['valor']:
+            n = len(L)
+            r = dict(L[0])
+            r['valor'] = round(L[0]['valor'] / (n * n), 2)
+            r['categoria'] = ' + '.join(dict.fromkeys(x['categoria'] for x in L if x['categoria']))
+            r['fonte'] = ' + '.join(dict.fromkeys(x['fonte'] for x in L if x['fonte']))
+            todas.append(r); corrigidos += 1
+        else:
+            todas += L
+    todas = [{k: v for k, v in r.items() if k != '_aba'} for r in todas]
+    if corrigidos:
+        print(f'Tesouro TED PF: {corrigidos} PF(s) com vários itens corrigidas (valor do documento repetido em cada linha)', flush=True)
+        info.append({'pf_itens_corrigidas': corrigidos})
     os.makedirs(os.path.join(pasta_saida, 'ted'), exist_ok=True)
     campos = ['ted', 'data', 'doc', 'tipo', 'ug_emit', 'ug_fav', 'nome_fav', 'categoria', 'fonte', 'obs', 'valor', 'evento', 'evento_nome']
     with open(os.path.join(pasta_saida, 'ted', 'ted_tesouro_pf.csv'), 'w', encoding='utf-8', newline='') as fh:
