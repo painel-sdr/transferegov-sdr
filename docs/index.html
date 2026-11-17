@@ -6184,7 +6184,8 @@ function lerTed(text, chave){
   for(const r of rows.slice(hi+1)){
     const ent = g(r,'ent'), proc = g(r,'proc'), num = g(r,'num'); if(!ent && !proc && !num) continue;
     const fim = dataBR(g(r,'fim')), dias = fim ? Math.round((fim-hoje)/864e5) : null;
-    const d = {fase:TED_NOME[chave], origem:chave, num:num.replace(/\.0+$/,''), ano:g(r,'ano').replace(/\.0+$/,'') || ((proc.match(/\/((?:19|20)\d{2})-\d{1,2}\s*$/)||[])[1]) || (fim ? String(fim.getFullYear()) : ''),   // sem coluna ANO (aba TED VIGENTE): ano do processo; antes caía no ano do fim da vigência e o filtro Ano 2022 zerava os vigentes uf:g(r,'uf').toUpperCase(), ent, proponente:ent,
+    const d = {fase:TED_NOME[chave], origem:chave, num:num.replace(/\.0+$/,''), ano:g(r,'ano').replace(/\.0+$/,'') || ((proc.match(/\/((?:19|20)\d{2})-\d{1,2}\s*$/)||[])[1]) || (fim ? String(fim.getFullYear()) : ''),   // sem coluna ANO (aba TED VIGENTE): ano do processo; antes caía no ano do fim da vigência e o filtro Ano 2022 zerava os vigentes
+      uf:g(r,'uf').toUpperCase(), ent, proponente:ent,
       proc, fim, fimTxt:fmtData(fim), diasFim:dias, objeto:g(r,'objeto'), depto:limpa(g(r,'depto')).toUpperCase() || '(sem departamento)', rp:limpa(g(r,'rp')).toUpperCase() || 'Não informado',
       fiscT:limpa(g(r,'fiscT')), fiscS:limpa(g(r,'fiscS')), situ:limpa(g(r,'situ')), trat:limpa(g(r,'trat')),
       firmado:toNum(g(r,'firmado')), aRep:toNum(g(r,'aRep')), rep:toNum(g(r,'rep')), pedFin:toNum(g(r,'pedFin')), orcPend:toNum(g(r,'orcPend')),
@@ -6465,7 +6466,7 @@ const VIEW_TED = {
         ${kpi({titulo:'Pedido financeiro', valor:fmtC(soma(vig,'pedFin')), tip:fmtBRL(soma(vig,'pedFin')), sub:['Orçamento pendente', fmtC(soma(vig,'orcPend')), fmtBRL(soma(vig,'orcPend'))], lista:vig.filter(d => d.pedFin>0), ord:'pedFin', abre:'ted', cols:KC.ted([KV('Pedido financeiro','pedFin'),KV('Orçamento pendente','orcPend')])})}
       </div>
       ${avisoData}
-      ${alertas.length ? `<section class="card grafico"><h3>Alertas</h3><div class="vg-cards">${alertas.map(([a,l]) => `<div class="vg-card ${/vencida|repassar/i.test(a)?'urgente':'atencao'}"><div class="vg-num">${l.length}<small> TED${l.length>1?'s':''}</small></div><div class="vg-tit">${esc(a)}</div><div class="vg-det">${l.slice(0,4).map(d => esc(d.num)+' · '+esc(d.ent.slice(0,40))).join('<br>')}${l.length>4?'<br>…':''}</div><button type="button" class="vg-btn" data-campo="alerta" data-valor="${esc(a)}">Filtrar a lista →</button></div>`).join('')}</div></section>` : ''}
+      ${alertas.length ? `<section class="card grafico"><h3>Alertas</h3><div class="vg-cards">${alertas.map(([a,l]) => `<div class="vg-card ${/vencida|repassar/i.test(a)?'urgente':'atencao'}"><div class="vg-num">${l.length}<small> TED${l.length>1?'s':''}</small></div><div class="vg-tit">${esc(a)}</div><div class="vg-det">${l.slice(0,4).map(d => esc(d.num)+' · '+esc(String(d.ent||'').slice(0,40))).join('<br>')}${l.length>4?'<br>…':''}</div><button type="button" class="vg-btn" data-campo="alerta" data-valor="${esc(a)}">Filtrar a lista →</button></div>`).join('')}</div></section>` : ''}
       <div class="grade g2">
         ${secao('Prazo de vigência','TEDs por tempo até o fim da vigência', colunas(porVig,[{k:'_n',nome:'TEDs',cor:'var(--s2)',corFn:k => corVig[k],tip:v => intN(v)}],null,k => k,{largura:46, altura:150, fmt:v => intN(v), semLegenda:true}))}
         ${secao('Departamentos','valor firmado e repassado · clique para filtrar', bullet(porDep,'depto',[{k:'firmado',nome:'Firmado',cor:'var(--s4)'},{k:'rep',nome:'Repassado',cor:'var(--s1)'}]))}
@@ -8455,7 +8456,7 @@ document.addEventListener('click', e => {
     atualizarBotoesMS(); render(); return; }
   if(e.target.closest('.ms-pop')) return;
   if(!e.target.closest('.ms')) fecharMS();
-  const ta = e.target.closest('[data-tedaba]'); if(ta){ TED_ABA = ta.dataset.tedaba; render(); window.scrollTo({top:document.querySelector('.ted-abas').getBoundingClientRect().top+window.scrollY-90, behavior:'smooth'}); return; }
+  const ta = e.target.closest('[data-tedaba]'); if(ta){ TED_ABA = ta.dataset.tedaba; render(); const ab_ = document.querySelector('.ted-abas'); if(ab_) window.scrollTo({top:ab_.getBoundingClientRect().top+window.scrollY-90, behavior:'smooth'}); return; }
   const ft = e.target.closest('[data-fichated]'); if(ft){ e.preventDefault(); abrirFichaTed(ft.dataset.fichated, ft); return; }
   const fp = e.target.closest('[data-fichaprop]'); if(fp){ e.preventDefault(); abrirFichaProp(fp.dataset.fichaprop, fp); return; }
   const kp = e.target.closest('[data-kpip]'); if(kp){ KPI_ON = KPI_ON===kp.dataset.kpip ? null : kp.dataset.kpip; KPI_PG = 0;
@@ -10530,7 +10531,7 @@ function desenharPortfolio(tela){
   } else {
     el.innerHTML = `<div class="vx-top"><div><h1>AÇÕES SDR 2026</h1><small>as 8 ações orçamentárias da SDR e da CEPLAC · cartilhas de emendas parlamentares</small></div></div>
       <div class="pf-ac"><div class="pf-a pf-port"><a href="${PORT_PDF}portfolio_sdr_2026.pdf" target="_blank" rel="noopener"><img src="${PORT_PDF}portfolio_capa.jpg" alt="Capa do Portfólio Estratégico SDR 2026" class="pf-capa" onerror="this.remove()"></a><div class="pf-ah"><span class="pf-cod">SDR</span><b>Portfólio Estratégico SDR 2026</b></div><p>Ações da equipe SDR · UGs 130010 e 420013 · elaborado pela COAPI/SDR</p>
-        <div class="pf-meta"><span><em>Ações</em>215A · 8593 · 214Z · 00PN · 8622 · 21B6 · 8606 · 20ZY</span><span><em>Conteúdo</em>21 planos orçamentários, valores mínimos e máximos por instrumento</span></div>
+        <div class="pf-meta"><span><em>Ações</em>215A · 8593 · 214Z · 00PN · 8622 · 21B6 · 8606 · 20ZY</span><span><em>Conteúdo</em>22 planos orçamentários, valores mínimos e máximos por instrumento</span></div>
         <div class="pf-bts">${bt(PORT_PDF+'portfolio_sdr_2026.pdf', 'Portfólio SDR (PDF)')}</div></div>${PORT_ACOES.map(([c, n, r, po, u, ev]) => `<div class="pf-a"><a href="${PORT_PDF}cartilha_${c}.pdf" target="_blank" rel="noopener"><img src="${PORT_PDF}capa_${c}.jpg" alt="Capa da cartilha da ação ${c}" class="pf-capa" onerror="this.remove()"></a><div class="pf-ah"><span class="pf-cod">${c}</span><b>${esc(n)}</b></div><p>${esc(r)}</p>
         <div class="pf-meta"><span><em>POs</em>${esc(po)}</span><span><em>Unidade</em>${esc(u)}</span></div>
         <div class="pf-bts">${bt(PORT_PDF+'cartilha_'+c+'.pdf', 'Cartilha da ação (PDF)')}</div></div>`).join('')}</div>
