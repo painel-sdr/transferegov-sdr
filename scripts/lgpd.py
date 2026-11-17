@@ -7,7 +7,27 @@ Uso: python scripts/lgpd.py saida
 import csv, gzip, io, json, os, re, sys
 
 CPF = re.compile(r'(?<![\d./-])(\d{3})\.?(\d{3})\.?(\d{3})-?(\d{2})(?!\d|[.,]\d)')
-mascara = lambda s: CPF.sub(lambda m: f'***.{m.group(2)}.{m.group(3)}-**', s) if isinstance(s, str) and len(s) >= 11 else s
+
+
+def cpf_valido(d):
+    """Só é CPF se os 2 dígitos verificadores batem (evita mascarar PI, códigos e números de 11 dígitos que não são CPF)."""
+    if len(d) != 11 or d == d[0] * 11:
+        return False
+    for n in (9, 10):
+        s = sum(int(d[i]) * (n + 1 - i) for i in range(n))
+        if (s * 10 % 11) % 10 != int(d[n]):
+            return False
+    return True
+
+
+def _troca(m):
+    d = ''.join(m.groups())
+    return f'***.{m.group(2)}.{m.group(3)}-**' if cpf_valido(d) else m.group(0)
+
+
+mascara = lambda s: CPF.sub(_troca, s) if isinstance(s, str) and len(s) >= 11 else s
+# colunas / chaves que são códigos orçamentários (PI, PTRES, natureza, fonte…): nunca mascarar
+CODIGO = re.compile(r'^(pi|pi_nome|plano.?interno|ptres|nd|natureza|fonte|ne|nc|pf|ob|ted|ug|ug_.*|evento)$', re.I)
 
 
 def anda(o):
@@ -16,15 +36,19 @@ def anda(o):
     if isinstance(o, list):
         return [anda(x) for x in o]
     if isinstance(o, dict):
-        return {k: anda(v) for k, v in o.items()}
+        return {k: (v if CODIGO.match(str(k)) else anda(v)) for k, v in o.items()}
     return o
 
 
 def texto_csv(t):
     out = io.StringIO()
     w = csv.writer(out, lineterminator='\n')
-    for row in csv.reader(io.StringIO(t)):
-        w.writerow([mascara(c) for c in row])
+    pula = set()
+    for i, row in enumerate(csv.reader(io.StringIO(t))):
+        if i == 0:
+            pula = {j for j, c in enumerate(row) if CODIGO.match(c.strip())}
+            w.writerow(row); continue
+        w.writerow([c if j in pula else mascara(c) for j, c in enumerate(row)])
     return out.getvalue()
 
 
