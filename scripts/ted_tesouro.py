@@ -332,6 +332,7 @@ def interpretar_nc(linhas, ptres):
         info = ptres.get(pt, {})
         out.append({'ted': ted, 'data': g(l, cDt), 'nc': nc[-12:] if len(nc) > 12 else nc, 'nc_completa': nc, 'ug_emit': g(l, cUe), 'ug_fav': g(l, cFav),
                     'nome_fav': g(l, nome(cFav)), 'nd': g(l, cND), 'pi': g(l, cPI), 'pi_nome': g(l, nome(cPI)), 'ptres': pt, 'acao': (g(l, cAc) if cAc is not None and re.fullmatch(r'[0-9A-Z]{4}', g(l, cAc)) else '') or info.get('acao', ''),
+                    '_acao_rel': cAc is not None and bool(re.fullmatch(r'[0-9A-Z]{4}', g(l, cAc))),
                     'rp': info.get('rp', ''), 'fonte': g(l, cFt), 'obs': (g(l, cObs) or g(l, cDesc))[:400], 'valor': v if v is not None else '',
                     'evento': g(l, cEv), 'evento_nome': g(l, nome(cEv))})
     return out, sem
@@ -354,6 +355,21 @@ def ler_nc(pasta_saida):
         except Exception as e:
             info.append({'link': u, 'erro': str(e)[:200], 'ok': False})
             print(f'Tesouro TED NC: erro em {u[-60:]}: {e}', flush=True)
+    # a mesma NC pode vir em mais de uma aba (relatório colado/relido em duas abas, períodos que se sobrepõem): conta uma vez só.
+    # Dentro de uma NC o Tesouro já agrega por célula, então linha igual em tudo (NC, natureza, PI, PTRES, fonte, valor, evento) é repetição.
+    unico, dup = {}, 0
+    for r in todas:
+        k = (r['ted'], r['nc_completa'], r['nd'], r['pi'], r['ptres'], r['fonte'], r['valor'], r['evento'])
+        if k in unico:
+            dup += 1
+            if r.get('_acao_rel') and not unico[k].get('_acao_rel'):   # a ação que veio escrita no relatório vale mais que a do mapa de PTRES
+                unico[k]['acao'], unico[k]['_acao_rel'] = r['acao'], True
+            continue
+        unico[k] = r
+    if dup:
+        print(f'Tesouro TED NC: {dup} linha(s) repetida(s) entre abas ignorada(s)', flush=True)
+    todas = [{k: v for k, v in r.items() if k != '_acao_rel'} for r in unico.values()]
+    info.append({'repetidas_ignoradas': dup})
     os.makedirs(os.path.join(pasta_saida, 'ted'), exist_ok=True)
     campos = ['ted', 'data', 'nc', 'nc_completa', 'ug_emit', 'ug_fav', 'nome_fav', 'nd', 'pi', 'pi_nome', 'ptres', 'acao', 'rp', 'fonte', 'obs', 'valor', 'evento', 'evento_nome']
     with open(os.path.join(pasta_saida, 'ted', 'ted_tesouro_nc.csv'), 'w', encoding='utf-8', newline='') as fh:
