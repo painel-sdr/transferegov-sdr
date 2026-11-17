@@ -2,7 +2,8 @@ name: Atualizar dados Transferegov
 
 on:
   schedule:
-    - cron: '0 9,12,15,19 * * *'   # 06:00, 09:00, 12:00 e 16:00 (Brasília): os relatórios do Tesouro chegam por e-mail ao longo da manhã
+    - cron: '23 9,12,15,19 * * *'   # 06:23, 09:23, 12:23 e 16:23 (Brasília): os relatórios do Tesouro chegam por e-mail ao longo da manhã
+                                    # minuto 23 e não 00: na hora cheia o GitHub fica sobrecarregado e atrasa ou pula rodadas agendadas
   workflow_dispatch:          # botão "Run workflow" para rodar na hora
 
 permissions:
