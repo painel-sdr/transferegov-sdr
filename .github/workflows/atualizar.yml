@@ -47,6 +47,13 @@ jobs:
         continue-on-error: true
         run: python scripts/ted_tesouro.py saida
 
+      - name: CEPLAC · histórico das notas de empenho no Tesouro 2018–hoje (aba CEPLAC NE da BASE TED)
+        continue-on-error: true
+        run: |
+          mkdir -p saida/ceplac
+          curl -sfL "https://raw.githubusercontent.com/${{ github.repository }}/dados/ceplac/ceplac_ne.json" -o saida/ceplac/ceplac_ne.json || rm -f saida/ceplac/ceplac_ne.json
+          python scripts/ceplac_ne.py saida
+
       - name: TEDs · cadastro único (quais TEDs existem · Tesouro + NC + PF + API + controle)
         continue-on-error: true
         run: python scripts/ted_cadastro.py saida

@@ -4739,6 +4739,7 @@ function fichaHTML0(c, escopo, mesF){
       <div class="f-card ${A && A.fatVenc.length ? 'f-alerta' : ''}"><span>Faturas vencidas</span><b>${A ? A.fatVenc.length : '—'}</b><small>${A ? (A.fat.length ? A.fat.length+' fatura(s) no Contratos.gov.br' : 'nenhuma fatura ainda') : ''}</small></div>
     </div>
     ${notaCompartilhada(c, escopo, todas, rE, nomeUG)}
+    ${(() => { try{ return A && (String(A.ug) === '130010' || String(A.ugo) === '130010') && window.parent !== window && parent.__ceplacFicha ? parent.__ceplacFicha(String(A.id)) : ''; }catch(e){ return ''; } })()}
     <div class="f-barra"><div><span>EXECUÇÃO FINANCEIRA</span><b>${fmtPct(pct)} pago (${fmtBRL(T(null,'pago'))} de ${fmtBRL(T(null,'emp'))})</b></div><i><em style="width:${Math.min(100,pct*100).toFixed(1)}%"></em></i></div>
     <section class="f-sec"><h3>Evolução mensal${escopo==='EXE' ? ' (Empenhado · Liquidado · Pago)' : escopo==='RAP' ? ' do RAP (Liquidado · Pago · Cancelado)' : ' dos pagamentos · EXE + RAP'}</h3>
       <div style="padding:8px 12px 10px"><p class="dica" style="margin:0 0 4px;text-align:left">Somente o contrato <b>${esc(c)}</b> · passe o mouse sobre um mês para ver o valor pago${mesF ? ' · mês selecionado: <b>'+rotMes(mesF)+'</b>' : ''}</p>${(usaE && usaR) || (escopo==='EXE' && usaE) || (escopo==='RAP' && usaR) ? evolucaoFicha(c, escopo, rE, rR, mesF) : '<p class="dica" style="text-align:left">As abas EXE/RAP do Tesouro ainda não carregaram.</p>'}</div></section>
@@ -11458,7 +11459,7 @@ function telaExtra(tela){
   ['v-antigo','v-visao','v-menu','v-painel'].forEach(id => { const x = document.getElementById(id); if(x) x.hidden = true; });
   document.body.style.overflow = ''; document.body.dataset.tema = '';
   el.hidden = false; el.dataset.tela = tela; window.scrollTo(0,0); marcarHash(tela); setTimeout(pintarChips, 0);
-  if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'cronparc') calParAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(tela === 'viagmat') desenharViagMat(); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
+  if(tela === 'invceplac') desenharInvCep(); else if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'cronparc') calParAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(tela === 'viagmat') desenharViagMat(); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
 }
 (function(){ const st = document.createElement('style'); st.textContent = `
 .vx{box-sizing:border-box;max-width:100%;overflow-x:hidden;padding:18px 24px 40px;background:#e9efe9;min-height:100vh;font-family:Barlow,'Segoe UI',Arial,sans-serif;color:#1d2b24}
@@ -13316,7 +13317,7 @@ function rcSugestoes(q){
     box.hidden = false; }).catch(e => { box.innerHTML = `<div class="ri-sv">${esc(e.message)}</div>`; box.hidden = false; });
 }
 async function rcAbrir(id){
-  RC.id = String(id); RC.o = null; RC.l = null; RC.tes = null; RC.hist = null; RC.portal = null; RC.erro = ''; RC.aba = 'resumo';
+  RC.id = String(id); RC.o = null; RC.l = null; RC.tes = null; RC.hist = null; RC.portal = null; RC.cep = null; RC.cepErro = ''; RC.erro = ''; RC.aba = 'resumo';
   const box = document.getElementById('rcSug'); if(box) box.hidden = true;
   desenharRelCtr();
   try{
@@ -13329,6 +13330,7 @@ async function rcAbrir(id){
     try{ const T = await ctrExecTes([RC.o], null); RC.tes = T && T[0]; }catch(e){ RC.tes = {erro: e.message}; }
     try{ RC.hist = await window.__tesNEsHist(RC.o.nes); }catch(e){ RC.hist = {erro: e.message}; }
     try{ RC.portal = await histDados(RC.o.nes, {proc: RC.o.proc, ug: RC.o.ug}); }catch(e){ RC.portal = {erro: e.message}; }
+    if(String(RC.o.ug) === '130010' || String(RC.o.ugo) === '130010'){ desenharRelCtr(); try{ await cepIndice(); RC.cep = cepCalc(RC.o.id); }catch(e){ RC.cepErro = e.message; } }
   }catch(e){ RC.erro = e.message; }
   desenharRelCtr();
 }
@@ -13657,10 +13659,10 @@ function rcPagAlt(C){
 function rcPagHist(C){
   return `${rcCab(C, 'histórico 2014–2025')}<div>${riSec('Pagamentos de 2014 a 2025 · Portal da Transparência')}${window.__histSecao(C.o.nes, 'contrato '+C.o.num, {proc: C.o.proc, ug: C.o.ug})}</div>`;
 }
-const RC_ABAS = [['resumo','1 · Resumo do contrato'],['fin','2 · Execução financeira'],['fat','3 · Faturas e pagamentos'],['alt','4 · Alterações e documentos'],['hist','5 · Histórico 2014–2025']];
+const RC_ABAS = [['resumo','1 · Resumo do contrato'],['fin','2 · Execução financeira'],['fat','3 · Faturas e pagamentos'],['alt','4 · Alterações e documentos'],['hist','5 · Histórico 2014–2025'],['tes','6 · Tesouro 2018–hoje e pendências']];
 function rcDoc(aba){
   const C = rcCalc();
-  const corpo = aba === 'fin' ? rcPagFin(C) : aba === 'fat' ? rcPagFat(C) : aba === 'alt' ? rcPagAlt(C) : aba === 'hist' ? rcPagHist(C) : rcPagResumo(C);
+  const corpo = aba === 'fin' ? rcPagFin(C) : aba === 'fat' ? rcPagFat(C) : aba === 'alt' ? rcPagAlt(C) : aba === 'hist' ? rcPagHist(C) : aba === 'tes' ? rcPagTes(C) : rcPagResumo(C);
   return corpo + `<div class="ri-fonte">Fontes: Contratos.gov.br (API · robô), Tesouro do painel (BASE TESOURO GERENCIAL, notas de empenho ligadas ao contrato), PNCP e Portal da Transparência (histórico). Dias e alertas calculados na data de geração do relatório.</div>`;
 }
 function desenharRelCtr(){
@@ -13686,13 +13688,13 @@ function rcPDF(){
   if(!RC.o) return;
   const css = [...document.querySelectorAll('style')].filter(s => s.textContent.includes('.ri-doc') || s.textContent.includes('.vx-top')).map(s => s.textContent).join('\n');
   const quando = new Date().toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}), nr = RC.o.num;
-  const pag = ['resumo','fin','fat','alt'].map((a, k) => `${k ? '<div class="pg"></div>' : ''}<div class="ri-doc">${rcDoc(a)}</div>`).join('');
+  const pag = ['resumo','fin','fat','alt'].concat(RC.cep ? ['tes'] : []).map((a, k) => `${k ? '<div class="pg"></div>' : ''}<div class="ri-doc">${rcDoc(a)}</div>`).join('');
   abrirPDF(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório do contrato ${escPDF(nr)}</title><style>${css}
   @page{size:A4 landscape;margin:9mm 9mm 11mm}html,body{margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{padding:12px;font-family:"Segoe UI",Arial,sans-serif;color:#1d2b24}
   .ri-doc{box-shadow:none;padding:0}.pg{break-before:page}.ri-t tr,.ri-al,.ri-k>div{break-inside:avoid}.ri-sec{break-after:avoid}
   .barra{background:#fff8e1;border:1px solid #e6cf7a;border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:13px;display:flex;gap:12px;align-items:center}.barra button{font:inherit;font-weight:700;background:#1f6b3a;color:#fff;border:0;border-radius:8px;padding:7px 16px;cursor:pointer}
   ${CSS_CAB_PDF}@media print{.barra{display:none}body{padding:0}}</style></head><body>
-  <div class="barra"><button onclick="window.print()">Salvar em PDF</button><span>Na janela de impressão, escolha <b>Salvar como PDF</b>. São 4 páginas: resumo, execução financeira, faturas e alterações.</span></div>
+  <div class="barra"><button onclick="window.print()">Salvar em PDF</button><span>Na janela de impressão, escolha <b>Salvar como PDF</b>. São ${RC.cep ? 5 : 4} páginas: resumo, execução financeira, faturas, alterações${RC.cep ? ' e Tesouro 2018–hoje com as pendências' : ''}.</span></div>
   ${cabecalhoPDF('Relatório do contrato '+escPDF(nr), quando)}${pag}
   <script>setTimeout(function(){ try{ window.print(); }catch(e){} }, 700);<\/script></body></html>`, 'relatorio_contrato_'+String(nr).replace(/\W+/g,'_'));
 }
@@ -13710,6 +13712,265 @@ document.addEventListener('click', e => {
 });
 // ficha do contrato (app antigo) → relatório
 window.__abrirRelCtr = id => ir('relctr', {id});
+
+// =====================================================================
+// CEPLAC · INVENTÁRIO DE CONTRATOS (UG 130010) · esboço aprovado em 18/11/2026
+// Tesouro Gerencial 2018–hoje por nota de empenho (ceplac/ceplac_ne.json, relatório "[PAINEL] CEPLAC_NE") + Contratos.gov.br (API)
+// Ligação NE → contrato: 1º a nota ligada no Contratos.gov.br · 2º o nº do contrato escrito na descrição da NE
+// (mesmo fornecedor) · o mesmo CNPJ sem nº na nota fica só como sugestão (NEs sem contrato).
+// =====================================================================
+const CEP = {aba:'vig', q:'', pend:'', J:null, I:null, erro:'', lendo:false};
+let _cepJP = null, _cepIP = null;
+function cepDados(){ return _cepJP || (_cepJP = fetch(RAW_DADOS+'ceplac/ceplac_ne.json?h='+new Date().toISOString().slice(0,13)).then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(J => { CEP.J = J; return J; }).catch(e => { _cepJP = null; throw new Error('o histórico do Tesouro da CEPLAC não abriu ('+e.message+')'); })); }
+// natureza que não tem contrato (diárias, passagens, pessoa física, auxílios, tributos, DEA, indenizações)
+const CEP_ND_SEM = /^(3390(14|18|33|36|46|47|48|49|92|93|08)|3391(39|47)|3190|3191)/;
+const cepChave = (n, a) => { a = String(a); if(a.length === 2) a = '20'+a; return (+n)+'/'+a; };
+function cepCita(d){ const out = [], rx = /CONT(?:RATO|\.)\s*(?:N[º°O.]*\s*)?0*(\d{1,5})\s*\/\s*(\d{4}|\d{2})(?!\d)/g; let m; const t = String(d||'').toUpperCase(); while((m = rx.exec(t))) out.push(cepChave(m[1], m[2])); return [...new Set(out)]; }
+const na0 = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+const cepAnoNE = k => +String(k).split('|')[1].slice(0, 4);
+// valores de uma nota: y[ano] = [emp, liq, pago, rpp_insc, rpp_canc, rpp_pago, rpnp_insc, rpnp_canc, rpnp_pago]
+function cepVal(x, k, pos){
+  let emp = 0, liq = 0, pagoE = 0, rapP = 0, canc = 0; const anos = {};
+  Object.entries(x.y || {}).forEach(([a, v]) => { emp += v[0]; liq += v[1]; pagoE += v[2]; rapP += v[5] + v[8]; canc += v[4] + v[7];
+    anos[a] = {emp: v[0], pago: v[2], rap: v[5] + v[8], canc: v[4] + v[7]}; });
+  const Y = String(pos), r = (x.y || {})[Y];
+  let ap = 0;
+  if(cepAnoNE(k) === pos){ ap = r ? r[0] - r[2] : 0; }
+  else if(r){ ap = r[3] + r[6] - r[4] - r[7] - r[5] - r[8]; }
+  if(Math.abs(ap) < 0.01 || ap < 0) ap = 0;
+  const pagoAno = r ? r[2] + r[5] + r[8] : 0;
+  return {emp, liq, pagoE, rapP, canc, pago: pagoE + rapP, ap, pagoAno, anos};
+}
+// índice: quais notas são de qual contrato (todas as UGs vêm do API_CTR; aqui só a 130010)
+async function cepIndice(){
+  if(CEP.I) return CEP.I;
+  return _cepIP || (_cepIP = (async () => {
+    const [J, w] = await Promise.all([cepDados(), garantirAntigo()]); await w.carregarApiCtr(); const A = w.eval('API_CTR');
+    if(!A || A.erro) throw new Error('não foi possível ler os contratos do Contratos.gov.br');
+    const ctrs = A.lista.filter(o => String(o.ug) === '130010' || String(o.ugo) === '130010');
+    const porNum = new Map(), porCnpj = new Map(), neCtr = new Map(), por = new Map();
+    ctrs.forEach(o => { try{ w.calcValoresCtr(o); }catch(e){}
+      const m = String(o.num||'').match(/(\d+)\s*\/\s*(\d{4})/); if(m){ const k = cepChave(m[1], m[2]); (porNum.get(k) || porNum.set(k, []).get(k)).push(o); }
+      const c = String(o.cnpj||'').replace(/\D/g,''); if(c) (porCnpj.get(c) || porCnpj.set(c, []).get(c)).push(o);
+      por.set(String(o.id), {o, nes: [], div: []}); });
+    const N = J.nes || {};
+    // 1º Contratos.gov.br
+    ctrs.forEach(o => (o.nes||[]).forEach(e => { const k = String(e.ug||'').replace(/\D/g,'').slice(0,6)+'|'+String(e.ne||'').toUpperCase(); if(!neCtr.has(k)) neCtr.set(k, {o, lig:'api'}); }));
+    // 2º nº do contrato na descrição (mesmo fornecedor; sem fornecedor igual, só se o nº for de um contrato só)
+    const sem = [];
+    Object.entries(N).forEach(([k, x]) => {
+      const cit = cepCita(x.d);
+      const l = neCtr.get(k);
+      if(l){ if(cepVal(x, k, J.pos).emp < 0.01 && cepVal(x, k, J.pos).pago < 0.01) return; const ch = (() => { const m = String(l.o.num||'').match(/(\d+)\s*\/\s*(\d{4})/); return m ? cepChave(m[1], m[2]) : ''; })();
+        if(cit.length && !cit.includes(ch) && cit.some(c => porNum.has(c))) l.div = cit.filter(c => porNum.has(c)); return; }
+      for(const c of cit){ const L = porNum.get(c) || []; const f = L.filter(o => String(o.cnpj||'').replace(/\D/g,'') === x.c);
+        const o = f.length === 1 ? f[0] : (!f.length && L.length === 1 ? L[0] : null); if(o){ neCtr.set(k, {o, lig:'desc'}); return; } }
+      const sug = porCnpj.get(x.c) || [];
+      sem.push({k, x, cit, tipo: cit.length && !cit.some(c => porNum.has(c)) ? 'cita' : sug.length ? 'forn' : CEP_ND_SEM.test(x.n) || /SUPRIMENTO DE FUNDOS|DIARIAS|AUXILIO|RESSARCIMENTO|INDENIZA/.test(na0(x.d)) ? 'nat' : 'sem', sug});
+    });
+    neCtr.forEach((l, k) => { if(!N[k]) return; const p = por.get(String(l.o.id)); if(p) p.nes.push({k, lig:l.lig, div:l.div||null}); });
+    return CEP.I = {J, w, ctrs, por, porNum, sem};
+  })().catch(e => { _cepIP = null; throw e; }));
+}
+// cálculo de um contrato (inventário, ficha e relatório)
+function cepCalc(id){
+  const I = CEP.I; if(!I) return null; const p = I.por.get(String(id)); if(!p) return null;
+  const o = p.o, J = I.J, pos = J.pos, hoje = new Date(); hoje.setHours(0,0,0,0);
+  const cv = o.calc || {}, indet = !!(o.fim && o.fim.getFullYear() >= 2090);
+  const vig = o.ativo && (indet || !o.fim || o.fim >= hoje), venc = o.fim && !indet && o.fim < hoje;
+  const nes = p.nes.map(n => { const x = J.nes[n.k]; return Object.assign({ne: n.k.split('|')[1], ug: n.k.split('|')[0], x, lig: n.lig, div: n.div}, cepVal(x, n.k, pos)); })
+    .sort((a,b) => b.ne.localeCompare(a.ne));
+  const anos = {}; nes.forEach(n => Object.entries(n.anos).forEach(([a, v]) => { const t = anos[a] || (anos[a] = {emp:0, pago:0, rap:0, canc:0}); t.emp += v.emp; t.pago += v.pago; t.rap += v.rap; t.canc += v.canc; }));
+  const S = (f) => nes.reduce((s, n) => s + (f(n) || 0), 0);
+  const empTot = S(n => n.emp), pagoAc = S(n => n.pago), ap = S(n => n.ap), pagoAno = S(n => n.pagoAno);
+  // período vigente e saldo (serviço: valor do período − pago nas notas do período · compra: valor global − empenhado)
+  const compra = !!cv.compra;
+  let iniP = o.ini, valorP = null, pagoP = null, saldo = null, falta = null;
+  if(indet){ /* vigência indeterminada (água, energia): sem saldo */ }
+  else if(o.fim && !compra){
+    const usaP = !!(cv.mP && cv.mP > 0 && /período atual/.test(cv.base||'')); if(usaP && cv.iniP) iniP = cv.iniP;
+    const mens = cv.mensal || 0, meses = usaP ? cv.mP : cv.mT; valorP = mens && meses ? mens * meses : o.vg;
+    const corte = iniP ? new Date(iniP.getTime() - 31*864e5) : null;
+    pagoP = S(n => { const e = n.x.e ? new Date(n.x.e+'T00:00:00') : null; return !corte || !e || e >= corte ? n.pago : 0; });
+    saldo = valorP - pagoP; falta = vig ? Math.max(0, saldo - ap) : 0;
+  } else if(compra && o.fim){ valorP = o.vg; pagoP = pagoAc; saldo = o.vg - empTot; falta = vig ? Math.max(0, saldo) : 0; }
+  const dias = o.fim && !indet ? Math.round((o.fim - hoje)/864e5) : null;
+  // pendências: [classe c=crítica a=atenção n=nota, texto, providência]
+  const pend = [];
+  if(venc && o.ativo) pend.push(['c', 'Vigência encerrada em '+dataBR(o.fim)+' e ainda “Ativo” no Contratos.gov.br', 'Pedir ao Compras o encerramento do contrato no Contratos.gov.br']);
+  if(!vig && ap > 0.01) pend.push(['c', 'Saldo de empenho de '+riR(ap)+' com o contrato encerrado', 'Pagar o que for devido ou cancelar o saldo (RAP/empenho)']);
+  if(vig && pagoAno < 0.01 && o.ini && o.ini < new Date(pos, 9, 1) && (!o.fim || indet || o.fim > new Date(pos, 2, 1))) pend.push(['a', 'Contrato vigente sem nenhum pagamento em '+pos+(dias !== null && dias >= 0 ? ' · vence em '+dias+' dias' : ''), 'Confirmar com o gestor se o contrato está sendo executado, se será prorrogado ou encerrado']);
+  if(vig && !compra && valorP && pagoP > valorP * 1.02) pend.push(['a', 'Pago no período ('+riR(pagoP)+') acima do valor do contrato no período ('+riR(valorP)+')', 'Conferir aditivos e valor global no Contratos.gov.br']);
+  nes.filter(n => n.div).forEach(n => pend.push(['a', 'A NE '+n.ne+' ('+riR(n.pago || n.emp)+') está ligada a este contrato no Contratos.gov.br, mas a descrição cita o contrato '+n.div.join(', '), 'Corrigir o vínculo no Contratos.gov.br ou a descrição da nota']));
+  const cnpj = String(o.cnpj||'').replace(/\D/g,''), sug = I.sem.filter(s => s.tipo === 'forn' && s.x.c === cnpj);
+  if(sug.length){ const v = sug.reduce((s, z) => s + cepVal(z.x, z.k, pos).pago, 0); pend.push(['n', sug.length+' nota(s) do mesmo fornecedor sem contrato ligado ('+sug.slice(0,5).map(z => z.k.split('|')[1]).join(', ')+(sug.length > 5 ? '…' : '')+' · pago '+riR(v)+')', 'Verificar de qual contrato são e ligar no Contratos.gov.br']); }
+  if(!nes.length) pend.push(['n', 'Nenhuma nota de empenho ligada no Tesouro 2018–'+pos, 'Cadastrar o empenho no Contratos.gov.br (ou o contrato não teve execução)']);
+  return {o, vig, venc, indet, compra, dias, nes, anos, empTot, pagoAc, ap, pagoAno, iniP, valorP, pagoP, saldo, falta, pend, pos, cv, sug};
+}
+const dataBR = d => d ? d.toLocaleDateString('pt-BR') : '—';
+// ---------- blocos HTML (usados na ficha e no relatório) ----------
+const CEP_CSS = `.cep-k{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:8px 0}.cep-k>div{background:#fff;border-radius:9px;padding:8px 10px;border-left:4px solid #155a30;box-shadow:0 0 0 1px #dfe6e2}.cep-k span{display:block;font-size:11px;color:#5e6d65}.cep-k b{display:block;font-size:16px;color:#1d2b24}.cep-k small{font-size:10.5px;color:#5e6d65}.cep-k .r{border-color:#b3261e}.cep-k .a{border-color:#e08a00}
+.cep-pd{background:#fff5f4;border:1px solid #f0b8b2;border-radius:9px;padding:8px 12px;margin:8px 0}.cep-pd b.t{color:#9b1c13}.cep-pd ul{margin:4px 0 0;padding-left:18px}.cep-pd li{margin:3px 0;font-size:12.5px}.cep-pd li small{display:block;color:#5e6d65}.cep-pd.ok{background:#eef8f1;border-color:#b9dcc5}.cep-pd.ok b.t{color:#155a30}
+.cep-t{width:100%;border-collapse:collapse;font-size:12px;background:#fff}.cep-t th{background:#155a30;color:#fff;text-align:left;padding:5px 7px;font-size:11.5px}.cep-t td{padding:5px 7px;border-bottom:1px solid #e3e9e5;vertical-align:top}.cep-t .n{text-align:right;white-space:nowrap}.cep-t tfoot td{font-weight:700;background:#eef4f0}
+.cep-g{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px}.cep-h{font-weight:700;color:#155a30;font-size:13px;margin:10px 0 4px}
+.cep-i{font-style:normal;font-size:11px;padding:1px 7px;border-radius:10px;display:inline-block;margin:1px;white-space:nowrap}.cep-i.g{background:#e1f3e7;color:#155a30}.cep-i.b{background:#e3ecfb;color:#1d4b9b}.cep-i.a{background:#fff0d6;color:#8a5300}.cep-i.r{background:#fde4e1;color:#9b1c13}
+.cep-bar{height:9px;background:#e3e9e5;border-radius:6px;overflow:hidden;margin:2px 0 6px}.cep-bar i{display:block;height:100%;background:#155a30}.cep-nota{font-size:11px;color:#5e6d65;margin:4px 0}
+@media(max-width:900px){.cep-k{grid-template-columns:repeat(2,minmax(0,1fr))}.cep-g{grid-template-columns:1fr}}`;
+const cepF = v => Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const cepFz = v => Math.abs(v||0) < 0.005 ? '—' : cepF(v);
+const CEP_LIG = {api:['g','Contratos.gov.br'], desc:['b','nº do contrato na descrição']};
+function cepCards(K){
+  const o = K.o, pct = K.valorP ? Math.min(100, K.pagoP / K.valorP * 100) : 0;
+  const per = K.indet ? 'vigência indeterminada' : K.compra ? 'compra: valor global − empenhado' : 'notas emitidas desde '+dataBR(K.iniP);
+  return `<div class="cep-k">
+    <div><span>Valor firmado</span><b>${riR(o.vg)}</b><small>${o.vi && Math.abs(o.vi - o.vg) > 0.5 ? 'inicial '+riR(o.vi) : (K.cv.base ? esc(String(K.cv.base).split(' · ')[0]).slice(0,60) : '')}</small></div>
+    <div><span>Pago acumulado (${Object.keys(K.anos).sort()[0] || K.pos}–${K.pos})</span><b>${riR(K.pagoAc)}</b><small>exercício + RAP · Tesouro</small></div>
+    <div class="${K.vig && K.pagoP !== null && K.pagoP < 0.01 ? 'r' : ''}"><span>Pago no período vigente</span><b>${K.pagoP === null ? '—' : riR(K.pagoP)}</b><small>${esc(per)}</small></div>
+    <div class="${K.ap > 0.01 && !K.vig ? 'r' : K.ap > 0.01 ? 'a' : ''}"><span>A pagar (saldo de empenho)</span><b>${riR(K.ap)}</b><small>${K.nes.filter(n => n.ap > 0.01).length} nota(s) com saldo</small></div>
+    <div class="${K.saldo !== null && K.saldo < -0.01 ? 'r' : 'a'}"><span>Saldo do contrato</span><b>${K.saldo === null ? '—' : (K.saldo < 0 ? '−' : '')+riR(Math.abs(K.saldo))}</b><small>${K.saldo === null ? 'sem saldo (indeterminada)' : K.compra ? 'teto ainda não empenhado' : 'valor do período '+riR(K.valorP)+' − pago'}</small></div>
+    <div class="${K.falta > 0.01 ? 'a' : ''}"><span>Falta empenhar</span><b>${K.falta === null ? '—' : riR(K.falta)}</b><small>${K.vig ? 'saldo − a pagar' : 'contrato encerrado'}</small></div></div>
+    ${K.valorP ? `<div class="cep-nota">Execução no período: <b>${pct.toLocaleString('pt-BR', {maximumFractionDigits:1})}%</b></div><div class="cep-bar"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}`;
+}
+function cepPend(K){
+  if(!K.pend.length) return `<div class="cep-pd ok"><b class="t">✓ Nenhuma pendência entre o Tesouro e o Contratos.gov.br</b></div>`;
+  return `<div class="cep-pd"><b class="t">Pendências e divergências (Tesouro × Contratos.gov.br)</b><ul>${K.pend.map(p => `<li>${p[0] === 'c' ? '🔴' : p[0] === 'a' ? '🟠' : '🔵'} ${esc(p[1])}<small>→ ${esc(p[2])}</small></li>`).join('')}</ul></div>`;
+}
+function cepTabAnos(K){
+  const A = Object.keys(K.anos).sort(); if(!A.length) return '<p class="cep-nota">Sem nota de empenho deste contrato no Tesouro.</p>';
+  const t = A.reduce((s, a) => { const v = K.anos[a]; s.emp += v.emp; s.pago += v.pago; s.rap += v.rap; s.canc += v.canc; return s; }, {emp:0, pago:0, rap:0, canc:0});
+  return `<table class="cep-t"><tr><th>Ano</th><th class="n">Empenhado</th><th class="n">Pago no ano</th><th class="n">RAP pago</th><th class="n">RAP cancelado</th><th class="n">Total pago</th></tr>
+    ${A.map(a => { const v = K.anos[a]; return `<tr><td>${a}</td><td class="n">${cepFz(v.emp)}</td><td class="n">${cepFz(v.pago)}</td><td class="n">${cepFz(v.rap)}</td><td class="n">${cepFz(v.canc)}</td><td class="n"><b>${cepFz(v.pago + v.rap)}</b></td></tr>`; }).join('')}
+    <tfoot><tr><td>Total</td><td class="n">${cepF(t.emp)}</td><td class="n">${cepF(t.pago)}</td><td class="n">${cepF(t.rap)}</td><td class="n">${cepFz(t.canc)}</td><td class="n">${cepF(t.pago + t.rap)}</td></tr></tfoot></table>`;
+}
+function cepTabNEs(K, lim){
+  if(!K.nes.length) return '';
+  const L = lim ? K.nes.slice(0, lim) : K.nes;
+  return `<table class="cep-t"><tr><th>NE</th><th>Emissão</th><th>Natureza</th><th>Ação · PTRES</th><th class="n">Empenhado</th><th class="n">Pago (total)</th><th class="n">A pagar</th><th>Ligação</th></tr>
+    ${L.map(n => `<tr><td>${esc(n.ne)}</td><td>${n.x.e ? esc(n.x.e.split('-').reverse().join('/')) : '—'}</td><td>${esc(n.x.n)}<br><small style="color:#5e6d65">${esc(String(n.x.nn||'').slice(0,40))}</small></td><td>${esc(n.x.a)}${n.x.t ? ' · '+esc(n.x.t) : ''}</td>
+      <td class="n">${cepFz(n.emp)}</td><td class="n">${cepFz(n.pago)}</td><td class="n">${cepFz(n.ap)}</td>
+      <td><i class="cep-i ${CEP_LIG[n.lig][0]}">${CEP_LIG[n.lig][1]}</i>${n.div ? `<i class="cep-i r">descrição cita ${esc(n.div.join(', '))}</i>` : ''}</td></tr>`).join('')}
+    <tfoot><tr><td colspan="4">Total · ${K.nes.length} nota(s)</td><td class="n">${cepF(K.empTot)}</td><td class="n">${cepF(K.pagoAc)}</td><td class="n">${cepFz(K.ap)}</td><td></td></tr></tfoot></table>
+    ${lim && K.nes.length > lim ? `<p class="cep-nota">Mostrando as ${lim} notas mais recentes de ${K.nes.length}. A lista completa está no relatório do contrato e no Excel do inventário.</p>` : ''}`;
+}
+function cepRodape(){ const J = CEP.J; return `<p class="cep-nota">Fonte: Tesouro Gerencial (relatório CEPLAC_NE, ${J ? 'lido em '+esc(J.gerado||'') : ''}, movimento líquido por ano, exercício + RAP) e Contratos.gov.br (API). Ligação da nota: Contratos.gov.br ou nº do contrato escrito na descrição da nota (mesmo fornecedor).</p>`; }
+// ficha do contrato (app antigo): bloco que se preenche sozinho depois que o histórico abre
+window.__ceplacFicha = id => {
+  const ch = 'cepfx'+String(id).replace(/\W/g,'');
+  (async () => {
+    let html;
+    try{ await cepIndice(); const K = cepCalc(id); html = K ? `<style>${CEP_CSS}</style><section class="f-sec"><h3>Inventário · Tesouro 2018–${K.pos} e Contratos.gov.br</h3><div style="padding:6px 12px 10px">${cepCards(K)}${cepPend(K)}
+      <div class="cep-h">Histórico no Tesouro · por ano</div>${cepTabAnos(K)}<div class="cep-h">Notas de empenho do contrato · todas</div><div style="overflow-x:auto">${cepTabNEs(K, 12)}</div>${cepRodape()}</div></section>` : ''; }
+    catch(e){ html = `<section class="f-sec"><h3>Inventário · Tesouro</h3><p class="dica" style="text-align:left;padding:8px 12px;color:#a32d2d">${esc(e.message)}</p></section>`; }
+    for(let i = 0; i < 40; i++){ let el = null; try{ el = document.getElementById('frAntigo').contentDocument.querySelector('[data-cepfx="'+ch+'"]'); }catch(e){}
+      if(el){ el.innerHTML = html; return; } await new Promise(z => setTimeout(z, 250)); }
+  })();
+  return `<div data-cepfx="${ch}"><p class="dica" style="text-align:left;padding:8px 12px">Lendo o histórico do Tesouro (2018 até hoje)…</p></div>`;
+};
+// ---------- tela: Inventário CEPLAC ----------
+let CEP_COMPRAS = {}; try{ CEP_COMPRAS = JSON.parse(localStorage.getItem('sdr_cep_compras') || '{}'); }catch(e){}
+const CEP_ABAS = [['vig','Vigentes · atualizar'],['enc','Encerrados · pedir encerramento no Compras'],['sem','NEs sem contrato']];
+const CEP_SEM_T = {forn:['a','mesmo fornecedor de contrato, sem nº na nota'], cita:['r','cita contrato que não está no Contratos.gov.br'], sem:['n','sem contrato identificado'], nat:['g','sem contrato pela natureza (diárias, passagens, PF, tributos…)']};
+function desenharInvCep(){
+  const el = document.getElementById('v-extra'); if(!el || el.dataset.tela !== 'invceplac') return;
+  const topo = `<style>${CEP_CSS}
+  .cep-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.cep-tabs button{border:1px solid #cfd8d3;background:#fff;border-radius:18px;padding:7px 14px;font:inherit;font-weight:600;cursor:pointer}.cep-tabs button.on{background:#155a30;color:#fff;border-color:#155a30}
+  .cep-fil{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px}.cep-fil input,.cep-fil select{font:inherit;font-size:13px;padding:6px 9px;border:1px solid #cfd8d3;border-radius:7px;background:#fff}.cep-fil input{min-width:260px}
+  .cep-lk{color:#155a30;font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:0;font:inherit;padding:0}.cep-t td small{color:#5e6d65}
+  .cep-k.inv b{font-size:19px}</style>
+  <div class="vx-top"><div><h1>📑 INVENTÁRIO CEPLAC</h1><small>contratos da UG 130010 · Contratos.gov.br + Tesouro Gerencial ${CEP.J ? (CEP.J.anos||[])[0]+'–'+CEP.J.pos : '2018–hoje'}</small></div><div><button type="button" class="vx-btn" data-cepxl style="background:#fff;color:#155a30">📥 Excel</button></div></div>`;
+  if(!CEP.I){ el.innerHTML = topo + `<div class="vx-card" style="margin-top:12px">${CEP.erro ? esc(CEP.erro) : 'Lendo os contratos e o histórico do Tesouro…'}</div>`;
+    if(!CEP.lendo && !CEP.erro){ CEP.lendo = true; cepIndice().then(() => { CEP.lendo = false; desenharInvCep(); }).catch(e => { CEP.lendo = false; CEP.erro = e.message; desenharInvCep(); }); }
+    return; }
+  const I = CEP.I, K = I.ctrs.map(o => cepCalc(o.id)).filter(Boolean);
+  const V = K.filter(k => k.vig), E = K.filter(k => !k.vig);
+  const nSem = I.sem.filter(s => s.tipo !== 'nat').length;
+  const abas = `<div class="cep-tabs">${CEP_ABAS.map(([a, t]) => `<button type="button" data-cepaba="${a}" class="${CEP.aba === a ? 'on' : ''}">${t} (${a === 'vig' ? V.length : a === 'enc' ? E.length : nSem})</button>`).join('')}</div>`;
+  const q = rcN(CEP.q), filtra = L => !q ? L : L.filter(k => rcN([k.o.num, k.o.forn, k.o.cnpj, k.o.proc, k.o.ugoN].join(' ')).includes(q));
+  let corpo = '';
+  if(CEP.aba === 'vig'){
+    const tipos = [...new Set(V.flatMap(k => k.pend.map(p => p[1].replace(/[\d.,]+|R\$|NE \S+|\(.*?\)/g, '').replace(/\s+/g,' ').trim().slice(0, 40))))];
+    let L = filtra(V); if(CEP.pend) L = L.filter(k => CEP.pend === '_ok' ? !k.pend.length : k.pend.some(p => p[1].includes(CEP.pend)));
+    L.sort((a,b) => (b.pend.some(p => p[0] !== 'n') - a.pend.some(p => p[0] !== 'n')) || (b.pagoAc - a.pagoAc));
+    const fV = V.filter(k => !k.indet).reduce((s,k) => s + k.o.vg, 0);
+    corpo = `<div class="cep-k inv"><div><span>Contratos vigentes</span><b>${V.length}</b><small>${V.filter(k => k.indet).length} de vigência indeterminada</small></div>
+      <div><span>Valor firmado (prazo definido)</span><b>${riR(fV)}</b><small>valor global no Contratos.gov.br</small></div>
+      <div><span>Pago em ${I.J.pos}</span><b>${riR(V.reduce((s,k) => s + k.pagoAno, 0))}</b><small>exercício + RAP</small></div>
+      <div class="a"><span>A pagar (saldo de empenho)</span><b>${riR(V.reduce((s,k) => s + k.ap, 0))}</b><small>empenhado − pago</small></div>
+      <div class="a"><span>Falta empenhar</span><b>${riR(V.reduce((s,k) => s + (k.falta||0), 0))}</b><small>saldo do período − a pagar</small></div>
+      <div class="r"><span>Com pendência</span><b>${V.filter(k => k.pend.some(p => p[0] !== 'n')).length}</b><small>sem pagamento, divergência…</small></div></div>
+      <div class="cep-fil"><input data-cepq placeholder="🔎 nº, fornecedor, CNPJ ou processo" value="${esc(CEP.q)}"><select data-ceppend><option value="">Todas as situações</option><option value="_ok" ${CEP.pend==='_ok'?'selected':''}>Sem pendência</option>${['sem nenhum pagamento','acima do valor','descrição cita','mesmo fornecedor','Nenhuma nota'].map(t => `<option ${CEP.pend===t?'selected':''} value="${t}">${{'sem nenhum pagamento':'Sem pagamento no ano','acima do valor':'Pago acima do valor do período','descrição cita':'NE com outro contrato na descrição','mesmo fornecedor':'Notas do fornecedor sem contrato','Nenhuma nota':'Sem nota de empenho'}[t]}</option>`).join('')}</select></div>
+      <div class="vx-card" style="padding:0;overflow-x:auto"><table class="cep-t"><tr><th>Contrato · fornecedor</th><th>Vigência até</th><th class="n">Valor firmado</th><th class="n">Pago acumulado</th><th class="n">Pago no período</th><th class="n">Pago ${I.J.pos}</th><th class="n">A pagar</th><th class="n">Saldo do contrato</th><th class="n">Falta empenhar</th><th>O que fazer</th></tr>
+      ${L.map(k => `<tr><td><button type="button" class="cep-lk" data-cepid="${esc(k.o.id)}">${esc(k.o.num)}</button><br><small>${esc(k.o.forn)}</small><br><small>${esc(k.o.ugoN||'')}</small></td><td>${k.indet ? 'indeterminada' : dataBR(k.o.fim)}${k.dias !== null && k.dias <= 120 ? `<br><i class="cep-i a">${k.dias} dias</i>` : ''}</td>
+        <td class="n">${cepF(k.o.vg)}</td><td class="n">${cepFz(k.pagoAc)}</td><td class="n">${k.pagoP === null ? '—' : cepFz(k.pagoP)}</td><td class="n">${cepFz(k.pagoAno)}</td><td class="n">${cepFz(k.ap)}</td>
+        <td class="n" style="${k.saldo !== null && k.saldo < -0.01 ? 'color:#b3261e;font-weight:700' : ''}">${k.saldo === null ? '—' : (k.saldo < 0 ? '−' : '')+cepF(Math.abs(k.saldo))}</td><td class="n">${k.falta ? cepF(k.falta) : '—'}</td>
+        <td style="min-width:280px">${k.pend.length ? k.pend.map(p => `<i class="cep-i ${p[0] === 'c' ? 'r' : p[0] === 'a' ? 'a' : 'b'}" style="white-space:normal;display:block" title="${esc(p[2])}">${esc(p[1])}</i>`).join('') : '<i class="cep-i g">ok</i>'}</td></tr>`).join('')}</table></div>
+      <p class="cep-nota">Pago no período = pago nas notas emitidas desde o início do período vigente (último aditivo de prorrogação) · Saldo do contrato = valor do período − pago no período (compra: valor global − empenhado) · Falta empenhar = saldo − a pagar. Clique no nº para abrir o relatório do contrato.</p>`;
+  } else if(CEP.aba === 'enc'){
+    const L = filtra(E).sort((a,b) => ((b.ap > 0.01) - (a.ap > 0.01)) || ((b.o.ativo|0) - (a.o.ativo|0)) || ((b.o.fim||0) - (a.o.fim||0)));
+    const ativos = E.filter(k => k.o.ativo), comSaldo = E.filter(k => k.ap > 0.01), pedidos = E.filter(k => CEP_COMPRAS[k.o.id]).length;
+    corpo = `<div class="cep-k inv" style="grid-template-columns:repeat(4,minmax(0,1fr))"><div><span>Contratos encerrados</span><b>${E.length}</b><small>vigência vencida ou inativo</small></div>
+      <div class="r"><span>Ainda “Ativo” no Contratos.gov.br</span><b>${ativos.length}</b><small>pedir encerramento ao Compras</small></div>
+      <div class="r"><span>Com saldo de empenho</span><b>${comSaldo.length}</b><small>${riR(comSaldo.reduce((s,k) => s + k.ap, 0))} a pagar ou cancelar</small></div>
+      <div><span>Já pedidos ao Compras</span><b>${pedidos}</b><small>marcação neste navegador</small></div></div>
+      <div class="cep-fil"><input data-cepq placeholder="🔎 nº, fornecedor, CNPJ ou processo" value="${esc(CEP.q)}"></div>
+      <div class="vx-card" style="padding:0;overflow-x:auto"><table class="cep-t"><tr><th>Contrato · fornecedor</th><th>Processo</th><th>Fim da vigência</th><th>Situação</th><th class="n">Pago (total)</th><th class="n">Saldo de empenho</th><th>Pendência</th><th>Controle</th></tr>
+      ${L.map(k => { const pd = k.pend.filter(p => p[0] !== 'n'); return `<tr><td><button type="button" class="cep-lk" data-cepid="${esc(k.o.id)}">${esc(k.o.num)}</button><br><small>${esc(k.o.forn)}</small></td><td><small>${esc(k.o.proc||'—')}</small></td><td>${k.indet ? '—' : dataBR(k.o.fim)}</td><td>${esc(k.o.sit||'')}</td>
+        <td class="n">${cepFz(k.pagoAc)}</td><td class="n" style="${k.ap > 0.01 ? 'color:#b3261e;font-weight:700' : ''}">${cepFz(k.ap)}</td>
+        <td>${pd.length ? pd.map(p => `<i class="cep-i ${p[0] === 'c' ? 'r' : 'a'}">${esc(p[2])}</i>`).join('') : '<i class="cep-i g">nada a fazer</i>'}</td>
+        <td><label style="white-space:nowrap;font-size:12px"><input type="checkbox" data-cepcompra="${esc(k.o.id)}" ${CEP_COMPRAS[k.o.id] ? 'checked' : ''}> pedido ao Compras${CEP_COMPRAS[k.o.id] ? '<br><small>'+esc(CEP_COMPRAS[k.o.id])+'</small>' : ''}</label></td></tr>`; }).join('')}</table></div>
+      <p class="cep-nota">A marcação “pedido ao Compras” fica salva só neste navegador. O Excel (botão no topo) leva a lista com nº, processo, fornecedor e o que pedir.</p>`;
+  } else {
+    const pos = I.J.pos;
+    let L = I.sem.map(s => Object.assign({}, s, cepVal(s.x, s.k, pos))).filter(s => s.pago > 0.005 || s.ap > 0.005 || s.emp > 0.005);
+    if(q) L = L.filter(s => rcN([s.k, s.x.f, s.x.c, s.x.d].join(' ')).includes(q));
+    if(CEP.pend && CEP_SEM_T[CEP.pend]) L = L.filter(s => s.tipo === CEP.pend); else L = L.filter(s => s.tipo !== 'nat');
+    L.sort((a,b) => (b.ap - a.ap) || (b.pago - a.pago));
+    const tot = t => I.sem.filter(s => s.tipo === t).map(s => cepVal(s.x, s.k, pos)).reduce((z, v) => [z[0] + 1, z[1] + v.pago, z[2] + v.ap], [0, 0, 0]);
+    corpo = `<div class="cep-k inv" style="grid-template-columns:repeat(4,minmax(0,1fr))">${['forn','cita','sem','nat'].map(t => { const z = tot(t); return `<div class="${t === 'cita' ? 'r' : t === 'forn' ? 'a' : ''}"><span>${CEP_SEM_T[t][1]}</span><b>${z[0]}</b><small>pago ${riR(z[1])} · a pagar ${riR(z[2])}</small></div>`; }).join('')}</div>
+      <div class="cep-fil"><input data-cepq placeholder="🔎 NE, fornecedor, CNPJ ou texto da descrição" value="${esc(CEP.q)}"><select data-ceppend><option value="">Todas (menos natureza sem contrato)</option>${Object.entries(CEP_SEM_T).map(([t, v]) => `<option value="${t}" ${CEP.pend===t?'selected':''}>${v[1]}</option>`).join('')}</select></div>
+      <div class="vx-card" style="padding:0;overflow-x:auto"><table class="cep-t"><tr><th>NE</th><th>Favorecido</th><th>Descrição</th><th>Natureza</th><th class="n">Empenhado</th><th class="n">Pago (total)</th><th class="n">A pagar</th><th>Situação</th></tr>
+      ${L.slice(0, 400).map(s => `<tr><td>${esc(s.k.split('|')[1])}</td><td>${esc(s.x.f)}<br><small>${esc(s.x.c)}</small></td><td><small>${esc(String(s.x.d||'').slice(0, 160))}</small></td><td>${esc(s.x.n)}</td><td class="n">${cepFz(s.emp)}</td><td class="n">${cepFz(s.pago)}</td><td class="n">${cepFz(s.ap)}</td>
+        <td><i class="cep-i ${CEP_SEM_T[s.tipo][0] === 'n' ? 'b' : CEP_SEM_T[s.tipo][0]}">${CEP_SEM_T[s.tipo][1]}</i>${s.tipo === 'forn' ? `<br><small>contrato(s) do fornecedor: ${esc(s.sug.map(o => o.num).slice(0,4).join(', '))}</small>` : s.tipo === 'cita' ? `<br><small>cita ${esc(s.cit.join(', '))}</small>` : ''}</td></tr>`).join('')}</table></div>
+      ${L.length > 400 ? `<p class="cep-nota">Mostrando 400 de ${L.length} notas (use a busca ou o Excel).</p>` : ''}
+      <p class="cep-nota">Daqui para a frente: escrever “CONTRATO N/AAAA” na descrição de toda nota de empenho de contrato, para o painel ligar sozinho.</p>`;
+  }
+  el.innerHTML = topo + abas + corpo + `<div class="vx-card" style="margin-top:10px">${cepRodape()}</div>`;
+}
+function cepExcel(){
+  const I = CEP.I; if(!I) return; const pos = I.J.pos, K = I.ctrs.map(o => cepCalc(o.id)).filter(Boolean);
+  const linC = k => [k.o.num, k.o.ugoN||'', k.o.forn, k.o.cnpj, k.o.proc, k.o.cat||'', k.o.sit||'', k.o.ini ? dataBR(k.o.ini) : '', k.indet ? 'indeterminada' : dataBR(k.o.fim), k.o.vg||0, k.pagoAc, k.pagoP === null ? '' : k.pagoP, k.pagoAno, k.ap, k.saldo === null ? '' : k.saldo, k.falta === null ? '' : k.falta, k.nes.length, k.pend.map(p => p[1]+' → '+p[2]).join(' | ')];
+  const cabC = [{t:'Nº contrato'},{t:'Unidade'},{t:'Fornecedor'},{t:'CNPJ/CPF'},{t:'Processo'},{t:'Categoria'},{t:'Situação'},{t:'Início'},{t:'Fim'},{t:'Valor firmado',n:1},{t:'Pago acumulado',n:1},{t:'Pago no período',n:1},{t:'Pago '+pos,n:1},{t:'A pagar',n:1},{t:'Saldo do contrato',n:1},{t:'Falta empenhar',n:1},{t:'Qtd. NE'},{t:'Pendências'}];
+  const enc = K.filter(k => !k.vig).map(k => [k.o.num, k.o.forn, k.o.cnpj, k.o.proc, k.indet ? '' : dataBR(k.o.fim), k.o.sit||'', k.ap, k.pend.filter(p => p[0] !== 'n').map(p => p[2]).join(' | ') || 'nada a fazer', CEP_COMPRAS[k.o.id] ? 'pedido em '+CEP_COMPRAS[k.o.id] : '']);
+  const sem = I.sem.map(s => { const v = cepVal(s.x, s.k, pos); return [s.k.split('|')[1], s.x.f, s.x.c, s.x.d, s.x.n, s.x.a, v.emp, v.pago, v.ap, CEP_SEM_T[s.tipo][1], s.tipo === 'forn' ? s.sug.map(o => o.num).join(', ') : s.cit.join(', ')]; }).filter(l => l[6] || l[7] || l[8]);
+  const nes = []; K.forEach(k => k.nes.forEach(n => nes.push([k.o.num, k.o.forn, n.ne, n.x.e ? n.x.e.split('-').reverse().join('/') : '', n.x.n, n.x.a, n.x.t, n.emp, n.pago, n.ap, CEP_LIG[n.lig][1]+(n.div ? ' · descrição cita '+n.div.join(', ') : '')])));
+  baixarXlsx({titulo: 'Inventário de contratos · CEPLAC (UG 130010)', sub: 'Contratos.gov.br + Tesouro Gerencial '+(I.J.anos||[])[0]+'–'+pos, filtros: [], fonte: 'Contratos.gov.br (API) e Tesouro Gerencial (relatório CEPLAC_NE, '+(I.J.gerado||'')+')', arquivo: 'inventario_contratos_ceplac',
+    abas: [{aba:'Vigentes', titulo:'Contratos vigentes · atualizar', cab: cabC, linhas: K.filter(k => k.vig).map(linC)},
+           {aba:'Encerrar no Compras', titulo:'Contratos encerrados · pedir encerramento no Compras', cab:[{t:'Nº contrato'},{t:'Fornecedor'},{t:'CNPJ/CPF'},{t:'Processo'},{t:'Fim da vigência'},{t:'Situação'},{t:'Saldo de empenho',n:1},{t:'O que pedir'},{t:'Controle'}], linhas: enc},
+           {aba:'Notas de empenho', titulo:'Notas de empenho ligadas aos contratos', cab:[{t:'Nº contrato'},{t:'Fornecedor'},{t:'NE'},{t:'Emissão'},{t:'Natureza'},{t:'Ação'},{t:'PTRES'},{t:'Empenhado',n:1},{t:'Pago (total)',n:1},{t:'A pagar',n:1},{t:'Ligação'}], linhas: nes},
+           {aba:'NEs sem contrato', titulo:'Notas de empenho sem contrato ligado', cab:[{t:'NE'},{t:'Favorecido'},{t:'CNPJ/CPF'},{t:'Descrição'},{t:'Natureza'},{t:'Ação'},{t:'Empenhado',n:1},{t:'Pago (total)',n:1},{t:'A pagar',n:1},{t:'Situação'},{t:'Contrato sugerido / citado'}], linhas: sem}]});
+}
+document.addEventListener('click', e => {
+  const vx = e.target.closest('#v-extra'); if(!vx || vx.dataset.tela !== 'invceplac') return;
+  const a = e.target.closest('[data-cepaba]'); if(a){ CEP.aba = a.dataset.cepaba; CEP.pend = ''; desenharInvCep(); return; }
+  const c = e.target.closest('[data-cepid]'); if(c){ ir('relctr', {id: c.dataset.cepid}); return; }
+  if(e.target.closest('[data-cepxl]')){ cepExcel(); return; }
+});
+document.addEventListener('change', e => {
+  if(e.target.matches('[data-ceppend]')){ CEP.pend = e.target.value; desenharInvCep(); return; }
+  if(e.target.matches('[data-cepcompra]')){ const id = e.target.dataset.cepcompra; if(e.target.checked) CEP_COMPRAS[id] = new Date().toLocaleDateString('pt-BR'); else delete CEP_COMPRAS[id];
+    try{ localStorage.setItem('sdr_cep_compras', JSON.stringify(CEP_COMPRAS)); }catch(x){} desenharInvCep(); }
+});
+document.addEventListener('input', e => { if(e.target.matches('[data-cepq]')){ CEP.q = e.target.value; clearTimeout(CEP._t); CEP._t = setTimeout(() => { desenharInvCep(); const i = document.querySelector('[data-cepq]'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 350); } });
+// relatório do contrato: aba 6 (Tesouro 2018–hoje e pendências)
+function rcPagTes(C){
+  const K = RC.cep;
+  if(!K) return `${rcCab(C, 'Tesouro 2018–hoje')}<p class="ri-nota">${RC.cepErro ? esc(RC.cepErro) : C.o.ug === '130010' || C.o.ugo === '130010' ? 'Lendo o histórico do Tesouro…' : 'O histórico do Tesouro 2018–hoje por nota de empenho existe só para os contratos da CEPLAC (UG 130010).'}</p>`;
+  return `<style>${CEP_CSS}</style>${rcCab(C, 'Tesouro '+(Object.keys(K.anos).sort()[0] || K.pos)+'–'+K.pos+' e pendências')}
+  ${riSec('Valores do contrato')}${cepCards(K)}
+  ${riSec('Pendências e providências')}${K.pend.length ? `<table class="ri-t"><tr><th>Pendência</th><th>Providência sugerida</th></tr>${K.pend.map(p => `<tr><td>${p[0] === 'c' ? '🔴' : p[0] === 'a' ? '🟠' : '🔵'} ${esc(p[1])}</td><td>${esc(p[2])}</td></tr>`).join('')}</table>` : '<div class="ri-al ok"><b>Nenhuma pendência entre o Tesouro e o Contratos.gov.br</b></div>'}
+  ${riSec('Execução por ano · Tesouro')}${cepTabAnos(K)}
+  ${riSec('Notas de empenho e ligação com o contrato')}${cepTabNEs(K)}${cepRodape()}`;
+}
 
 function riExcel(){
   const d = RI.d; if(!d) return; const i = d.i || {};
@@ -14215,7 +14476,7 @@ window.relExtrasParc = relExtrasParc; window.rgAbrir = rgAbrir;
 // =====================================================================
 const AREA_NOME = {CONTRATOS:'Contratos', PARCERIAS:'Parcerias', TED:'TED', DIARIAS:'Diárias e passagens', ORCAMENTO:'Orçamento e finanças'};
 const AREA_TELA = {
-  contratos:'CONTRATOS', busca:'CONTRATOS', ctrsdr:'CONTRATOS', despesas:'CONTRATOS', conferencia:'CONTRATOS', relctr:'CONTRATOS', alertactr:'CONTRATOS',
+  contratos:'CONTRATOS', invceplac:'CONTRATOS', busca:'CONTRATOS', ctrsdr:'CONTRATOS', despesas:'CONTRATOS', conferencia:'CONTRATOS', relctr:'CONTRATOS', alertactr:'CONTRATOS',
   orcacao:'ORCAMENTO', orcamento:'ORCAMENTO', financeiro:'ORCAMENTO', exe:'ORCAMENTO', rap:'ORCAMENTO', exerap:'ORCAMENTO', cronorc:'ORCAMENTO', alertaorc:'ORCAMENTO',
   viag:'DIARIAS', viagmat:'DIARIAS', viagalerta:'DIARIAS',
   parc:'PARCERIAS', prop:'PARCERIAS', conv:'PARCERIAS', repasse:'PARCERIAS', relinst:'PARCERIAS', captacao:'PARCERIAS', indic:'PARCERIAS', cronparc:'PARCERIAS', alertaparc:'PARCERIAS',
@@ -14263,7 +14524,7 @@ async function ir(tela, sel){
   if(!podeTela(tela)){ if(IR_N > 0 || tela !== 'visao') avisoBloqueio(); const alvo = primeiraLiberada(); if(alvo === tela) return; tela = alvo; }
   IR_N++;
   { const vx = document.getElementById('v-extra'); if(vx) vx.hidden = true; }
-  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='portmapa' || tela==='acoessdr' || tela==='viagmat' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
+  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='invceplac' || tela==='portmapa' || tela==='acoessdr' || tela==='viagmat' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); if(tela==='invceplac'){ if(sel && sel.aba) CEP.aba = sel.aba; desenharInvCep(); } return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
   if(TELAS_ANTIGAS.includes(tela)){
     marcarHash(tela);
     fecharMS(); VISAO = 'menu'; abrirAntiga(tela, sel); return;
@@ -14649,7 +14910,7 @@ function preCarregar(){
 (function(){
   const GRUPOS = [
     ['', [['visao','▦','Visão geral']]],
-    ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)'],['ctrsdr','📄','Contratos SDR'],['despesas','🧾','Despesas previstas'],['conferencia','✔','Conferência de Contratos'],['relctr','📄','Relatório do contrato'],['_relctr','📊','Relatório de gestão de contratos'],['alertactr','🔔','Alerta Contratos']]],
+    ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)',[['base','Base Contratos'],['vig','Inventário · vigentes'],['enc','Encerrar no Compras'],['sem','NEs sem contrato']]],['ctrsdr','📄','Contratos SDR'],['despesas','🧾','Despesas previstas'],['conferencia','✔','Conferência de Contratos'],['relctr','📄','Relatório do contrato'],['_relctr','📊','Relatório de gestão de contratos'],['alertactr','🔔','Alerta Contratos']]],
     ['ORÇAMENTO E FINANÇAS', [['orcacao','🏛','Orçamento por ações'],['exe','$','Financeiro EXE'],['rap','⏱','Financeiro RAP'],['exerap','⇄','EXE + RAP'],['_relorc','📊','Relatório de gestão orçamentária e financeira'],['cronorc','📅','Cronograma orçamentário'],['alertaorc','🔔','Alerta Orç & Fin']]],
     ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viaggas','🧾','Gastos das viagens'],['_viagtes','🏛','Empenhos de viagem (Tesouro)'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['_relviag','📊','Relatório de gestão de viagens'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
     ['PARCERIAS', [['parc','🤝','Parceria SDR',[['geral','Visão geral'],['prop','Propostas'],['inst','Instrumentos vigentes'],['pc','Prestação de contas']]],
@@ -14756,6 +15017,8 @@ function preCarregar(){
     if(/^_viag/.test(id)){ const alvo = id.slice(5); if(telaAtual() !== 'viag'){ await ir('viag'); await esperar(() => est().id === 'viag'); } const w = W(); try{ if(w && w.__viagIr) await w.__viagIr(alvo); }catch(e){} marcar(); return; }
     if(id.startsWith('_')) return;
     if(id === 'menu'){ ir('visao'); marcar(); return; }
+    if(id === 'contratos' && aba && aba !== 'base'){ await ir('invceplac', {aba}); marcar(); return; }
+    if(id === 'contratos' && aba === 'base'){ await ir('contratos'); marcar(); return; }
     await ir(id);
     if(aba && id !== 'captacao'){ await esperar(() => est().id === id); const w = W(); try{ if(id === 'parc' && w.irAbaParcTG) w.irAbaParcTG(aba); }catch(e){} }
     marcar();
@@ -14781,7 +15044,7 @@ function preCarregar(){
   nav.querySelector('.sb-busca').addEventListener('input', e => { const q = e.target.value.trim(); nav.querySelectorAll('[data-sbgrc]').forEach(c => { if(q) c.classList.add('ab'); else grAbrir(c.dataset.sbgrc, !!ABERTOS[c.dataset.sbgrc]); }); });
   let _ultTela = null;
   function marcar(){
-    const t = telaAtual(); const aba = t === 'parc' ? (est().aba || '') : '';
+    const t0 = telaAtual(), t = t0 === 'invceplac' ? 'contratos' : t0; const aba = t0 === 'invceplac' ? CEP.aba : t0 === 'contratos' ? 'base' : t === 'parc' ? (est().aba || '') : '';
     nav.querySelectorAll('[data-sbgr]').forEach(b => { const c = nav.querySelector(`[data-sbgrc="${b.dataset.sbgr}"]`); b.classList.toggle('tem', !!c.querySelector(`[data-sbir="${CSS.escape(t)}"]`)); });
     // grupos fechados: só abre o que a pessoa clicar; o grupo da tela atual fica marcado com ●
     nav.querySelectorAll('.sb-it').forEach(b => b.classList.toggle('on', b.dataset.sbir === t));

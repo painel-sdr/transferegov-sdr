@@ -1,0 +1,4 @@
+# Link CSV publicado da aba "CEPLAC NE" da planilha BASE TED (relatório "Invetario 2026 130010" do Tesouro Gerencial,
+# assinatura por e-mail com o assunto "[PAINEL] CEPLAC_NE").
+# Na planilha: Arquivo › Compartilhar › Publicar na Web › aba CEPLAC NE › Valores separados por vírgula (.csv) › Publicar
+# Cole o link aqui embaixo (sem # na frente). Enquanto não tiver link, o painel usa o arquivo de 18/11/2026.
