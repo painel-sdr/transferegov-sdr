@@ -5673,12 +5673,13 @@ function blocoOrcamento(r, d, lista, emp){
     const orig = ts.map(o => `<span class="lg-tag ${o.origem==='RAP'?'rap':''}">${o.origem}</span>`).join(' ');
     const obs = e.ns_saldo ? '<small class="fx-obs">transferência de saldo (NS SALDO) · não soma de novo</small>' : origT.has(k) ? '<small class="fx-obs">saldo transferido para outra UG</small>' : '';
     const semTes = !ts.length ? (anoNE(e.ne) && anoNE(e.ne) < anoBase-1 ? '<small class="fx-cinza">fora das bases de '+anoBase+'</small>' : '<small class="fx-verm">não achada no Tesouro</small>') : '';
-    return `<tr><td><b>${esc(e.ne)}</b> ${orig}${obs}</td><td>${esc(e.ug)}</td><td>${esc(e.data)}</td><td>${esc(e.tipo)}</td><td>${esc([e.ptres, e.pi].filter(Boolean).join(' · ')||'—')}</td>
+    const gm = {gnd:{}, nds:[...new Set(ts.flatMap(o => o.nds||[]))]}; ts.forEach(o => Object.entries(o.gnd||{}).forEach(([g, t]) => { gm.gnd[g] = gm.gnd[g] ? {emp:gm.gnd[g].emp+t.emp, pago:gm.gnd[g].pago+t.pago, apagar:gm.gnd[g].apagar+t.apagar} : {...t}; }));
+    return `<tr><td><b>${esc(e.ne)}</b> ${orig}${obs}</td><td>${esc(e.ug)}</td><td>${esc(e.data)}</td><td>${esc(e.tipo)}</td><td>${esc([e.ptres, e.pi].filter(Boolean).join(' · ')||'—')}</td><td>${ts.length ? lgGnd(gm) : '<span class="lg-nd">—</span>'}</td>
       <td class="n">${e.ns_saldo ? '<span class="fx-cinza">'+f2(nTG(e.valor))+'</span>' : f2(nTG(e.valor))}</td><td class="n">${ts.length ? f2(pago) : '—'}</td><td class="n">${ts.length ? f2(saldo) : semTes}</td></tr>`; }).join('');
   const tes = r && r.mes ? 'pago e saldo: Tesouro '+esc(r.mes) : 'Tesouro: lendo…';
   let html = `<div class="fx"><div class="fx-cab"><h4>Orçamento · notas de empenho</h4><span>Transferegov · ${tes}</span></div>
-    <table class="fx-t"><thead><tr><th>Nota de empenho</th><th>UG</th><th>Emissão</th><th>Tipo</th><th>PTRES · PI</th><th class="n">Empenhado</th><th class="n">Pago</th><th class="n">Saldo</th></tr></thead>
-    <tbody>${linhas}<tr class="fx-tot"><td colspan="5">Total${L.some(e => e.ns_saldo) ? ' (sem as transferências de saldo)' : ''}</td><td class="n">${f2(tEmp)}</td><td class="n">${r && r.itens && r.itens.length ? f2(tPago) : '—'}</td><td class="n">${r && r.itens && r.itens.length ? f2(tSaldo) : '—'}</td></tr></tbody></table>`;
+    <table class="fx-t"><thead><tr><th>Nota de empenho</th><th>UG</th><th>Emissão</th><th>Tipo</th><th>PTRES · PI</th><th>Custeio / investimento</th><th class="n">Empenhado</th><th class="n">Pago</th><th class="n">Saldo</th></tr></thead>
+    <tbody>${linhas}<tr class="fx-tot"><td colspan="6">Total${L.some(e => e.ns_saldo) ? ' (sem as transferências de saldo)' : ''}</td><td class="n">${f2(tEmp)}</td><td class="n">${r && r.itens && r.itens.length ? f2(tPago) : '—'}</td><td class="n">${r && r.itens && r.itens.length ? f2(tSaldo) : '—'}</td></tr></tbody></table>` + lgGndTot(L.flatMap(e => e.ns_saldo ? [] : (noTes.get(e.ug+'|'+e.ne)||[])));
   if(r && r.erro) html += `<p class="lg-nota">Não foi possível consultar o Tesouro: ${esc(r.erro)}</p>`;
   else if(r && r.itens && r.itens.length) html += tabelaSiafi({...r, itens: r.itens}, {...d, empTG: (() => {
       const pk = new Map(); L.forEach(e => { if(e.ns_saldo) return; const k = e.ug+'|'+e.ne; pk.set(k, Math.max(pk.get(k)||0, nTG(e.valor))); });
@@ -10335,6 +10336,35 @@ async function indiceSiafiParcerias0(){
   _idxParc = idx; _idxParcMes = mes; return idx;
 }
 // proposta ("441/2026") e/ou nº do instrumento ("992526") → notas de empenho do Tesouro
+// custeio (natureza 3…) × investimento (natureza 4…) de cada nota de empenho, pelas bases EXE e RAP do painel (último mês)
+let _gndMap = null;
+window.__gndNE = async () => {
+  if(_gndMap) return _gndMap;
+  for(const v of ['exe','rap']) if(!DADOS[v].pronto) await carregarVisao(v);
+  const mes = String(Math.max(...Object.keys(MESES_TXT).map(Number)));
+  for(const v of ['exe','rap']) if(!DADOS[v].det[mes]) await garantirDetalhe(v, mes);
+  const M = new Map();
+  for(const v of ['exe','rap']){
+    const grupos = new Map();
+    (DADOS[v].det[mes]||[]).forEach(d => { if(!d.ne) return; const neC = (String(d.ne).match(/(\d{4}NE\d{6})$/)||[])[1]; if(!neC) return;
+      const g = String(d.nd||'').trim()[0], k = d.ug+'|'+neC;
+      if(!M.has(k)) M.set(k, {nds:new Set(), gnd:{}}); if(d.nd) M.get(k).nds.add(String(d.nd).trim());
+      if(g==='3' || g==='4'){ const kg = k+'|'+g; if(!grupos.has(kg)) grupos.set(kg, []); grupos.get(kg).push(d); } });
+    grupos.forEach((L, kg) => { const [ug, ne, g] = kg.split('|'), t = somar(L, v), o = M.get(ug+'|'+ne).gnd;
+      const x = v==='exe' ? {emp:t.emp||0, pago:t.pago||0, apagar:(t.emp||0)-(t.pago||0)} : {emp:t.base||0, pago:t.pago||0, apagar:t.apagar||0};
+      o[g] = o[g] ? {emp:o[g].emp+x.emp, pago:o[g].pago+x.pago, apagar:o[g].apagar+x.apagar} : x; });
+  }
+  M.forEach(o => o.nds = [...o.nds]);
+  return (_gndMap = M);
+};
+const gndChip = o => { const g = Object.keys((o && o.gnd)||{}).sort(), nd = ((o && o.nds)||[]).join(', ');
+  return (g.length ? g.map(k => k==='3' ? '<span class="lg-gnd c">Custeio</span>' : '<span class="lg-gnd i">Investimento</span>').join(' + ') : '') + (nd ? `<span class="lg-nd">ND ${esc(nd)}</span>` : (g.length ? '' : '<span class="lg-nd">—</span>')); };
+const gndTot = lista => { const T = {3:{emp:0,pago:0,apagar:0}, 4:{emp:0,pago:0,apagar:0}}; let tem = false;
+  lista.forEach(o => Object.entries((o && o.gnd)||{}).forEach(([g, t]) => { if(T[g]){ tem = true; T[g].emp += t.emp; T[g].pago += t.pago; T[g].apagar += t.apagar; } }));
+  if(!tem) return '';
+  const f = v => (Math.abs(v)<0.005?0:v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const bx = (g, nome, cl) => `<div class="${cl}"><span class="lg-gnd ${cl}">${nome}</span> empenhado · pago · saldo (Tesouro)<b>${f(T[g].emp)} · ${f(T[g].pago)} · ${f(T[g].apagar)}</b></div>`;
+  return `<div class="lg-gtot">${bx('3','Custeio','c')}${bx('4','Investimento','i')}</div>`; };
 window.__siafiParceria = async (prop, inst, cnpj, emenda, proc, nes) => {
   const idx = await indiceSiafiParcerias(), vistos = new Set(), itens = [];
   const add = (k, como) => (idx.get(k)||[]).forEach(o => { const c = o.origem+'|'+o.ug+'|'+o.ne; if(!vistos.has(c)){ vistos.add(c); itens.push({...o, como}); } });
@@ -12962,6 +12992,7 @@ function riEmpRodape(d, i){
   }
   return L;
 }
+const riGnd = x => RI.gnd === null ? '<span class="lg-nd">lendo o Tesouro…</span>' : !RI.gnd ? '' : gndChip(RI.gnd.get(String(x[1])+'|'+((String(x[0]).match(/(\d{4}NE\d{6})$/)||[])[1]||x[0])));
 const riSec = (t, extra) => `<div class="ri-sec">${t}${extra ? ' '+extra : ''}</div>`;
 const riTab = (cab, linhas, cls) => `<table class="ri-t ${cls||''}"><tr>${cab.map(c => `<th class="${c[1]||''}">${c[0]}</th>`).join('')}</tr>${linhas.join('')}</table>`;
 function riCabecalho(C, sub){
@@ -13013,7 +13044,7 @@ function riPagResumo(d, C){
     <tr><td>CNPJ do proponente</td><td>${esc(riCNPJ(i.cnpj_proponente))}</td></tr>
     <tr><td>Departamento</td><td>${esc(deps || '—')}</td></tr>
     <tr><td>Links</td><td>${i.id_proposta ? `<a href="https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDePropostaDetalharProposta.do?idProposta=${esc(i.id_proposta)}&Usr=guest&Pwd=guest" target="_blank" rel="noopener">Transferegov ↗</a>` : '—'}</td></tr></table>
-    ${riSec('2 · Orçamento e empenho')}${(d.ne||[]).length ? riTab([['Nota de empenho'],['UG'],['Data'],['Valor','n']], (d.ne||[]).map(x => x[5] ? `<tr style="color:#7a8a80"><td>${esc(x[0])}<br><small>cópia da transferência de saldo (NS SALDO) · não soma</small></td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n"><s>${riR(x[4])}</s></td></tr>` : `<tr><td>${esc(x[0])}${!riNum(x[4]) ? '<br><small style="color:#8a5a00">valor não informado no Transferegov</small>' : ''}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n">${riR(x[4])}</td></tr>`).concat(riEmpRodape(d, i)), 'ri-l') : `<p class="ri-nota">Notas de empenho: ${esc(i.notas_empenho||'nenhuma registrada')} · empenhado ${riR(riNum(i.valor_empenhado))}</p>`}</div>
+    ${riSec('2 · Orçamento e empenho')}${(d.ne||[]).length ? riTab([['Nota de empenho'],['UG'],['Data'],['Valor','n'],['Custeio / investimento']], (d.ne||[]).map(x => x[5] ? `<tr style="color:#7a8a80"><td>${esc(x[0])}<br><small>cópia da transferência de saldo (NS SALDO) · não soma</small></td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n"><s>${riR(x[4])}</s></td><td>${riGnd(x)}</td></tr>` : `<tr><td>${esc(x[0])}${!riNum(x[4]) ? '<br><small style="color:#8a5a00">valor não informado no Transferegov</small>' : ''}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td class="n">${riR(x[4])}</td><td>${riGnd(x)}</td></tr>`).concat(riEmpRodape(d, i)), 'ri-l') + (RI.gnd ? gndTot((d.ne||[]).filter(x => !x[5]).map(x => RI.gnd.get(String(x[1])+'|'+((String(x[0]).match(/(\d{4}NE\d{6})$/)||[])[1]||x[0])))) : '') : `<p class="ri-nota">Notas de empenho: ${esc(i.notas_empenho||'nenhuma registrada')} · empenhado ${riR(riNum(i.valor_empenhado))}</p>`}</div>
   <div>${riSec('3 · Situação e alertas')}${C.al.map(a => `<div class="ri-al ${a[0]}"><b>${esc(a[1])}</b>${esc(a[2])}</div>`).join('') || '<div class="ri-al ok"><b>Nenhum alerta automático</b>Isso não garante ausência de pendência no processo.</div>'}
     ${C.prox ? `<div class="ri-al i"><b>Próxima providência sugerida</b>${esc(C.prox)}</div>` : ''}
     ${riSec('4 · Desembolsos')}${(d.des||[]).length ? riTab([['Data'],['Ordem bancária'],['Empenho utilizado'],['Valor','n']], (d.des||[]).slice().sort((a,b) => riData(a[0])-riData(b[0])).map(x => `<tr><td>${esc(x[0])}</td><td>${esc(x[1])}</td><td>${x[3] ? esc(x[3]) : '<span style="color:#7a8a80">—</span>'}</td><td class="n">${riR(x[2])}</td></tr>`).concat([`<tr><td><b>Total</b></td><td></td><td></td><td class="n"><b>${riR((d.des||[]).reduce((a,x) => a+riNum(x[2]), 0))}</b></td></tr>`]), 'ri-l') : '<p class="ri-nota">Nenhum desembolso registrado.</p>'}
@@ -13256,6 +13287,7 @@ function desenharRelInst(){
   else if(!RI.d) corpo = `<div class="vx-card ri-vazio">Lendo os dados do instrumento ${esc(RI.nr)}…</div>`;
   else corpo = `<div class="ri-abas">${[['resumo','1 · Resumo do instrumento'],['fisica','2 · Execução física'],['financeira','3 · Execução financeira'],['convenente','4 · Execução do convenente'],['pc','5 · Prestação de contas'],['hist','6 · Histórico']].map(([k, t]) => { const n = k === 'convenente' ? riCalc(RI.d).conv.pend.length : 0; return `<button type="button" data-riaba="${k}" class="${RI.aba === k ? 'on' : ''}">${t}${n ? ` <span class="ri-nb">${n}</span>` : ''}</button>`; }).join('')}</div><div class="ri-doc">${riDoc(RI.aba)}</div>`;
   el.innerHTML = topo + busca + corpo;
+  if(RI.d && RI.gnd === undefined){ RI.gnd = null; window.__gndNE().then(m => { RI.gnd = m; desenharRelInst(); }).catch(() => { RI.gnd = new Map(); desenharRelInst(); }); }
 }
 // =====================================================================
 // RELATÓRIO DO CONTRATO (Contratos.gov.br + Tesouro do painel + Portal da Transparência) · 1º modelo
@@ -13731,6 +13763,8 @@ document.addEventListener('click', e => {
 .ri-tl{position:relative;display:flex;justify-content:space-between;gap:4px;padding:8px 0 0}.ri-tl::before{content:"";position:absolute;left:20px;right:20px;top:20px;height:4px;background:linear-gradient(90deg,#2e8a57 0 var(--p),#c9d6cd var(--p))}
 .ri-tl div{position:relative;flex:1;text-align:center;font-size:11.5px;min-width:0}.ri-tl i{display:block;width:18px;height:18px;border-radius:50%;margin:3px auto 6px;background:#2e8a57;border:3px solid #fff;box-shadow:0 0 0 2px #2e8a57}.ri-tl .p i{background:#fff;box-shadow:0 0 0 2px #9aa59f}.ri-tl .h i{background:#d08c1a;box-shadow:0 0 0 2px #d08c1a}.ri-tl b{display:block;font-size:11.5px}.ri-tl span{color:#5f6f66}
 .ri-g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:1000px){.ri-g2{grid-template-columns:1fr}.ri-k{grid-template-columns:repeat(2,1fr)}}
+.lg-gnd{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;white-space:nowrap}.lg-gnd.c{background:#e3f1da;color:#1f5d34}.lg-gnd.i{background:#fdebd3;color:#8a4b08}.lg-nd{display:block;color:#7a877f;font-size:10.5px;margin-top:2px}
+.lg-gtot{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:10px 0 0}.lg-gtot>div{border-radius:8px;padding:8px 10px;font-size:12px}.lg-gtot b{display:block;font-size:14px;margin-top:2px;font-variant-numeric:tabular-nums}.lg-gtot .c{background:#eef7ea}.lg-gtot .i{background:#fdf3e4}
 .ri-t{width:100%;border-collapse:collapse;font-size:12.8px}.ri-t td,.ri-t th{padding:6px 8px;border-bottom:1px solid #eef1ef;text-align:left;vertical-align:top}.ri-t th{background:#1f6b3a;color:#fff;font-size:12px}.ri-t .n{text-align:right;white-space:nowrap}.ri-t small{color:#5f6f66}
 .ri-kv td:first-child{color:#5f6f66;width:36%}.ri-t a,.ri-nota a{color:#1f4e79;font-weight:600}
 .ri-al{border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:8px;border-left:5px solid #d08c1a;background:#fdf0e1}.ri-al b{display:block}.ri-al.c{border-color:#b3261e;background:#fdecea}.ri-al.i{border-color:#1f4e79;background:#eef3f8}.ri-al.ok{border-color:#2e8a57;background:#e8f4ec}.ri-al.n{border-color:#9aa59f;background:#f3f3f3}
