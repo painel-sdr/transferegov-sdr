@@ -1905,6 +1905,10 @@ body[data-tema="fin"] .tabela-topo .acoes .btn:not(.btn-pdf){background:#1f6b3a}
 .lg-t{width:calc(100% - 40px);border-collapse:collapse;font-size:12px;margin-top:10px}
 .lg-t th{background:#1f4e79;color:#fff;text-align:left;padding:5px 7px}.lg-t td{padding:5px 7px;border-bottom:1px solid #eef2ef}
 .lg-t .n{text-align:right;white-space:nowrap}
+.lg-gnd{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;white-space:nowrap}.lg-gnd.c{background:#e3f1da;color:#1f5d34}.lg-gnd.i{background:#fdebd3;color:#8a4b08}
+.lg-nd{display:block;color:#7a877f;font-size:10.5px;margin-top:2px}
+.lg-gtot{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:10px 20px 0}.lg-gtot>div{border-radius:8px;padding:8px 10px;font-size:12px}.lg-gtot b{display:block;font-size:14px;margin-top:2px;font-variant-numeric:tabular-nums}
+.lg-gtot .c{background:#eef7ea}.lg-gtot .i{background:#fdf3e4}
 .lg-tag{font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;background:#1f6b3a;color:#fff}.lg-tag.rap{background:#3a6f9f}
 @media (max-width:700px){.lg-vals{grid-template-columns:1fr}.lg-t{font-size:10.5px}}
 
@@ -5477,6 +5481,20 @@ function mapaPor(fonte, campo){
 }
 const instDaProposta = num => mapaPor('parc','prop').get(chaveProp(num)) || [];
 const propDoInstrumento = d => (mapaPor('prop','num').get(chaveProp(d.prop)) || [])[0] || null;
+// custeio (natureza 3…) × investimento (natureza 4…) de cada nota de empenho da ficha do instrumento
+function lgGnd(o){
+  const g = Object.keys(o.gnd||{}).sort(), nd = (o.nds||[]).join(', ');
+  if(!g.length) return nd ? `<span class="lg-nd">ND ${esc(nd)}</span>` : '<span class="lg-nd">—</span>';
+  const ch = g.map(k => k==='3' ? '<span class="lg-gnd c">Custeio</span>' : '<span class="lg-gnd i">Investimento</span>').join(' + ');
+  return ch + (nd ? `<span class="lg-nd">ND ${esc(nd)}</span>` : '');
+}
+function lgGndTot(it){
+  const T = {3:{emp:0,pago:0,apagar:0}, 4:{emp:0,pago:0,apagar:0}}; let tem = false;
+  it.forEach(o => Object.entries(o.gnd||{}).forEach(([g, t]) => { if(T[g]){ tem = true; T[g].emp += t.emp||0; T[g].pago += t.pago||0; T[g].apagar += t.apagar||0; } }));
+  if(!tem) return '';
+  const bx = (g, nome, cl) => `<div class="${cl}"><span class="lg-gnd ${cl}">${nome}</span> empenhado · pago · saldo<b>${fmt2(T[g].emp)} · ${fmt2(T[g].pago)} · ${fmt2(T[g].apagar)}</b></div>`;
+  return `<div class="lg-gtot">${bx('3','Custeio','c')}${bx('4','Investimento','i')}</div>`;
+}
 async function siafiDe(prop, inst, cnpj, emenda, proc, nes){
   try{ if(window.parent!==window && parent.__siafiParceria) return await parent.__siafiParceria(prop, inst, cnpj, emenda, proc, nes); }catch(e){ return {erro:e.message||String(e)}; }
   return {erro:'o Tesouro Gerencial só está disponível dentro do Painel SDR'};
@@ -5543,8 +5561,9 @@ function tabelaSiafi(r, inst, soAnalise){
   return `<div class="lg-vals"><div><small>Empenhado / inscrito</small><b>${vLg(emp)}</b></div><div><small>Pago no SIAFI${temRAP?' (em 2026)':''}</small><b>${vLg(pago)}</b></div><div><small>Saldo no empenho</small><b>${vLg(saldoNE)}</b></div></div>
     ${analise}
     ${temRAP && inst && !z(pago - (inst.desemb||0)) ? '<p class="lg-nota">Empenho de ano anterior (RAP): o pago acima é só o de 2026; o que foi pago antes não está nas bases de 2026. A análise usa o saldo que sobrou no empenho.</p>' : ''}
-    <table class="lg-t"><thead><tr><th>Nota de empenho</th><th>UG</th><th>Ação</th><th class="n">Empenhado / inscrito</th><th class="n">Pago</th><th class="n">Saldo no empenho</th></tr></thead>
-    <tbody>${it.map(o => `<tr><td><span class="lg-tag ${o.origem==='RAP'?'rap':''}">${o.origem}</span> ${esc(String(o.ne).replace(/^.*?(\d{4}NE\d+)$/,'$1'))}</td><td>${esc(o.ug)}</td><td>${esc(o.acao)}</td><td class="n">${fmt2(o.emp)}</td><td class="n">${fmt2(o.pago)}</td><td class="n">${fmt2(o.apagar)}</td></tr>`).join('')}</tbody></table>
+    <table class="lg-t"><thead><tr><th>Nota de empenho</th><th>UG</th><th>Ação</th><th>Custeio / investimento</th><th class="n">Empenhado / inscrito</th><th class="n">Pago</th><th class="n">Saldo no empenho</th></tr></thead>
+    <tbody>${it.map(o => `<tr><td><span class="lg-tag ${o.origem==='RAP'?'rap':''}">${o.origem}</span> ${esc(String(o.ne).replace(/^.*?(\d{4}NE\d+)$/,'$1'))}</td><td>${esc(o.ug)}</td><td>${esc(o.acao)}</td><td>${lgGnd(o)}</td><td class="n">${fmt2(o.emp)}</td><td class="n">${fmt2(o.pago)}</td><td class="n">${fmt2(o.apagar)}</td></tr>`).join('')}</tbody></table>
+    ${lgGndTot(it)}
     <p class="lg-nota">Posição de ${esc(r.mes)} · Tesouro Gerencial · EXE = empenho do exercício · RAP = restos a pagar (inscrito líquido) · ligada por: ${esc([...new Set(it.map(o => o.como).filter(Boolean))].join(' · ')||'descrição da nota')}.</p>`;
 }
 // UG do instrumento: da própria linha (Parcerias) ou, na tela de Convênio, buscada na planilha de Parcerias pelo nº
@@ -10305,6 +10324,12 @@ async function indiceSiafiParcerias0(){
       const o = v==='exe' ? {origem:'EXE', ne:e.ne, ug:e.ug, acao:e.acao, fav:e.fav, desc:e.desc, emp:t.emp||0, liq:t.liq||0, pago:t.pago||0, apagar:(t.emp||0)-(t.pago||0)}
                           : {origem:'RAP', ne:e.ne, ug:e.ug, acao:e.acao, fav:e.fav, desc:e.desc, emp:t.base||0, liq:null, pago:t.pago||0, apagar:t.apagar||0};
       if(![o.emp, o.pago, o.apagar].some(x => Math.abs(x)>0.004)) return;
+      // custeio (natureza 3…) × investimento (natureza 4…): soma de cada grupo de despesa da nota
+      const porG = {};
+      e.itens.forEach(d => { const g = String(d.nd||'').trim()[0]; if(g==='3' || g==='4') (porG[g] = porG[g] || []).push(d); });
+      o.nds = [...new Set(e.itens.map(d => String(d.nd||'').trim()).filter(Boolean))];
+      o.gnd = Object.fromEntries(Object.entries(porG).map(([g, L2]) => { const t2 = somar(L2, v);
+        return [g, v==='exe' ? {emp:t2.emp||0, pago:t2.pago||0, apagar:(t2.emp||0)-(t2.pago||0)} : {emp:t2.base||0, pago:t2.pago||0, apagar:t2.apagar||0}]; }));
       [...e.ks].forEach(k => { if(!idx.has(k)) idx.set(k, []); idx.get(k).push(o); }); });
   }
   _idxParc = idx; _idxParcMes = mes; return idx;
