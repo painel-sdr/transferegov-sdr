@@ -10655,6 +10655,9 @@ async function emiAbrir(){
     EMI.exe = {M, mes: MESES_TXT[ult]||''}; desenharEmi(); } }catch(e){}
 }
 const EMI_UG = {'130010':'CEPLAC','130141':'CGPI/SDR','130255':'PROMAQ','135098':'Caixa/MA','420013':'SDR'};
+// fase do instrumento no Transferegov (agrupa as ~20 situações)
+const emiFase = s => { s = String(s||''); return /execu/i.test(s) ? 'Em execução' : /presta|^PC|conclu/i.test(s) ? 'Prestação de contas' : /aplica/i.test(s) ? 'Aplicação direta (MAPA)'
+  : /sem proposta|anulad|rejeit|cancel|exclu|inadimpl|rescind|extint/i.test(s) ? 'Sem proposta / anulado / rejeitado' : s ? 'Proposta em andamento' : '—'; };
 const emiCod = n => String(n||'').slice(4);   // 202613390014 → 13390014 (o PI das notas é I13390014)
 function emiFiltrar(L, ign){ return L.filter(b => Object.entries(EMI.f).every(([k, v]) => k === ign || !v.length || v.includes(String(b[k]||'')))); }
 function desenharEmi(){
@@ -10667,7 +10670,7 @@ function desenharEmi(){
   const exeDe = b => X && X[emiCod(b.emenda)+'|'+b.ano] || null;
   const pagoV = b => b.desembolsado > 0 ? b.desembolsado : (b.modalidade === 'Aplicação direta' ? ((exeDe(b)||{}).pago||0) : 0);
   const pagoB = b => pagoV(b) > 0;
-  const L0 = EMI.d.linhas.map(b => Object.assign(b, {impS: (+b.impedido||0) > 0 ? 'Impedido' : (+b.tramitando||0) > 0 ? 'Tramitando' : 'Sem impedimento', autorP: b.autor+' · '+b.partido, acaoN: b.acao+' · '+(EMI_ACAO[b.acao]||''), ugP: b.ug ? b.ug+(EMI_UG[b.ug] ? ' · '+EMI_UG[b.ug] : '') : (b.modalidade === 'Aplicação direta' ? 'MAPA (aplicação direta)' : '—')}));
+  const L0 = EMI.d.linhas.map(b => Object.assign(b, {faseT: emiFase(b.situacao), impS: (+b.impedido||0) > 0 ? 'Impedido' : (+b.tramitando||0) > 0 ? 'Tramitando' : 'Sem impedimento', autorP: b.autor+' · '+b.partido, acaoN: b.acao+' · '+(EMI_ACAO[b.acao]||''), ugP: b.ug ? b.ug+(EMI_UG[b.ug] ? ' · '+EMI_UG[b.ug] : '') : (b.modalidade === 'Aplicação direta' ? 'MAPA (aplicação direta)' : '—')}));
   const q = msxN(EMI.q||'');
   const LF = emiFiltrar(L0).filter(b => !q || msxN([b.entidade, b.cnpj, b.proposta, b.instrumento, b.emenda, b.autor, b.ne, b.processo].join(' ')).includes(q));
   const reg = {}; const R = (k, tit, lista) => { reg[k] = {tit, lista}; return ` data-emi="${esc(k)}" title="Clique para ver só estes"`; };
@@ -10679,7 +10682,7 @@ function desenharEmi(){
   const funil = `<div class="em-fun">${etapas.map(([k, r, l], i) => `<div class="${EMI.sel === 'f|'+k ? 'on' : ''}"${R('f|'+k, r, l)}><span>${r}</span><b>${l.length.toLocaleString('pt-BR')}</b><small>${fmtC(soma(l, k === 'emp' ? 'empenhado' : k === 'pag' ? 'pagoX' : 'indicado'))}${i ? ' · '+(LF.length ? Math.round(100*l.length/LF.length) : 0)+'%' : ''}</small></div>`).join('')}</div>
     ${sem.length ? `<button type="button" class="em-alerta ${EMI.sel === 'f|sem' ? 'on' : ''}"${R('f|sem', 'Sem proposta no Transferegov', sem)}>⚠ ${sem.length} beneficiário(s) sem proposta no Transferegov · ${fmtC(soma(sem,'indicado'))} indicados</button>` : ''}${impL.length ? `<button type="button" class="em-alerta em-imp ${EMI.sel === 'f|imp' ? 'on' : ''}"${R('f|imp', 'Com valor impedido ou tramitando', impL)}>🔒 ${LF.filter(b => (+b.impedido||0) > 0).length} beneficiário(s) com valor impedido · ${fmtC(impV)}${nBloq ? ' · '+nBloq+' emenda(s) com bloqueio' : ''}${impL.some(b => !(+b.impedido||0)) ? ' · '+impL.filter(b => !(+b.impedido||0)).length+' só tramitando' : ''}</button>` : ''}`;
   // filtros (lista suspensa de várias escolhas) + busca
-  const FT = [['ano','Ano'],['acaoN','Ação'],['ugP','UG'],['autorP','Parlamentar'],['partido','Partido'],['uf','UF'],['modalidade','Modalidade'],['area','Área técnica'],['situacao','Situação'],['impS','Impedimento']];
+  const FT = [['ano','Ano'],['acaoN','Ação'],['ugP','UG'],['autorP','Parlamentar'],['partido','Partido'],['uf','UF'],['modalidade','Modalidade'],['area','Área técnica'],['faseT','Fase Transferegov'],['situacao','Situação Transferegov'],['impS','Impedimento']];
   const filtros = `<div class="em-fil">${FT.map(([k, r]) => `<label>${r}${msxHTML('emi|'+k, {rot:r, todos:'Todos', opts:() => { const B = emiFiltrar(L0, k); return [...new Set(L0.map(b => String(b[k]||'')).filter(Boolean))].sort((a,b) => k === 'ano' ? b.localeCompare(a) : a.localeCompare(b,'pt-BR',{numeric:true})).map(v => [v, v, B.filter(b => String(b[k]||'') === v).length]); },
     get:() => EMI.f[k]||[], set:a => { EMI.f[k] = a; EMI.sel = null; desenharEmi(); }})}</label>`).join('')}
     <label class="em-bus">Buscar<input type="search" id="emiBusca" value="${esc(EMI.q||'')}" placeholder="entidade, CNPJ, proposta, NE…"></label><button type="button" class="vx-btn" data-emilimpa>Limpar</button></div>`;
@@ -10722,7 +10725,7 @@ function desenharEmi(){
     const gS = Object.entries(grp('situacao')).sort((a,b) => b[1].v - a[1].v), totS = gS.reduce((s,[,x]) => s + x.v, 0) || 1;
     const gSit = `<div class="vx-card em-c em-3"><h3>Por situação no Transferegov</h3><div class="em-bar">${gS.map(([c, x]) => `<i style="flex:${x.v/totS};background:${corSit(c)}"${R('r|situacao|'+c, 'Situação: '+c, x.l)} title="${esc(c)} · ${fmtBRL(x.v)}"></i>`).join('')}</div>
       <div class="em-lg2 em-lgr">${gS.slice(0, 10).map(([c, x]) => `<div${R('r|situacao|'+c, 'Situação: '+c, x.l)}><i style="background:${corSit(c)}"></i>${esc(c.replace('Proposta/Plano de Trabalho','PT').replace('Prestação de Contas','PC'))}<b>${fmtC(x.v)}</b></div>`).join('')}</div></div>`;
-    graf = `<div class="em-gg">${gAno}${gMod}${gPar}${gMapa}${gAcao}${gSit}</div>`;
+    graf = `<div class="em-gg">${gAno}${gMod}${gPar}${gMapa}${gAcao}</div>`;   /* o quadro por situação saiu (19/11/2026): a situação virou filtro (Fase e Situação Transferegov) */
   }
   // planilha (colunas do CADASTRO DE EMENDAS)
   const COLS = [['ano','Ano'],['emenda','Número Emenda'],['autor','Autor (nome)'],['modalidade','Modalidade'],['partido','Partido'],['acao','Ação'],['ugP','UG'],['area','Área técnica'],['gnd','GND'],['ma','MA'],['programa','Programa'],['cnpj','Beneficiário'],['instrumento','Instrumento'],['proposta','Proposta'],['situacao','Situação'],['tipo_despesa','Tipo de Despesa'],['entidade','Entidade'],['processo','Processo SEI'],['tp_entidade','TP Entidade'],['uf','Estado'],['pi','PI'],['ptres','PTRES'],['indicado','Valor Indicado','n'],['impedido','Impedido','n'],['tramitando','Tramitando','n'],['tipo_impedimento','Tipo de impedimento'],['impS','Situação SIOP'],['nd','ND Beneficiário'],['ne','NE Beneficiário'],['empenhado','Empenhado (NE)','n'],['desembolsado','Desembolsado','n']];
@@ -10750,7 +10753,7 @@ document.addEventListener('click', e => {
   if(e.target.closest('[data-emipdf]') && EMI._tab){ const T = EMI._tab;
     const C = [['ano','Ano',0,1],['emenda','Emenda',0,1],['autor','Autor'],['partido','Partido',0,1],['acao','Ação',0,1],['ugP','UG'],['modalidade','Modalidade'],['entidade','Entidade'],['cnpj','CNPJ',0,1],['uf','UF',0,1],['proposta','Proposta',0,1],['instrumento','Instrumento',0,1],['situacao','Situação'],['indicado','Indicado',1],['impedido','Impedido',1],['tramitando','Tramitando',1],['impS','SIOP'],['empenhado','Empenhado',1],['desembolsado','Desembolsado',1]];
     const tot = C.map(([k,,n], i) => i === 0 ? 'Total' : n ? fmtBRL(T.LT.reduce((s, b) => s + (+b[k]||0), 0)).replace('R$','').trim() : '');
-    const filtros = Object.entries(EMI.f).filter(([,v]) => v.length).map(([k,v]) => k.replace('acaoN','Ação').replace('ugP','UG').replace('autorP','Parlamentar').replace('impS','Impedimento')+': '+v.join(', ')).concat(EMI.q ? ['Busca: '+EMI.q] : []);
+    const filtros = Object.entries(EMI.f).filter(([,v]) => v.length).map(([k,v]) => k.replace('acaoN','Ação').replace('ugP','UG').replace('autorP','Parlamentar').replace('impS','Impedimento').replace('faseT','Fase').replace('situacao','Situação')+': '+v.join(', ')).concat(EMI.q ? ['Busca: '+EMI.q] : []);
     abrirPDF(documentoPDF({titulo: 'Captação de Emendas · '+T.tit, sub: 'Emenda Individual · SIOP × Transferegov · robô de '+(EMI.d.gerado_em||''), filtros, cab: C.map(([,t,n,nw]) => ({t, n: !!n, nw: !!nw})),
       linhas: T.LT.map(b => C.map(([k,,n]) => n ? ((+b[k]||0) ? fmtBRL(+b[k]).replace('R$','').trim() : '—') : k === 'impS' ? (b.impS === 'Sem impedimento' ? '—' : b.impS) : String(b[k]||'—'))), tot, total: T.LT.length, arquivo: 'captacao_emendas'}), 'captacao_emendas'); return; }
   if(e.target.closest('[data-emixls]') && EMI._tab){ const T = EMI._tab; baixarXlsx({titulo:'Emenda Individual · '+T.tit, sub:'Captação de Emendas · SIOP × Transferegov', filtros:Object.entries(EMI.f).filter(([,v]) => v.length).map(([k,v]) => k+': '+v.join(', ')), cab:T.COLS.map(c => c[1]), linhas:T.LT.map(b => T.COLS.map(([k,,n]) => n ? +b[k]||0 : String(b[k]||''))), fonte:'SIOP e Transferegov', arquivo:'emendas_individuais'}); }
