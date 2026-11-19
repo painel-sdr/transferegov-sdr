@@ -48,6 +48,19 @@ def main(saida):
                 porEmenda.setdefault((p.get('ano_proposta', ''), n.strip().lstrip('0'), dig(p.get('cnpj_proponente'))), []).append(p)
 
     vistos_inst, vistos_ne = set(), set()
+    # impedimento e tramitação (extrator com 'Valor Impedido/Tramitando (por Beneficiário)' e 'Tipo Impedimento'): o SIOP põe
+    # numa linha à parte do mesmo beneficiário (indicado 0) · junta tudo na linha do beneficiário (emenda + CNPJ + GND + modalidade)
+    imp = {}
+    for r in linhas_siop:
+        cn = dig(r.get('Beneficiário'))
+        if not cn:
+            continue
+        k = ((r.get('Número Emenda') or '').strip(), cn, (r.get('GND') or '').strip(), (r.get('Modalidade') or '').strip())
+        o = imp.setdefault(k, dict(impedido=0.0, tramitando=0.0, tipos=set(), ind=0.0))
+        o['impedido'] += f(r.get('Valor Impedido (por Beneficiário)')); o['tramitando'] += f(r.get('Valor Tramitando (por Beneficiário)')); o['ind'] += f(r.get('Valor Indicado (por Beneficiário)'))
+        t = (r.get('Tipo Impedimento') or '').strip()
+        if t and t.upper() not in ('NÃO SE APLICA', 'NAO SE APLICA', '-', '--'):
+            o['tipos'].add(t)
     em = {}      # nº da emenda → resumo (dotação: autorizado, empenhado, disponível)
     ben = []     # uma linha por beneficiário
     for r in linhas_siop:
@@ -61,12 +74,22 @@ def main(saida):
         loc = (r.get('Localizador') or '').strip()
         uf = UF.get(loc[-2:], 'Nacional' if loc in ('0001', '') else loc)
         e = em.setdefault(num, dict(ano=ano, emenda=num, autor=nome_autor.strip(), cod_autor=cod_autor.strip(), partido=(r.get('Partido (sigla)') or '').strip(),
-                                    acao=acao, acao_nome=(r.get('Ação (desc.)') or '').split(' - ', 1)[-1].strip(), uf=uf, autorizado=0.0, empenhado_siop=0.0, disponivel=0.0, indicado=0.0, beneficiarios=0))
+                                    acao=acao, acao_nome=(r.get('Ação (desc.)') or '').split(' - ', 1)[-1].strip(), uf=uf, autorizado=0.0, empenhado_siop=0.0, disponivel=0.0, indicado=0.0, beneficiarios=0,
+                                    bloqueado=0.0, impedido=0.0, tramitando=0.0, tem_imp='Valor Impedido (por Beneficiário)' in r))
         e['autorizado'] += f(r.get('Autorizado')); e['empenhado_siop'] += f(r.get('Empenhado')); e['disponivel'] += f(r.get('Disponível*'))
+        e['bloqueado'] += f(r.get('Valor Bloqueado da Emenda')); e['impedido'] += f(r.get('Valor Impedido (por Beneficiário)')); e['tramitando'] += f(r.get('Valor Tramitando (por Beneficiário)'))
         cnpj = dig(r.get('Beneficiário'))
         vind = f(r.get('Valor Indicado (por Beneficiário)'))
         if not cnpj and not vind:
             continue
+        ki = (num, cnpj, (r.get('GND') or '').strip(), (r.get('Modalidade') or '').strip())
+        I = imp.get(ki) or dict(impedido=0.0, tramitando=0.0, tipos=set(), ind=0.0)
+        if not vind and I['ind'] > 0:
+            continue      # linha só de impedimento/tramitação: o valor já vai na linha do beneficiário (abaixo)
+        if I.get('usado'):
+            I = dict(impedido=0.0, tramitando=0.0, tipos=set(), ind=0.0)   # mesmo beneficiário em duas linhas com indicado: o impedimento entra na primeira
+        else:
+            imp.get(ki, {})['usado'] = True
         e['indicado'] += vind; e['beneficiarios'] += 1
         ma = (r.get('Modalidade') or '').strip()
         mod, tp = MA.get(ma, ('—', '—'))
@@ -108,10 +131,11 @@ def main(saida):
             instrumento=ni, processo=proc, ug=ug,
             pi=' / '.join(sorted({x.get('PLANO_INTERNO', '') for x in nes} - {''})), ptres=' / '.join(sorted({x.get('PTRES', '') for x in nes} - {''})),
             nd=' / '.join(sorted({x.get('NATUREZA_DESPESA', '') for x in nes} - {''})), ne=' / '.join(sorted({x.get('NR_EMPENHO', '') for x in nes} - {''})),
+            impedido=round(I['impedido'], 2), tramitando=round(I['tramitando'], 2), tipo_impedimento=' | '.join(sorted(I['tipos'])),
             empenhado=round(sum(f(x.get('VALOR_EMPENHO')) for x in nes), 2), desembolsado=round(f(it.get('valor_desembolsado')), 2) if primeiro else 0.0,   # o desembolso é do instrumento: conta uma vez só
             link=(p.get('link_proposta') or '').strip()))
     for e in em.values():
-        for k in ('autorizado', 'empenhado_siop', 'disponivel', 'indicado'):
+        for k in ('autorizado', 'empenhado_siop', 'disponivel', 'indicado', 'bloqueado', 'impedido', 'tramitando'):
             e[k] = round(e[k], 2)
     out = dict(gerado_em=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-3))).strftime('%d/%m/%Y %H:%M'),
                anos=sorted({e['ano'] for e in em.values()}), emendas=sorted(em.values(), key=lambda e: (e['ano'], e['emenda'])), linhas=ben)
