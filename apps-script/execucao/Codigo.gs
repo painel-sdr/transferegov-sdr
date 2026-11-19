@@ -244,6 +244,19 @@ function lerRelatorioTesouro(txt, tipo, porNe) {
  * Fica só o último mês de cada NE + UG (antes as linhas de todos os meses eram somadas e a NE aparecia multiplicada).
  * Saldo para pagar = empenhado − pago. Devolve −1 se o relatório não tiver Ano/Mês (aí vale a leitura antiga).
  */
+/** Tesouro Gerencial: "-8"/"-9" = sem informação. */
+function semInfo(v) { v = String(v == null ? '' : v).trim(); return /^'?-[789]$/.test(v) ? '' : v; }
+/** Favorecido com o documento: o relatório traz o CNPJ/CPF numa coluna e o nome na vizinha → "12345678000190 NOME" (CPF sai mascarado). */
+function favComDoc(r, i) {
+  if (i < 0) return '';
+  const c = j => semInfo(r[j]), soDig = x => x.replace(/\D/g, ''), ehDoc = x => /^[\d.\/\- ]+$/.test(x) && /^(\d{11}|\d{14})$/.test(soDig(x));
+  let doc = '', nome = '';
+  if (ehDoc(c(i))) { doc = soDig(c(i)); nome = c(i + 1); }
+  else if (ehDoc(c(i - 1))) { doc = soDig(c(i - 1)); nome = c(i); }
+  else nome = c(i);
+  if (ehDoc(nome)) nome = '';
+  return mascarar((doc ? doc + ' ' : '') + nome).trim();
+}
 function lerExeMensal(txt, porNe) {
   const L = Utilities.parseCsv(txt);
   const hi = L.findIndex(l => l.some(c => { const h = normalizar(c); return h === 'NE CCOR' || h.indexOf('NUM. PROCESSO') >= 0 || h.indexOf('NUM PROCESSO') >= 0; }));
@@ -261,7 +274,7 @@ function lerExeMensal(txt, porNe) {
     const cont = {}; L.slice(hi + 1, hi + 3000).forEach(r => r.forEach((c, i) => { if (/\d{4}NE\d{6}$/.test(String(c || '').trim())) cont[i] = (cont[i] || 0) + 1; }));
     const m = Object.keys(cont).sort((a, b) => cont[b] - cont[a])[0]; if (m === undefined) return -1; ix.ne = +m;
   }
-  const g = (r, i) => i < 0 ? '' : String(r[i] || '').trim(), n = (r, i) => i < 0 ? 0 : num(r[i]);
+  const g = (r, i) => i < 0 ? '' : semInfo(r[i]), n = (r, i) => i < 0 ? 0 : num(r[i]);
   const MES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   const ult = {}, linhas = [], vistos = {};
   for (let i = hi + (duplo ? 2 : 1); i < L.length; i++) {
@@ -277,7 +290,7 @@ function lerExeMensal(txt, porNe) {
     if (x.rank !== ult[x.k]) return;
     if (porNe[x.k] && !novos[x.k]) return;   // já veio de outro relatório
     const r = x.r, emp = n(r, ix.emp), liq = n(r, ix.liq), pago = n(r, ix.pago);
-    const t = porNe[x.k] || (porNe[x.k] = novos[x.k] = { ne: x.ne, tipo: 'EXE', ug: x.ug, processo: g(r, ix.proc), favorecido: mascarar(ix.favC >= 0 ? (g(r, ix.favC + 1) || g(r, ix.favC)) : ''),
+    const t = porNe[x.k] || (porNe[x.k] = novos[x.k] = { ne: x.ne, tipo: 'EXE', ug: x.ug, processo: g(r, ix.proc), favorecido: favComDoc(r, ix.favC),
       acao: g(r, ix.acao), fonte: g(r, ix.fonte), pi: g(r, ix.pi), nd: g(r, ix.nd), desc_nd: ix.nd >= 0 ? g(r, ix.nd + 1) : '', empenhado: 0, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 0,
       po: ((ix.po >= 0 ? g(r, ix.po) : (ix.pi > 1 ? g(r, ix.pi - 2) : '')).match(/^\d{4}/) || [''])[0] });   // PO: coluna própria ou duas antes do PI (como no Painel SDR)
     t.empenhado += emp; t.liquidado += liq; t.pago += pago; t.saldo += Math.max(0, emp - pago);
@@ -301,7 +314,7 @@ function lerRapMensal(txt, porNe) {
     ne: ach(h => h === 'NE CCOR' || /(^| )NE CCOR$/.test(h)), proc: ach(tem('PROCESSO')),
     pI: pr('INSCRITOS'), pR: pr('REINSCRITOS'), pC: pr('CANCELADOS'), pP: pr('PAGOS'), pAP: pr('A PAGAR'),
     nI: np('INSCRITOS'), nR: np('REINSCRITOS'), nC: np('CANCELADOS'), nL: np('LIQUIDADOS'), nP: np('PAGOS'), nAP: np('A PAGAR') };
-  const g = (r, i) => i < 0 ? '' : String(r[i] || '').trim(), n = (r, i) => i < 0 ? 0 : num(r[i]);
+  const g = (r, i) => i < 0 ? '' : semInfo(r[i]), n = (r, i) => i < 0 ? 0 : num(r[i]);
   const ult = {}, linhas = [];
   for (let i = hi + (duplo ? 2 : 1); i < L.length; i++) {
     const r = L[i], m = g(r, ix.ne).toUpperCase().match(/(\d{4}NE\d{6})/); if (!m) continue;
@@ -318,11 +331,11 @@ function lerRapMensal(txt, porNe) {
     if (porNe[x.k] && !novos[x.k]) return;   // já veio de outra aba
     const r = x.r, insc = n(r, ix.pI) + n(r, ix.pR) + n(r, ix.nI) + n(r, ix.nR), canc = n(r, ix.pC) + n(r, ix.nC), pago = n(r, ix.pP) + n(r, ix.nP);
     const saldo = (ix.pAP >= 0 || ix.nAP >= 0) ? n(r, ix.pAP) + n(r, ix.nAP) : insc - canc - pago;
-    const t = porNe[x.k] || (porNe[x.k] = novos[x.k] = { ne: x.ne, tipo: 'RAP', ug: x.ug, processo: g(r, ix.proc), favorecido: mascarar(g(r, ix.fav)), acao: g(r, ix.acao), fonte: g(r, ix.fonte), pi: g(r, ix.pi),
+    const t = porNe[x.k] || (porNe[x.k] = novos[x.k] = { ne: x.ne, tipo: 'RAP', ug: x.ug, processo: g(r, ix.proc), favorecido: favComDoc(r, ix.fav), acao: g(r, ix.acao), fonte: g(r, ix.fonte), pi: g(r, ix.pi),
       nd: g(r, ix.nd), desc_nd: ix.nd >= 0 ? g(r, ix.nd + 1) : '', empenhado: 0, liquidado: 0, em_liquidacao: 0, pago: 0, saldo: 0 });
     t.empenhado += insc - canc; t.liquidado += n(r, ix.nL) + n(r, ix.pP); t.pago += pago; t.saldo += Math.max(0, saldo);
     ['processo', 'acao', 'fonte', 'pi', 'nd'].forEach(c => { if (!t[c]) t[c] = g(r, ix[{ processo: 'proc' }[c] || c]); });
-    if (!t.favorecido) t.favorecido = mascarar(g(r, ix.fav));
+    if (!t.favorecido) t.favorecido = favComDoc(r, ix.fav);
     cont++;
   });
   return cont;
@@ -335,7 +348,7 @@ function extrairLinha(row, tipo) {
     if (val === undefined || val === null || String(val).trim() === '' || /^'?-[89]$/.test(String(val).trim())) return;
     const s = String(val).trim();
     if ((kn === 'NE CCOR' || kn === 'NOTA DE EMPENHO' || /NE CCOR$/.test(kn)) && !d.ne) d.ne = s;
-    else if (kn.indexOf('PROCESSO') >= 0) d.proc = s;
+    else if (kn.indexOf('PROCESSO') >= 0) d.proc = semInfo(s);
     else if ((kn.indexOf('UG') >= 0 || kn.indexOf('UNIDADE GESTORA') >= 0) && !d.ug) { const m = s.match(/\d{6}/); d.ug = m ? m[0] : s; }
     else if (kn.indexOf('ACAO GOVERNO') >= 0 || kn === 'ACAO') d.acao = s;
     else if (kn.indexOf('FONTE RECURSOS') >= 0 || kn === 'FONTE') d.fonte = s;
@@ -525,7 +538,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-19 · favorecido pela NE';
+const VERSAO = '2026-11-19b · CNPJ pela NE';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
@@ -647,7 +660,7 @@ function infoNes(u, p) {
   if (!podeCadastrar(u)) return { ok: false, msg: 'Sem permissão.' };
   const r = favorecidoPelasNes(p.nes, p.ug);
   return { ok: true, achadas: r.achadas.map(t => t.ne), faltam: r.faltam, outraUg: r.outraUg, conflito: r.conflito,
-    favorecido: r.favorecido || '', cnpj: mascarar(r.cnpj || ''), ug: r.ug || '', processo: r.processo || '', nd: r.nd || '' };
+    favorecido: r.favorecido || '', cnpj: mascarar(r.cnpj || ''), ug: r.ug || '', processo: semInfo(r.processo), nd: r.nd || '' };
 }
 /** Rodadas automáticas: cadastros "aguardando Tesouro" ganham favorecido e CNPJ/CPF quando a NE aparece. */
 function preencherPelaNe() {
