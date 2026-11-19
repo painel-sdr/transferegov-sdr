@@ -8,7 +8,8 @@
  *  3. Escolha  carregarTesouro  e Executar: lê os CSVs da aba FONTES (EXE e, quando tiver, RAP).
  *  4. Implantar › Gerenciar implantações › lápis (editar) › Versão: "Nova versão" › Implantar.
  *     (Assim o link /exec continua o mesmo.)
- *  5. Opcional: Acionadores › Adicionar › rotinaDiaria › baseado no tempo › diário (8h–9h, depois do robô do GitHub).
+ *  5. Rotina automática: escolha  ligarRodadas  e Executar (uma vez). Ela apaga os acionadores antigos da rotinaDiaria
+ *     e cria 3 rodadas por dia: 8h, 14h e 16h (lê o Tesouro, completa favorecido/CNPJ pela NE, importa e confere).
  *
  * CADASTRO AUTOMÁTICO (importarCadastro): o robô do GitHub gera todo dia, na branch "dados",
  *  execucao_instrumentos.csv (contratos vigentes da API Contratos, parcerias com parcela prevista no ano, TED enviados
@@ -38,7 +39,7 @@ const ABAS = {
   INSTRUMENTOS: ['id', 'formalizacao', 'orcamento', 'ug', 'sigla', 'atividade', 'natureza', 'numero', 'instrumento', 'proposta',
     'processo_raiz', 'favorecido', 'cnpj', 'modalidade', 'objeto', 'vigencia_ini', 'vigencia_fim', 'prorrogacao_prevista',
     'valor_global', 'valor_parcela', 'executado_anteriores', 'nes', 'regiao', 'uf', 'origem', 'criado_em', 'criado_por', 'alterado_em', 'alterado_por', 'justificativa',
-    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao', 'a_desembolsar', 'a_desembolsar_futuro', 'orcamento_robo'],
+    'chave', 'situacao_cadastro', 'sincronizado_em', 'acao', 'base_previsao', 'a_desembolsar', 'a_desembolsar_futuro', 'orcamento_robo', 'aguardando_ne'],
   PREVISAO: ['instrumento_id', 'competencia', 'valor', 'alterado_por', 'alterado_em'],
   PAGAMENTOS: ['id', 'instrumento_id', 'competencia', 'processo_pagamento', 'area_demandante', 'valor', 'ne', 'recurso', 'fonte',
     'obs_orcamento', 'orcamento_por', 'orcamento_em', 'situacao', 'executor', 'distribuido_por', 'distribuido_em',
@@ -398,7 +399,7 @@ function iniciarExercicio() {
   Logger.log(msg);
   return msg;
 }
-function rotinaDiaria() { carregarTesouro(); try { importarCadastro(null); } catch (e) { setConfig('ULTIMA_IMPORTACAO', agora() + ' · ERRO ' + e.message); } conferir(null); }
+function rotinaDiaria() { carregarTesouro(); try { preencherPelaNe(); } catch (e) { setConfig('ULTIMO_PREENCHIMENTO', agora() + ' · ERRO ' + e.message); } try { importarCadastro(null); } catch (e) { setConfig('ULTIMA_IMPORTACAO', agora() + ' · ERRO ' + e.message); } conferir(null); }
 
 /* ====================== CADASTRO AUTOMÁTICO (robô do GitHub) ====================== */
 const BASE_DADOS = 'https://raw.githubusercontent.com/painel-sdr/transferegov-sdr/dados/';
@@ -524,7 +525,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-10i · pago no ano';
+const VERSAO = '2026-11-19 · favorecido pela NE';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
@@ -537,7 +538,7 @@ function doPost(e) {
     if (!u) return json({ ok: false, sessao: false, msg: 'Sessão expirada. Entre de novo.' });
     if (p.acao === 'dados') return json(dados(u));
     lock.waitLock(25000);
-    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, receber: receberProcesso, distribuirOrc: distribuirOrcamento, distribuir: distribuir, devolver: devolverAoOrcamento, limparTeste: limparTeste, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
+    const acoes = { importar: importarCadastro, buscaTesouro: buscaTesouro, instrumento: salvarInstrumento, previsao: salvarPrevisao, demanda: registrarDemanda, receber: receberProcesso, distribuirOrc: distribuirOrcamento, distribuir: distribuir, devolver: devolverAoOrcamento, limparTeste: limparTeste, pago: informarPago, repetir: repetirProcesso, desfazer: desfazer, ddo: salvarDdo, conferir: conferir, simular: simularLiquidacao, nesInfo: infoNes, tesouro: (uu) => uu.perfil === 'ADMIN' ? Object.assign(carregarTesouro(), { preenchidos: preencherPelaNe() }, conferir(uu)) : { ok: false, msg: 'Só o coordenador.' } };
     const f = acoes[p.acao];
     const r = f ? f(u, p) : { ok: false, msg: 'Ação desconhecida.' };
     SpreadsheetApp.flush();
@@ -617,6 +618,65 @@ function buscaTesouro(u, p) {
   return { ok: true, itens: itens };
 }
 
+/* ---- favorecido pela NE ---- */
+function listaNes(s) { return String(s || '').split(/[,;\s]+/).filter(Boolean).map(x => x.toUpperCase()); }
+// favorecido do Tesouro: "12345678000190 EMPRESA" ou, pessoa física, CPF já mascarado "***.456.789-** FULANO" (LGPD)
+function docDoFav(f) { const m = String(f || '').match(/^\s*(\d{14}|\d{11}|\*{3}\.\d{3}\.\d{3}-\*{2})(?![\d*])/); return m ? m[1] : ''; }
+function nomeDoFav(f) { return String(f || '').replace(/^\s*(\d{11,14}|\*{3}\.\d{3}\.\d{3}-\*{2})\s*[-–]?\s*/, '').trim(); }
+function fmtDoc(d) { return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : d.length === 11 ? d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : d; }
+/** Lê no Tesouro as NEs informadas: favorecido e CNPJ/CPF da 1ª achada; avisa NE de outra UG e favorecidos diferentes. */
+function favorecidoPelasNes(nes, ug, tes) {
+  tes = tes || tesouroEmCache();
+  const r = { achadas: [], faltam: [], outraUg: [], conflito: '' };
+  listaNes(nes).forEach(ne => {
+    const mesma = tes.find(t => String(t.ne).toUpperCase() === ne && (!ug || String(t.ug) === String(ug)));
+    if (mesma) return r.achadas.push(mesma);
+    const outra = ug && tes.find(t => String(t.ne).toUpperCase() === ne);
+    if (outra) r.outraUg.push(ne + ' é da UG ' + outra.ug); else r.faltam.push(ne);
+  });
+  if (r.achadas.length) {
+    const t0 = r.achadas[0], chave = t => docDoFav(t.favorecido) || normalizar(nomeDoFav(t.favorecido));
+    const dif = r.achadas.find(t => chave(t) !== chave(t0));
+    if (dif) r.conflito = dif.ne + ' é de ' + nomeDoFav(dif.favorecido) + ' e ' + t0.ne + ' é de ' + nomeDoFav(t0.favorecido);
+    Object.assign(r, { favorecido: nomeDoFav(t0.favorecido), cnpj: fmtDoc(docDoFav(t0.favorecido)), ug: String(t0.ug), processo: t0.processo, nd: t0.nd });
+  }
+  return r;
+}
+/** Tela de cadastro: consulta as NEs digitadas (CPF volta mascarado). */
+function infoNes(u, p) {
+  if (!podeCadastrar(u)) return { ok: false, msg: 'Sem permissão.' };
+  const r = favorecidoPelasNes(p.nes, p.ug);
+  return { ok: true, achadas: r.achadas.map(t => t.ne), faltam: r.faltam, outraUg: r.outraUg, conflito: r.conflito,
+    favorecido: r.favorecido || '', cnpj: mascarar(r.cnpj || ''), ug: r.ug || '', processo: r.processo || '', nd: r.nd || '' };
+}
+/** Rodadas automáticas: cadastros "aguardando Tesouro" ganham favorecido e CNPJ/CPF quando a NE aparece. */
+function preencherPelaNe() {
+  garantirCabecalhos(['INSTRUMENTOS']);
+  const tes = tesouroEmCache(), pags = lerTudo('PAGAMENTOS'); let n = 0;
+  lerTudo('INSTRUMENTOS').filter(i => String(i.aguardando_ne || '').trim()).forEach(i => {
+    const nes = listaNes(i.nes);
+    pags.forEach(p => { const ne = String(p.ne || '').toUpperCase(); if (p.instrumento_id === i.id && ne && nes.indexOf(ne) < 0) nes.push(ne); });
+    if (!nes.length) nesDoInstrumento(i, tes).forEach(ne => { ne = String(ne).toUpperCase(); if (nes.indexOf(ne) < 0) nes.push(ne); });
+    if (!nes.length) return;                              // ainda sem empenho
+    const fv = favorecidoPelasNes(nes.join(','), i.ug, tes);
+    if (!fv.achadas.length || fv.conflito) return;        // NE ainda não chegou ao Tesouro (ou favorecidos diferentes: fica para conferir)
+    const c = { favorecido: fv.favorecido, cnpj: fv.cnpj, nes: nes.join(', '), aguardando_ne: fv.faltam.length ? i.aguardando_ne : '' };
+    if (!i.ug) c.ug = fv.ug; if (!i.processo_raiz) c.processo_raiz = fv.processo; if (!i.natureza) c.natureza = fv.nd;
+    atualizar('INSTRUMENTOS', i.id, c);
+    hist({ email: 'robô' }, 'favorecido pela NE', i.id, fv.favorecido + ' · ' + fv.achadas.map(t => t.ne).join(', '));
+    n++;
+  });
+  setConfig('ULTIMO_PREENCHIMENTO', agora() + ' · ' + n + ' cadastro(s) completado(s) pela NE');
+  return n;
+}
+/** Rode UMA vez (na conta dona): troca os acionadores da rotina por 3 rodadas diárias, 8h, 14h e 16h. */
+function ligarRodadas() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rotinaDiaria').forEach(t => ScriptApp.deleteTrigger(t));
+  [8, 14, 16].forEach(h => ScriptApp.newTrigger('rotinaDiaria').timeBased().everyDays(1).atHour(h).inTimezone('America/Sao_Paulo').create());
+  toast('Rotina ligada: 8h, 14h e 16h.');
+  return 'Rotina ligada: 8h, 14h e 16h.';
+}
+
 /* ---- ações ---- */
 function podeCadastrar(u) { return /ADMIN|ORCAMENTO/.test(u.perfil); }   // ADMIN, CHEFE_ORCAMENTO e ORCAMENTO
 function chefeOrc(u) { return u.perfil === 'ADMIN' || u.perfil === 'CHEFE_ORCAMENTO'; }
@@ -655,8 +715,19 @@ function salvarInstrumento(u, p) {
   const d = p.dados || {};
   if (!d.processo_raiz || !d.ug || !d.formalizacao) return { ok: false, msg: 'Preencha ao menos formalização, UG e processo raiz.' };
   const campos = ABAS.INSTRUMENTOS.filter(c => ['id', 'origem', 'criado_em', 'criado_por', 'alterado_em', 'alterado_por', 'justificativa'].indexOf(c) < 0);
+  garantirCabecalhos(['INSTRUMENTOS']);
   const o = {}; campos.forEach(c => { if (d[c] !== undefined) o[c] = d[c]; });
   ['valor_global', 'valor_parcela', 'executado_anteriores'].forEach(c => { if (o[c] !== undefined) o[c] = num(o[c]); });
+  // favorecido e CNPJ/CPF são travados: vêm da NE (Tesouro), nunca do que foi digitado
+  delete o.favorecido; delete o.cnpj; delete o.aguardando_ne;
+  const antes = d.id ? lerTudo('INSTRUMENTOS').find(i => i.id === d.id) : null;
+  if (!antes || String(antes.origem || 'PAINEL') === 'PAINEL') {
+    const fv = favorecidoPelasNes(o.nes !== undefined ? o.nes : antes.nes, o.ug || (antes && antes.ug));
+    if (fv.outraUg.length) return { ok: false, msg: 'NE de outra UG: ' + fv.outraUg.join('; ') + '.' };
+    if (fv.conflito) return { ok: false, msg: 'As NEs são de favorecidos diferentes: ' + fv.conflito + '.' };
+    if (fv.achadas.length) { o.favorecido = fv.favorecido; o.cnpj = fv.cnpj; if (!o.natureza) o.natureza = fv.nd; }
+    o.aguardando_ne = (fv.faltam.length || !fv.achadas.length) ? ((antes && antes.aguardando_ne) || agora()) : '';
+  }
   if (d.id) {
     if (!String(p.justificativa || '').trim()) return { ok: false, msg: 'Informe a justificativa da alteração.' };
     const atual = lerTudo('INSTRUMENTOS').find(i => i.id === d.id);
@@ -673,8 +744,8 @@ function salvarInstrumento(u, p) {
   o.id = 'I' + Date.now().toString(36).toUpperCase(); o.origem = 'PAINEL'; o.criado_em = agora(); o.criado_por = u.email;
   anexar('INSTRUMENTOS', o);
   gerarPrevisao(o, u.email);
-  hist(u, 'instrumento cadastrado', o.id, o.processo_raiz);
-  return { ok: true, id: o.id };
+  hist(u, 'instrumento cadastrado', o.id, o.processo_raiz + (o.aguardando_ne ? ' · aguardando Tesouro' : ''));
+  return { ok: true, id: o.id, aguardando: !!o.aguardando_ne, temFavorecido: !!o.favorecido };
 }
 function salvarPrevisao(u, p) {
   if (!podeCadastrar(u)) return { ok: false, msg: 'Só o Orçamento ou o coordenador ajustam a previsão.' };
