@@ -412,7 +412,7 @@ function iniciarExercicio() {
   Logger.log(msg);
   return msg;
 }
-function rotinaDiaria() { carregarTesouro(); try { preencherPelaNe(); } catch (e) { setConfig('ULTIMO_PREENCHIMENTO', agora() + ' · ERRO ' + e.message); } try { importarCadastro(null); } catch (e) { setConfig('ULTIMA_IMPORTACAO', agora() + ' · ERRO ' + e.message); } conferir(null); }
+function rotinaDiaria() { carregarTesouro(); try { preencherPelaNe(); } catch (e) { setConfig('ULTIMO_PREENCHIMENTO', agora() + ' · ERRO ' + e.message); } try { importarCadastro(null); } catch (e) { setConfig('ULTIMA_IMPORTACAO', agora() + ' · ERRO ' + e.message); } try { preencherAtividades(); } catch (e) { setConfig('ULTIMA_ATIVIDADE', agora() + ' · ERRO ' + e.message); } conferir(null); }
 
 /* ====================== CADASTRO AUTOMÁTICO (robô do GitHub) ====================== */
 const BASE_DADOS = 'https://raw.githubusercontent.com/painel-sdr/transferegov-sdr/dados/';
@@ -538,7 +538,7 @@ function simularLiquidacao(u) {
 
 /* =========================== API (painel) =========================== */
 
-const VERSAO = '2026-11-19b · CNPJ pela NE';
+const VERSAO = '2026-11-19c · atividade pela ND';
 function doGet() { return json({ ok: true, servico: 'execucao', versao: VERSAO, hora: new Date().toISOString() }); }
 
 function doPost(e) {
@@ -660,9 +660,41 @@ function infoNes(u, p) {
   if (!podeCadastrar(u)) return { ok: false, msg: 'Sem permissão.' };
   const r = favorecidoPelasNes(p.nes, p.ug);
   return { ok: true, achadas: r.achadas.map(t => t.ne), faltam: r.faltam, outraUg: r.outraUg, conflito: r.conflito,
-    favorecido: r.favorecido || '', cnpj: mascarar(r.cnpj || ''), ug: r.ug || '', processo: semInfo(r.processo), nd: r.nd || '' };
+    favorecido: r.favorecido || '', cnpj: mascarar(r.cnpj || ''), ug: r.ug || '', processo: semInfo(r.processo), nd: r.nd || '', atividade: atividadeDaNd(r.nd) };
 }
-/** Rodadas automáticas: cadastros "aguardando Tesouro" ganham favorecido e CNPJ/CPF quando a NE aparece. */
+/** Atividade pela natureza da despesa (elemento = 6 primeiros dígitos da ND). Parceria/transferência sem ND → Outras Despesas. */
+const ND_DESLOCAMENTO = ['339014', '339015', '339033'];
+const ND_FUNCIONAMENTO = ['339030', '339036', '339037', '339039', '339040', '339047'];
+function atividadeDaNd(nd, formalizacao) {
+  const el = String(nd || '').replace(/\D/g, '').slice(0, 6);
+  if (ND_DESLOCAMENTO.indexOf(el) >= 0) return 'Deslocamento';
+  if (ND_FUNCIONAMENTO.indexOf(el) >= 0) return 'Funcionamento';
+  if (el.length === 6) return 'Outras Despesas';
+  if (/di[aá]ria|passage/i.test(String(formalizacao || ''))) return 'Deslocamento';
+  if (/conv[eê]nio|termo de fomento|termo de colabora|contrato de repasse|\bTED\b|termo de execu|acordo/i.test(String(formalizacao || ''))) return 'Outras Despesas';
+  return '';
+}
+/** Completa a atividade dos cadastros que estão sem ela (nunca troca a que já foi escolhida). */
+function preencherAtividades() {
+  const s = sh('INSTRUMENTOS'); if (!s || s.getLastRow() < 2) return 0;
+  const tes = tesouroEmCache(), porNe = {}; tes.forEach(t => porNe[t.ne + '|' + t.ug] = t);
+  const v = s.getRange(1, 1, s.getLastRow(), s.getLastColumn()).getValues(), cab = v.shift(), cA = cab.indexOf('atividade');
+  if (cA < 0) return 0;
+  const col = v.map(r => [r[cA]]);   // uma leitura e uma gravação para a coluna toda (linha a linha, mesmo com linhas vazias)
+  let n = 0;
+  v.forEach((r, k) => {
+    if (String(r[cA] || '').trim() || !String(r[0] || '').trim()) return;
+    const i = {}; cab.forEach((c, j) => i[c] = r[j]);
+    let nd = i.natureza;
+    if (!String(nd || '').replace(/\D/g, '')) { const ne = nesDoInstrumento(i, tes)[0]; const t = ne && porNe[ne + '|' + i.ug]; nd = t ? t.nd : ''; }
+    const at = atividadeDaNd(nd, i.formalizacao);
+    if (at) { col[k][0] = at; n++; }
+  });
+  if (n) s.getRange(2, cA + 1, col.length, 1).setValues(col);
+  setConfig('ULTIMA_ATIVIDADE', agora() + ' · ' + n + ' atividade(s) preenchida(s) pela ND');
+  return n;
+}
+/** Rodadas automáticas: cadastros "aguardando Tesouro\" ganham favorecido e CNPJ/CPF quando a NE aparece. */
 function preencherPelaNe() {
   garantirCabecalhos(['INSTRUMENTOS']);
   const tes = tesouroEmCache(), pags = lerTudo('PAGAMENTOS'); let n = 0;
@@ -674,7 +706,7 @@ function preencherPelaNe() {
     const fv = favorecidoPelasNes(nes.join(','), i.ug, tes);
     if (!fv.achadas.length || fv.conflito) return;        // NE ainda não chegou ao Tesouro (ou favorecidos diferentes: fica para conferir)
     const c = { favorecido: fv.favorecido, cnpj: fv.cnpj, nes: nes.join(', '), aguardando_ne: fv.faltam.length ? i.aguardando_ne : '' };
-    if (!i.ug) c.ug = fv.ug; if (!i.processo_raiz) c.processo_raiz = fv.processo; if (!i.natureza) c.natureza = fv.nd;
+    if (!i.ug) c.ug = fv.ug; if (!i.processo_raiz) c.processo_raiz = semInfo(fv.processo); if (!i.natureza) c.natureza = fv.nd; if (!i.atividade) c.atividade = atividadeDaNd(i.natureza || fv.nd, i.formalizacao);
     atualizar('INSTRUMENTOS', i.id, c);
     hist({ email: 'robô' }, 'favorecido pela NE', i.id, fv.favorecido + ' · ' + fv.achadas.map(t => t.ne).join(', '));
     n++;
@@ -739,6 +771,7 @@ function salvarInstrumento(u, p) {
     if (fv.outraUg.length) return { ok: false, msg: 'NE de outra UG: ' + fv.outraUg.join('; ') + '.' };
     if (fv.conflito) return { ok: false, msg: 'As NEs são de favorecidos diferentes: ' + fv.conflito + '.' };
     if (fv.achadas.length) { o.favorecido = fv.favorecido; o.cnpj = fv.cnpj; if (!o.natureza) o.natureza = fv.nd; }
+    if (!String(o.atividade || '').trim()) o.atividade = atividadeDaNd(o.natureza, o.formalizacao || (antes && antes.formalizacao)) || o.atividade;
     o.aguardando_ne = (fv.faltam.length || !fv.achadas.length) ? ((antes && antes.aguardando_ne) || agora()) : '';
   }
   if (d.id) {
