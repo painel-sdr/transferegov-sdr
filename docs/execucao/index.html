@@ -851,7 +851,7 @@ function consultarNes(){
   chamar({acao: 'nesInfo', nes: v, ug: fi.ug.value}).then(function(r){
     if(!r.ok){ st.innerHTML = '<span class="neg">' + esc(r.msg) + '</span>'; return; }
     var h = [];
-    if(r.achadas.length){ fi.favorecido.value = r.favorecido; fi.cnpj.value = r.cnpj; if(!fi.ug.value) fi.ug.value = r.ug; if(!fi.processo_raiz.value) fi.processo_raiz.value = r.processo; if(!fi.natureza.value) fi.natureza.value = r.nd; h.push('<span style="color:#1f6b3a">✓ ' + esc(r.achadas.join(', ')) + ' no Tesouro · ' + esc(r.favorecido) + '</span>'); }
+    if(r.achadas.length){ fi.favorecido.value = r.favorecido; fi.cnpj.value = r.cnpj; if(!fi.ug.value) fi.ug.value = r.ug; if(!fi.processo_raiz.value) fi.processo_raiz.value = r.processo; if(!fi.natureza.value) fi.natureza.value = r.nd; if(!fi.atividade.value && r.atividade) fi.atividade.value = r.atividade; h.push('<span style="color:#1f6b3a">✓ ' + esc(r.achadas.join(', ')) + ' no Tesouro · ' + esc(r.favorecido) + '</span>'); }
     if(r.conflito) h.push('<span class="neg">✖ Favorecidos diferentes: ' + esc(r.conflito) + '. Deixe só as NEs do mesmo favorecido.</span>');
     if(r.outraUg.length) h.push('<span class="neg">✖ ' + esc(r.outraUg.join('; ')) + '.</span>');
     if(r.faltam.length) h.push('<span class="neg">⏳ ' + esc(r.faltam.join(', ')) + (r.faltam.length > 1 ? ' ainda não estão' : ' ainda não está') + ' no Tesouro. Pode salvar: o sistema completa sozinho nas rodadas das 8h, 14h e 16h.</span>');
