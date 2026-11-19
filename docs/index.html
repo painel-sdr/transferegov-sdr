@@ -10667,17 +10667,19 @@ function desenharEmi(){
   const exeDe = b => X && X[emiCod(b.emenda)+'|'+b.ano] || null;
   const pagoV = b => b.desembolsado > 0 ? b.desembolsado : (b.modalidade === 'Aplicação direta' ? ((exeDe(b)||{}).pago||0) : 0);
   const pagoB = b => pagoV(b) > 0;
-  const L0 = EMI.d.linhas.map(b => Object.assign(b, {autorP: b.autor+' · '+b.partido, acaoN: b.acao+' · '+(EMI_ACAO[b.acao]||''), ugP: b.ug ? b.ug+(EMI_UG[b.ug] ? ' · '+EMI_UG[b.ug] : '') : (b.modalidade === 'Aplicação direta' ? 'MAPA (aplicação direta)' : '—')}));
+  const L0 = EMI.d.linhas.map(b => Object.assign(b, {impS: (+b.impedido||0) > 0 ? 'Impedido' : (+b.tramitando||0) > 0 ? 'Tramitando' : 'Sem impedimento', autorP: b.autor+' · '+b.partido, acaoN: b.acao+' · '+(EMI_ACAO[b.acao]||''), ugP: b.ug ? b.ug+(EMI_UG[b.ug] ? ' · '+EMI_UG[b.ug] : '') : (b.modalidade === 'Aplicação direta' ? 'MAPA (aplicação direta)' : '—')}));
   const q = msxN(EMI.q||'');
   const LF = emiFiltrar(L0).filter(b => !q || msxN([b.entidade, b.cnpj, b.proposta, b.instrumento, b.emenda, b.autor, b.ne, b.processo].join(' ')).includes(q));
   const reg = {}; const R = (k, tit, lista) => { reg[k] = {tit, lista}; return ` data-emi="${esc(k)}" title="Clique para ver só estes"`; };
   // funil: indicado → com proposta → instrumento celebrado → empenhado → pago
   const etapas = [['ind','Indicado', LF], ['prop','Com proposta', LF.filter(b => b.proposta)], ['inst','Instrumento celebrado', LF.filter(b => b.instrumento)], ['emp','Empenhado', LF.filter(b => b.ne)], ['pag','Pago', LF.filter(pagoB).map(b => Object.assign(Object.create(b), {pagoX: pagoV(b)}))]];
   const sem = LF.filter(b => !b.proposta && b.modalidade !== 'Aplicação direta');
+  const impL = LF.filter(b => (+b.impedido||0) > 0 || (+b.tramitando||0) > 0), impV = soma(LF, 'impedido');
+  const emLF = new Set(LF.map(b => b.emenda)), nBloq = (EMI.d.emendas||[]).filter(e => emLF.has(e.emenda) && (+e.bloqueado||0) > 0).length;
   const funil = `<div class="em-fun">${etapas.map(([k, r, l], i) => `<div class="${EMI.sel === 'f|'+k ? 'on' : ''}"${R('f|'+k, r, l)}><span>${r}</span><b>${l.length.toLocaleString('pt-BR')}</b><small>${fmtC(soma(l, k === 'emp' ? 'empenhado' : k === 'pag' ? 'pagoX' : 'indicado'))}${i ? ' · '+(LF.length ? Math.round(100*l.length/LF.length) : 0)+'%' : ''}</small></div>`).join('')}</div>
-    ${sem.length ? `<button type="button" class="em-alerta ${EMI.sel === 'f|sem' ? 'on' : ''}"${R('f|sem', 'Sem proposta no Transferegov', sem)}>⚠ ${sem.length} beneficiário(s) sem proposta no Transferegov · ${fmtC(soma(sem,'indicado'))} indicados</button>` : ''}`;
+    ${sem.length ? `<button type="button" class="em-alerta ${EMI.sel === 'f|sem' ? 'on' : ''}"${R('f|sem', 'Sem proposta no Transferegov', sem)}>⚠ ${sem.length} beneficiário(s) sem proposta no Transferegov · ${fmtC(soma(sem,'indicado'))} indicados</button>` : ''}${impL.length ? `<button type="button" class="em-alerta em-imp ${EMI.sel === 'f|imp' ? 'on' : ''}"${R('f|imp', 'Com valor impedido ou tramitando', impL)}>🔒 ${LF.filter(b => (+b.impedido||0) > 0).length} beneficiário(s) com valor impedido · ${fmtC(impV)}${nBloq ? ' · '+nBloq+' emenda(s) com bloqueio' : ''}${impL.some(b => !(+b.impedido||0)) ? ' · '+impL.filter(b => !(+b.impedido||0)).length+' só tramitando' : ''}</button>` : ''}`;
   // filtros (lista suspensa de várias escolhas) + busca
-  const FT = [['ano','Ano'],['acaoN','Ação'],['ugP','UG'],['autorP','Parlamentar'],['partido','Partido'],['uf','UF'],['modalidade','Modalidade'],['area','Área técnica'],['situacao','Situação']];
+  const FT = [['ano','Ano'],['acaoN','Ação'],['ugP','UG'],['autorP','Parlamentar'],['partido','Partido'],['uf','UF'],['modalidade','Modalidade'],['area','Área técnica'],['situacao','Situação'],['impS','Impedimento']];
   const filtros = `<div class="em-fil">${FT.map(([k, r]) => `<label>${r}${msxHTML('emi|'+k, {rot:r, todos:'Todos', opts:() => { const B = emiFiltrar(L0, k); return [...new Set(L0.map(b => String(b[k]||'')).filter(Boolean))].sort((a,b) => k === 'ano' ? b.localeCompare(a) : a.localeCompare(b,'pt-BR',{numeric:true})).map(v => [v, v, B.filter(b => String(b[k]||'') === v).length]); },
     get:() => EMI.f[k]||[], set:a => { EMI.f[k] = a; EMI.sel = null; desenharEmi(); }})}</label>`).join('')}
     <label class="em-bus">Buscar<input type="search" id="emiBusca" value="${esc(EMI.q||'')}" placeholder="entidade, CNPJ, proposta, NE…"></label><button type="button" class="vx-btn" data-emilimpa>Limpar</button></div>`;
@@ -10723,17 +10725,17 @@ function desenharEmi(){
     graf = `<div class="em-gg">${gAno}${gMod}${gPar}${gMapa}${gAcao}${gSit}</div>`;
   }
   // planilha (colunas do CADASTRO DE EMENDAS)
-  const COLS = [['ano','Ano'],['emenda','Número Emenda'],['autor','Autor (nome)'],['modalidade','Modalidade'],['partido','Partido'],['acao','Ação'],['ugP','UG'],['area','Área técnica'],['gnd','GND'],['ma','MA'],['programa','Programa'],['cnpj','Beneficiário'],['instrumento','Instrumento'],['proposta','Proposta'],['situacao','Situação'],['tipo_despesa','Tipo de Despesa'],['entidade','Entidade'],['processo','Processo SEI'],['tp_entidade','TP Entidade'],['uf','Estado'],['pi','PI'],['ptres','PTRES'],['indicado','Valor Indicado','n'],['nd','ND Beneficiário'],['ne','NE Beneficiário'],['empenhado','Empenhado (NE)','n'],['desembolsado','Desembolsado','n']];
+  const COLS = [['ano','Ano'],['emenda','Número Emenda'],['autor','Autor (nome)'],['modalidade','Modalidade'],['partido','Partido'],['acao','Ação'],['ugP','UG'],['area','Área técnica'],['gnd','GND'],['ma','MA'],['programa','Programa'],['cnpj','Beneficiário'],['instrumento','Instrumento'],['proposta','Proposta'],['situacao','Situação'],['tipo_despesa','Tipo de Despesa'],['entidade','Entidade'],['processo','Processo SEI'],['tp_entidade','TP Entidade'],['uf','Estado'],['pi','PI'],['ptres','PTRES'],['indicado','Valor Indicado','n'],['impedido','Impedido','n'],['tramitando','Tramitando','n'],['tipo_impedimento','Tipo de impedimento'],['impS','Situação SIOP'],['nd','ND Beneficiário'],['ne','NE Beneficiário'],['empenhado','Empenhado (NE)','n'],['desembolsado','Desembolsado','n']];
   const S = EMI.sel && reg[EMI.sel], LT = S ? S.lista : LF;
   EMI._tab = {COLS, LT, tit: S ? S.tit : 'Emendas'};
   const corS = s => /execu|celebr|aprovad/i.test(s) ? 'g' : /sem proposta|anulad|rejeit|cancel|impedi/i.test(s) ? 'r' : /complement|análise|analise|enviad|aguard/i.test(s) ? 'a' : 'n';
-  const cel = (b, [k,,n]) => k === 'proposta' && b.link ? `<td><a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b[k])}</a></td>` : k === 'situacao' ? `<td><span class="em-pl ${corS(b[k])}">${esc(b[k]||'—')}</span></td>` : `<td class="${n ? 'n' : ''}"${n ? '' : ` title="${esc(b[k]||'')}"`}>${n ? fmtBRL(+b[k]||0).replace('R$','').trim() : esc(b[k]||'—')}</td>`;
+  const cel = (b, [k,,n]) => k === 'proposta' && b.link ? `<td><a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b[k])}</a></td>` : k === 'situacao' ? `<td><span class="em-pl ${corS(b[k])}">${esc(b[k]||'—')}</span></td>` : k === 'impS' ? `<td>${b.impS === 'Impedido' ? '<span class="em-pl r">🔒 Impedido</span>' : b.impS === 'Tramitando' ? '<span class="em-pl a">⏳ Tramitando</span>' : '<span class="em-pl n">—</span>'}</td>` : (k === 'impedido' || k === 'tramitando') && !(+b[k]||0) ? '<td class="n">—</td>' : `<td class="${n ? 'n' : ''}"${n ? '' : ` title="${esc(b[k]||'')}"`}>${n ? fmtBRL(+b[k]||0).replace('R$','').trim() : esc(b[k]||'—')}</td>`;
   const lim = EMI.lim || 300, tot = k => fmtBRL(soma(LT, k)).replace('R$','').trim();
   const tab = `<div class="vx-card em-tc" id="emiTab"><div class="em-th"><h3>${esc(EMI._tab.tit)} · ${LT.length.toLocaleString('pt-BR')} linha(s)${S ? ' <button type="button" class="em-x" data-emisel="">mostrar todas ✕</button>' : ''}</h3>
-      <div><button type="button" class="vx-btn" data-emixls>Extração em Excel</button></div></div>
+      <div><button type="button" class="vx-btn" data-emixls>Extração em Excel</button> <button type="button" class="vx-btn" data-emipdf>📄 Extração em PDF</button></div></div>
     <div class="em-tw"><table class="em-t"><thead><tr><th>QD</th>${COLS.map(([,r,n]) => `<th class="${n ? 'n' : ''}">${r}</th>`).join('')}</tr></thead>
     <tbody>${LT.slice(0, lim).map((b, i) => `<tr><td>${i+1}</td>${COLS.map(c => cel(b, c)).join('')}</tr>`).join('') || `<tr><td colspan="${COLS.length+1}">Nenhuma emenda com esses filtros.</td></tr>`}</tbody>
-    <tfoot><tr><td colspan="23">Total</td><td class="n">${tot('indicado')}</td><td></td><td></td><td class="n">${tot('empenhado')}</td><td class="n">${tot('desembolsado')}</td></tr></tfoot></table></div>
+    <tfoot><tr><td colspan="23">Total</td><td class="n">${tot('indicado')}</td><td class="n">${tot('impedido')}</td><td class="n">${tot('tramitando')}</td><td></td><td></td><td></td><td></td><td class="n">${tot('empenhado')}</td><td class="n">${tot('desembolsado')}</td></tr></tfoot></table></div>
     ${LT.length > lim ? `<button type="button" class="em-mais" data-emimais>mostrar mais ${Math.min(300, LT.length - lim)} de ${(LT.length - lim).toLocaleString('pt-BR')} · a extração em Excel leva todas</button>` : ''}</div>`;
   EMI._reg = reg;
   el.innerHTML = topo + funil + filtros + graf + tab + `<p class="em-n">Fontes: SIOP (extrator de emendas · ${esc((EMI.d.anos||[]).join(', '))}), Transferegov (propostas, instrumentos e empenhos, pelo nº da emenda + CNPJ do beneficiário)${X ? ' e Tesouro Gerencial (EXE, posição de '+esc(EMI.exe.mes)+')' : ''} · robô de ${esc(EMI.d.gerado_em||'')}.</p>`;
@@ -10745,6 +10747,12 @@ document.addEventListener('click', e => {
   const k = e.target.closest('[data-emi]'); if(k){ EMI.sel = EMI.sel === k.dataset.emi ? null : k.dataset.emi; EMI.lim = 300; desenharEmi(); const t = document.getElementById('emiTab'); if(t) t.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if(e.target.closest('[data-emisel]')){ EMI.sel = null; desenharEmi(); return; }
   if(e.target.closest('[data-emilimpa]')){ EMI.f = {}; EMI.q = ''; EMI.sel = null; desenharEmi(); return; }
+  if(e.target.closest('[data-emipdf]') && EMI._tab){ const T = EMI._tab;
+    const C = [['ano','Ano',0,1],['emenda','Emenda',0,1],['autor','Autor'],['partido','Partido',0,1],['acao','Ação',0,1],['ugP','UG'],['modalidade','Modalidade'],['entidade','Entidade'],['cnpj','CNPJ',0,1],['uf','UF',0,1],['proposta','Proposta',0,1],['instrumento','Instrumento',0,1],['situacao','Situação'],['indicado','Indicado',1],['impedido','Impedido',1],['tramitando','Tramitando',1],['impS','SIOP'],['empenhado','Empenhado',1],['desembolsado','Desembolsado',1]];
+    const tot = C.map(([k,,n], i) => i === 0 ? 'Total' : n ? fmtBRL(T.LT.reduce((s, b) => s + (+b[k]||0), 0)).replace('R$','').trim() : '');
+    const filtros = Object.entries(EMI.f).filter(([,v]) => v.length).map(([k,v]) => k.replace('acaoN','Ação').replace('ugP','UG').replace('autorP','Parlamentar').replace('impS','Impedimento')+': '+v.join(', ')).concat(EMI.q ? ['Busca: '+EMI.q] : []);
+    abrirPDF(documentoPDF({titulo: 'Captação de Emendas · '+T.tit, sub: 'Emenda Individual · SIOP × Transferegov · robô de '+(EMI.d.gerado_em||''), filtros, cab: C.map(([,t,n,nw]) => ({t, n: !!n, nw: !!nw})),
+      linhas: T.LT.map(b => C.map(([k,,n]) => n ? ((+b[k]||0) ? fmtBRL(+b[k]).replace('R$','').trim() : '—') : k === 'impS' ? (b.impS === 'Sem impedimento' ? '—' : b.impS) : String(b[k]||'—'))), tot, total: T.LT.length, arquivo: 'captacao_emendas'}), 'captacao_emendas'); return; }
   if(e.target.closest('[data-emixls]') && EMI._tab){ const T = EMI._tab; baixarXlsx({titulo:'Emenda Individual · '+T.tit, sub:'Captação de Emendas · SIOP × Transferegov', filtros:Object.entries(EMI.f).filter(([,v]) => v.length).map(([k,v]) => k+': '+v.join(', ')), cab:T.COLS.map(c => c[1]), linhas:T.LT.map(b => T.COLS.map(([k,,n]) => n ? +b[k]||0 : String(b[k]||''))), fonte:'SIOP e Transferegov', arquivo:'emendas_individuais'}); }
 });
 (function(){ const st = document.createElement('style'); st.textContent = `
@@ -10758,6 +10766,7 @@ document.addEventListener('click', e => {
 .em-tw{overflow:auto;max-height:620px;margin-top:8px}.em-t{border-collapse:collapse;font-size:12px;min-width:2400px}.em-t th{position:sticky;top:0;background:#1f6b3a;color:#fff;text-align:left;padding:6px;white-space:nowrap}.em-t td{padding:5px 6px;border-bottom:1px solid #e3ebe5;vertical-align:top;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
 .em-t .n{text-align:right;white-space:nowrap}.em-t tfoot td{background:#1f6b3a;color:#fff;font-weight:700;position:sticky;bottom:0}.em-t tbody tr:nth-child(even){background:#f4f9f5}
 .em-n{font-size:12px;color:#5f6f66;margin-top:10px}
+.em-alerta.em-imp{background:#fde4e1;border-color:#f0b8b2;color:#9b1c13;margin-left:6px}.em-alerta.em-imp.on{background:#9b1c13;color:#fff}
 .em-fun{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:14px}.em-fun>div{background:linear-gradient(135deg,#155a30,#22743d);color:#fff;padding:12px 30px 12px 18px;cursor:pointer;border-radius:12px 0 0 12px;clip-path:polygon(0 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,0 100%);transition:filter .12s}
 .em-fun>div:first-child{clip-path:polygon(0 0,calc(100% - 22px) 0,100% 50%,calc(100% - 22px) 100%,0 100%);padding-left:16px;border-radius:12px 0 0 12px}.em-fun>div:hover{filter:brightness(1.1)}.em-fun>div.on{background:linear-gradient(135deg,#b8650a,#d98a1c)}
 .em-fun span{display:block;font-size:12.5px;color:#d6efd8;font-weight:600}.em-fun>div.on span{color:#fff}.em-fun b{display:block;font-size:26px;line-height:1.15}.em-fun small{font-size:12px;color:#eaf6eb}
@@ -13877,7 +13886,7 @@ function desenharInvCep(){
   .cep-fil{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px}.cep-fil input,.cep-fil select{font:inherit;font-size:13px;padding:6px 9px;border:1px solid #cfd8d3;border-radius:7px;background:#fff}.cep-fil input{min-width:260px}
   .cep-lk{color:#155a30;font-weight:700;text-decoration:underline;cursor:pointer;background:none;border:0;font:inherit;padding:0}.cep-t td small{color:#5e6d65}
   .cep-k.inv b{font-size:19px}</style>
-  <div class="vx-top"><div><h1>📑 INVENTÁRIO CEPLAC</h1><small>contratos da UG 130010 · Contratos.gov.br + Tesouro Gerencial ${CEP.J ? (CEP.J.anos||[])[0]+'–'+CEP.J.pos : '2018–hoje'}</small></div><div><button type="button" class="vx-btn" data-cepxl style="background:#fff;color:#155a30">📥 Excel</button></div></div>`;
+  <div class="vx-top"><div><h1>📑 INVENTÁRIO CEPLAC</h1><small>contratos da UG 130010 · Contratos.gov.br + Tesouro Gerencial ${CEP.J ? (CEP.J.anos||[])[0]+'–'+CEP.J.pos : '2018–hoje'}</small></div><div><button type="button" class="vx-btn" data-cepxl style="background:#fff;color:#155a30">📥 Extração em Excel</button> <button type="button" class="vx-btn" data-ceppdf style="background:#fff;color:#155a30">📄 Extração em PDF</button></div></div>`;
   if(!CEP.I){ el.innerHTML = topo + `<div class="vx-card" style="margin-top:12px">${CEP.erro ? esc(CEP.erro) : 'Lendo os contratos e o histórico do Tesouro…'}</div>`;
     if(!CEP.lendo && !CEP.erro){ CEP.lendo = true; cepIndice().then(() => { CEP.lendo = false; desenharInvCep(); }).catch(e => { CEP.lendo = false; CEP.erro = e.message; desenharInvCep(); }); }
     return; }
@@ -13936,6 +13945,30 @@ function desenharInvCep(){
   }
   el.innerHTML = topo + abas + corpo + `<div class="vx-card" style="margin-top:10px">${cepRodape()}</div>`;
 }
+function cepPDF(){
+  const I = CEP.I; if(!I) return; const pos = I.J.pos, K = I.ctrs.map(o => cepCalc(o.id)).filter(Boolean), q = rcN(CEP.q);
+  const fq = L => !q ? L : L.filter(k => rcN([k.o.num, k.o.forn, k.o.cnpj, k.o.proc, k.o.ugoN].join(' ')).includes(q));
+  const F = v => (Math.abs(+v||0) < 0.005) ? '—' : cepF(v);
+  let tit, cab, linhas, tot;
+  if(CEP.aba === 'vig'){ let L = fq(K.filter(k => k.vig)); if(CEP.pend) L = L.filter(k => CEP.pend === '_ok' ? !k.pend.length : k.pend.some(p => p[1].includes(CEP.pend)));
+    tit = 'Vigentes · atualizar'; cab = [{t:'Contrato',nw:1},{t:'Fornecedor'},{t:'Vigência até',nw:1},{t:'Valor firmado',n:1},{t:'Pago acumulado',n:1},{t:'Pago no período',n:1},{t:'Pago '+pos,n:1},{t:'A pagar',n:1},{t:'Saldo do contrato',n:1},{t:'Falta empenhar',n:1},{t:'O que fazer'}];
+    linhas = L.map(k => [k.o.num, k.o.forn, k.indet ? 'indeterminada' : dataBR(k.o.fim), F(k.o.vg), F(k.pagoAc), k.pagoP === null ? '—' : F(k.pagoP), F(k.pagoAno), F(k.ap), k.saldo === null ? '—' : (k.saldo < 0 ? '−' : '')+cepF(Math.abs(k.saldo)), k.falta ? cepF(k.falta) : '—', k.pend.map(p => p[1]).join(' · ') || 'ok']);
+    const S = f => cepF(L.reduce((s, k) => s + (f(k)||0), 0)); tot = ['Total', L.length+' contrato(s)', '', S(k => k.o.vg), S(k => k.pagoAc), S(k => k.pagoP), S(k => k.pagoAno), S(k => k.ap), '', S(k => k.falta), ''];
+  } else if(CEP.aba === 'enc'){ const L = fq(K.filter(k => !k.vig));
+    tit = 'Encerrados · pedir encerramento no Compras'; cab = [{t:'Contrato',nw:1},{t:'Fornecedor'},{t:'Processo',nw:1},{t:'Fim da vigência',nw:1},{t:'Situação'},{t:'Pago (total)',n:1},{t:'Saldo de empenho',n:1},{t:'O que pedir'},{t:'Controle'}];
+    linhas = L.map(k => [k.o.num, k.o.forn, k.o.proc||'—', k.indet ? '—' : dataBR(k.o.fim), k.o.sit||'', F(k.pagoAc), F(k.ap), k.pend.filter(p => p[0] !== 'n').map(p => p[2]).join(' · ') || 'nada a fazer', CEP_COMPRAS[k.o.id] ? 'pedido em '+CEP_COMPRAS[k.o.id] : '']);
+    tot = ['Total', L.length+' contrato(s)', '', '', '', cepF(L.reduce((s,k) => s + k.pagoAc, 0)), cepF(L.reduce((s,k) => s + k.ap, 0)), '', ''];
+  } else { let L = I.sem.map(s => Object.assign({}, s, cepVal(s.x, s.k, pos))).filter(s => s.pago > 0.005 || s.ap > 0.005 || s.emp > 0.005);
+    if(q) L = L.filter(s => rcN([s.k, s.x.f, s.x.c, s.x.d].join(' ')).includes(q));
+    L = CEP.pend && CEP_SEM_T[CEP.pend] ? L.filter(s => s.tipo === CEP.pend) : L.filter(s => s.tipo !== 'nat'); L.sort((a,b) => (b.ap - a.ap) || (b.pago - a.pago));
+    tit = 'Notas de empenho sem contrato'; cab = [{t:'NE',nw:1},{t:'Favorecido'},{t:'Descrição'},{t:'Natureza',nw:1},{t:'Empenhado',n:1},{t:'Pago (total)',n:1},{t:'A pagar',n:1},{t:'Situação'}];
+    linhas = L.map(s => [s.k.split('|')[1], s.x.f+' · '+s.x.c, String(s.x.d||'').slice(0, 180), s.x.n, F(s.emp), F(s.pago), F(s.ap), CEP_SEM_T[s.tipo][1]+(s.tipo === 'forn' ? ' (contrato(s) '+s.sug.map(o => o.num).slice(0,4).join(', ')+')' : '')]);
+    tot = ['Total', L.length+' nota(s)', '', '', cepF(L.reduce((s,x) => s + x.emp, 0)), cepF(L.reduce((s,x) => s + x.pago, 0)), cepF(L.reduce((s,x) => s + x.ap, 0)), ''];
+  }
+  const filtros = [CEP.q ? 'Busca: '+CEP.q : '', CEP.pend ? 'Situação: '+CEP.pend : ''].filter(Boolean);
+  const arq = 'inventario_ceplac_'+CEP.aba;
+  abrirPDF(documentoPDF({titulo: 'Inventário CEPLAC · '+tit, sub: 'UG 130010 · Contratos.gov.br + Tesouro Gerencial '+(I.J.anos||[])[0]+'–'+pos+' (lido em '+(I.J.gerado||'')+')', filtros, cab, linhas, tot, total: linhas.length, arquivo: arq}), arq);
+}
 function cepExcel(){
   const I = CEP.I; if(!I) return; const pos = I.J.pos, K = I.ctrs.map(o => cepCalc(o.id)).filter(Boolean);
   const linC = k => [k.o.num, k.o.ugoN||'', k.o.forn, k.o.cnpj, k.o.proc, k.o.cat||'', k.o.sit||'', k.o.ini ? dataBR(k.o.ini) : '', k.indet ? 'indeterminada' : dataBR(k.o.fim), k.o.vg||0, k.pagoAc, k.pagoP === null ? '' : k.pagoP, k.pagoAno, k.ap, k.saldo === null ? '' : k.saldo, k.falta === null ? '' : k.falta, k.nes.length, k.pend.map(p => p[1]+' → '+p[2]).join(' | ')];
@@ -13954,6 +13987,7 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-cepaba]'); if(a){ CEP.aba = a.dataset.cepaba; CEP.pend = ''; desenharInvCep(); return; }
   const c = e.target.closest('[data-cepid]'); if(c){ ir('relctr', {id: c.dataset.cepid}); return; }
   if(e.target.closest('[data-cepxl]')){ cepExcel(); return; }
+  if(e.target.closest('[data-ceppdf]')){ cepPDF(); return; }
 });
 document.addEventListener('change', e => {
   if(e.target.matches('[data-ceppend]')){ CEP.pend = e.target.value; desenharInvCep(); return; }
