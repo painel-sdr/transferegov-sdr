@@ -10018,21 +10018,62 @@ const PPF_COLS = {
   rap: [['Inscrito + reinscrito', g => g.ins],['Cancelado', g => g.canc],['Pago', g => g.pago],['NP a liquidar', g => g.npAlq],['A pagar', g => g.apagar]],
   exerap: [['EXE pago', g => g.ePago],['RAP pago', g => g.rPago],['Total pago', g => g.pago],['EXE a pagar', g => g.eApg],['RAP a pagar', g => g.rSaldo]]
 };
+// "Por UG executora" (EXE): crédito total e também o disponível e o a liquidar (pedido de 19/11/2026)
+const PPF_COLS_UG = [['Crédito (total)', g => g.total],['Crédito disponível', g => g.disp],['Empenhado', g => g.emp],['A liquidar', g => g.aliq],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
+// tabela "Por PI · UG · ND": crédito disponível e empenhado a liquidar com subtotais por UG e por PI (modelo da tabela dinâmica do Tesouro)
+PPF.zerPUN = true;
+function ppfTabPiUgNd(lista){
+  const monta = () => {
+    const P = new Map();
+    lista.forEach(d => { if(!d.pi && !d.ug) return;
+      const pi = d.pi || '(sem PI)', ug = d.ug || '—', nd = String(d.nd||'').slice(0, 6) || '—';
+      const p = P.get(pi) || P.set(pi, {pi, piN: d.piN||'', ugs: new Map()}).get(pi);
+      const u = p.ugs.get(ug) || p.ugs.set(ug, {ug, ugN: d.ugN||'', nds: new Map()}).get(ug);
+      const n = u.nds.get(nd) || u.nds.set(nd, {nd, disp:0, aliq:0}).get(nd);
+      n.disp += +d.disp||0; n.aliq += +d.aliq||0; });
+    const z = v => Math.abs(v) < 0.005, out = [];
+    [...P.values()].sort((a,b) => a.pi.localeCompare(b.pi)).forEach(p => {
+      const linP = []; let pd = 0, pa = 0;
+      [...p.ugs.values()].sort((a,b) => a.ug.localeCompare(b.ug)).forEach(u => {
+        let ud = 0, ua = 0; const nds = [...u.nds.values()].sort((a,b) => a.nd.localeCompare(b.nd)).filter(n => { ud += n.disp; ua += n.aliq; return !PPF.zerPUN || !z(n.disp) || !z(n.aliq); });
+        if(PPF.zerPUN && z(ud) && z(ua)) return;
+        nds.forEach((n, i) => linP.push({t:'n', pi: p.pi, ug: i ? '' : u.ug+' – '+u.ugN, ugC: u.ug, nd: n.nd, disp: n.disp, aliq: n.aliq}));
+        linP.push({t:'u', ug: u.ug+' Total', disp: ud, aliq: ua}); pd += ud; pa += ua; });
+      if(!linP.length) return;
+      linP[0].piR = p.pi+(p.piN ? ' – '+p.piN : '');
+      out.push(...linP, {t:'p', pi: p.pi+' Total', disp: pd, aliq: pa}); });
+    return out;
+  };
+  return {tit: 'Por PI · UG · ND', sub: 'crédito disponível e empenhado a liquidar, com subtotais', rot: 'PI · UG · ND',
+    html: () => { const L = monta(), tot = L.filter(l => l.t === 'p').reduce((s, l) => [s[0] + l.disp, s[1] + l.aliq], [0, 0]);
+      return `<label style="display:inline-flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px"><input type="checkbox" data-ppfzer ${PPF.zerPUN ? 'checked' : ''}> esconder as linhas zeradas</label>
+      <div style="max-height:68vh;overflow:auto"><table><thead><tr><th>PI</th><th>UG executora</th><th>ND</th><th class="n">Crédito disponível</th><th class="n">Empenhado a liquidar</th></tr></thead><tbody>
+      ${L.map(l => l.t === 'n' ? `<tr><td>${l.piR ? '<b>'+esc(l.piR)+'</b>' : ''}</td><td>${esc(l.ug)}</td><td>${esc(l.nd)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`
+        : l.t === 'u' ? `<tr style="background:#e8f0ea;font-weight:700"><td>${l.piR ? '<b>'+esc(l.piR)+'</b>' : ''}</td><td colspan="2">${esc(l.ug)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`
+        : `<tr style="background:#cfe3d5;font-weight:700"><td colspan="3">${esc(l.pi)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`).join('') || '<tr><td colspan="5">Nada com os filtros escolhidos.</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="3">Total geral</td><td class="n">${fmt2(tot[0])}</td><td class="n">${fmt2(tot[1])}</td></tr></tfoot></table></div>`; },
+    xl: () => { const L = monta(); return {cab: [{t:'PI'},{t:'UG executora'},{t:'ND'},{t:'Crédito disponível', n:true},{t:'Empenhado a liquidar', n:true}],
+      linhas: L.map(l => l.t === 'n' ? [l.piR || '', l.ug, l.nd, l.disp, l.aliq] : l.t === 'u' ? [l.piR || '', l.ug, '', l.disp, l.aliq] : [l.pi, '', '', l.disp, l.aliq])
+        .concat([['Total geral', '', '', L.filter(l => l.t === 'p').reduce((s, l) => s + l.disp, 0), L.filter(l => l.t === 'p').reduce((s, l) => s + l.aliq, 0)]])}; }};
+}
 function ppfAbrirTab(i){
   const it = PPF.tabs && PPF.tabs[i]; if(!it) return;
   document.querySelectorAll('.ppf-mod').forEach(x => x.remove());
   const m = document.createElement('div'); m.className = 'ppf-mod';
   let corpo = '';
   if(it.html) corpo = it.html();
-  else { const C = PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
+  else { const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
     corpo = `<div style="max-height:70vh;overflow:auto"><table><thead><tr><th>${esc(it.rot)}</th>${C.map(c => `<th class="n">${c[0]}</th>`).join('')}</tr></thead><tbody>${G.map(g => `<tr><td>${esc(g.rot)}</td>${C.map(c => `<td class="n">${fmt2(c[1](g))}</td>`).join('')}</tr>`).join('')}</tbody>
       <tfoot><tr><td>Total · ${G.length.toLocaleString('pt-BR')}</td>${C.map(c => `<td class="n">${fmt2(G.reduce((s,g) => s+c[1](g), 0))}</td>`).join('')}</tr></tfoot></table></div>`; }
-  m.innerHTML = `<div role="dialog" aria-modal="true"><div class="cab"><h2>📋 ${esc(it.tit)}</h2><div>${it.html ? '' : '<button type="button" data-ppfxl>Extração em Excel</button>'}<button type="button" class="f" data-ppffecha>✕ Fechar</button></div></div>
+  m.innerHTML = `<div role="dialog" aria-modal="true"><div class="cab"><h2>📋 ${esc(it.tit)}</h2><div>${it.html && !it.xl ? '' : '<button type="button" data-ppfxl>Extração em Excel</button>'}<button type="button" class="f" data-ppffecha>✕ Fechar</button></div></div>
     <p class="dica" style="margin:0 0 10px">${esc(it.sub)} · posição de ${rotMes(+SEL.mes)} · acompanha os filtros da tela</p>${corpo}</div>`;
   document.body.appendChild(m);
   m.addEventListener('click', e => {
     if(e.target===m || e.target.closest('[data-ppffecha]')){ m.remove(); return; }
-    if(e.target.closest('[data-ppfxl]')){ const C = PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
+    if(e.target.closest('[data-ppfzer]')){ PPF.zerPUN = e.target.closest('[data-ppfzer]').checked; m.remove(); ppfAbrirTab(i); return; }
+    if(e.target.closest('[data-ppfxl]') && it.xl){ const X = it.xl(), filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
+      baixarXlsx({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes)+(PPF.zerPUN ? ' · sem as linhas zeradas' : ''), filtros, fonte: 'Tesouro Gerencial', arquivo: ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_PI_UG_ND', cab: X.cab, linhas: X.linhas}); return; }
+    if(e.target.closest('[data-ppfxl]')){ const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
       const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
       baixarXlsx({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes), filtros, fonte: 'Tesouro Gerencial', arquivo: ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_'+it.rot.replace(/\W+/g,'_'),
         cab: [{t:it.rot}].concat(C.map(c => ({t:c[0], n:true}))), linhas: G.map(g => [g.rot].concat(C.map(c => +c[1](g)||0)))}); }
@@ -10131,9 +10172,9 @@ function ppfPagina(lista, t, rotAcao, g, sem){
   }[V];
   const at = OPS.find(o => o[0]===PPF.exp[V]) || OPS[0], vis = at[2]();
   // tabelas detalhadas
-  const T = (tit, sub, rot, k, fn) => ({tit, sub, rot, grupos: () => g(k, fn)});
+  const T = (tit, sub, rot, k, fn, cols) => ({tit, sub, rot, cols, grupos: () => g(k, fn)});
   PPF.tabs = {
-    exe: [T('Por ação','crédito, empenhado, liquidado e pago','Ação','acao',rotAc), T('Por plano orçamentário','PO de cada ação','Plano orçamentário','po',rotPO), T('Por PI','plano interno','PI','pi',rotPI), T('Por elemento de despesa','GND 3 e 4','Elemento de despesa','el',rotEl), T('Por UG executora','unidades que receberam o crédito','UG executora','ug',rotUG), T('Maiores favorecidos','por CNPJ','Favorecido','fav',rotFav)],
+    exe: [T('Por ação','crédito, empenhado, liquidado e pago','Ação','acao',rotAc), T('Por plano orçamentário','PO de cada ação','Plano orçamentário','po',rotPO), T('Por PI','plano interno','PI','pi',rotPI), T('Por elemento de despesa','GND 3 e 4','Elemento de despesa','el',rotEl), T('Por UG executora','unidades que receberam o crédito','UG executora','ug',rotUG, PPF_COLS_UG), ppfTabPiUgNd(lista), T('Maiores favorecidos','por CNPJ','Favorecido','fav',rotFav)],
     rap: [{tit:'Quadro do Tesouro Gerencial', sub:'processados × não processados', html: () => topoRapQuadro(t)}, T('Por ação','inscrito, pago e a pagar','Ação','acao',rotAc), T('Por UGE','unidades executoras','UGE','ug',rotUG), T('Por elemento de despesa','GND','Elemento de despesa','el',rotEl), T('Por plano orçamentário','PO','Plano orçamentário','po',rotPO), T('Por PI','plano interno','PI','pi',rotPI), T('RAP por favorecido','por CNPJ','Favorecido','fav',rotFav)],
     exerap: [T('Pagamentos por ação','EXE × RAP','Ação','acao',rotAc), T('Pagamentos por UGE','unidades executoras','UGE','ug',rotUG), T('Por resultado primário','RP 2, 6, 7, 8','Resultado primário','rp',d => d.rpN), T('Por elemento de despesa','GND','Elemento de despesa','el',rotEl), T('Maiores favorecidos','EXE + RAP','Favorecido','fav',rotFav)]
   }[V];
