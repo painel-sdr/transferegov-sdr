@@ -2336,7 +2336,9 @@ const MES_NUM = {JANEIRO:1,FEVEREIRO:2,MARCO:3,ABRIL:4,MAIO:5,JUNHO:6,JULHO:7,AG
 function normAccent(s){ return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
 // LGPD (Lei 13.709/2018): CPF de pessoa física aparece mascarado (***.452.881-**, padrão do Portal da Transparência)
 const LGPD_CPF = /(?<![\d.\/-])(\d{3})\.?(\d{3})\.?(\d{3})-?(\d{2})(?!\d|[.,]\d)/g;
-const lgpd = s => typeof s === 'string' && s.length >= 11 ? s.replace(LGPD_CPF, (m, a, b, c) => '***.'+b+'.'+c+'-**') : s;
+// só mascara quando os dígitos verificadores fecham (CPF válido): PI, PTRES, NE e outros códigos de 11 dígitos ficam como estão
+const cpfOk = d => { if(d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false; const dv = t => { let s = 0; for(let i = 0; i < t; i++) s += +d[i] * (t + 1 - i); const r = s * 10 % 11; return r === 10 ? 0 : r; }; return dv(9) === +d[9] && dv(10) === +d[10]; };
+const lgpd = s => typeof s === 'string' && s.length >= 11 ? s.replace(LGPD_CPF, (m, a, b, c, e) => cpfOk(a+b+c+e) ? '***.'+b+'.'+c+'-**' : m) : s;
 const lgpdObj = o => typeof o === 'string' ? lgpd(o) : Array.isArray(o) ? o.map(lgpdObj) : o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, lgpdObj(v)])) : o;
 function parseCSV(text){
   if(Array.isArray(text)) return text.map(r => Array.isArray(r) ? r.map(lgpd) : r);   // já veio em linhas (completarCelulas)
@@ -8860,7 +8862,9 @@ const txt = v => v===null||v===undefined ? '' : (typeof v==='number' ? String(Nu
 const limpo = s => { s=txt(s); const n=norm(s); return (n==="'-9"||n==='-9'||n==="'-8"||n==='-8'||n==='NAO SE APLICA'||n==='SEM INFORMACAO'||n==='-') ? '' : s; };
 // LGPD (Lei 13.709/2018): CPF de pessoa física aparece mascarado (***.452.881-**, padrão do Portal da Transparência)
 const LGPD_CPF = /(?<![\d.\/-])(\d{3})\.?(\d{3})\.?(\d{3})-?(\d{2})(?!\d|[.,]\d)/g;
-const lgpd = s => typeof s === 'string' && s.length >= 11 ? s.replace(LGPD_CPF, (m, a, b, c) => '***.'+b+'.'+c+'-**') : s;
+// só mascara quando os dígitos verificadores fecham (CPF válido): PI, PTRES, NE e outros códigos de 11 dígitos ficam como estão
+const cpfOk = d => { if(d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false; const dv = t => { let s = 0; for(let i = 0; i < t; i++) s += +d[i] * (t + 1 - i); const r = s * 10 % 11; return r === 10 ? 0 : r; }; return dv(9) === +d[9] && dv(10) === +d[10]; };
+const lgpd = s => typeof s === 'string' && s.length >= 11 ? s.replace(LGPD_CPF, (m, a, b, c, e) => cpfOk(a+b+c+e) ? '***.'+b+'.'+c+'-**' : m) : s;
 const lgpdGq = r => r && r.rows ? {...r, rows: r.rows.map(l => l.map(lgpd))} : r;   // respostas do Google guardadas no navegador antes da máscara
 const lgpdObj = o => typeof o === 'string' ? lgpd(o) : Array.isArray(o) ? o.map(lgpdObj) : o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, lgpdObj(v)])) : o;
 const esc = s => (s??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -10023,14 +10027,18 @@ const PPF_COLS = {
 const PPF_COLS_DOT = [['Dotação atual', g => g.dotAt||0],['Crédito', g => g.total],['Empenhado', g => g.emp],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 const PPF_COLS_UG = [['Crédito (total)', g => g.total],['Crédito disponível', g => g.disp],['Empenhado', g => g.emp],['A liquidar', g => g.aliq],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 // tabela "Por PI · UG · ND": crédito disponível e empenhado a liquidar com subtotais por UG e por PI (modelo da tabela dinâmica do Tesouro)
-PPF.zerPUN = true; PPF.fPUN = {acao:'', ug:'', pi:''};
+PPF.zerPUN = true; PPF.fPUN = {acao:[], ug:[], pi:[]};
 function ppfTabPiUgNd(lista){
   // filtros do próprio quadro (ação, UG e PI): cada lista mostra só as opções que existem com os outros dois filtros
-  const F = PPF.fPUN, passaF = (d, ex) => ['acao','ug','pi'].every(k => k === ex || !F[k] || String(d[k]||'') === F[k]);
-  const opc = k => { const m = new Map(); lista.forEach(d => { if(passaF(d, k) && d[k]) m.set(String(d[k]), k === 'acao' ? d.acao+' – '+(d.acaoN||'') : k === 'ug' ? d.ug+' – '+(d.ugN||'') : d.pi+' – '+(d.piN||'')); });
-    if(F[k] && !m.has(F[k])) m.set(F[k], F[k]); return [...m.entries()].sort((a,b) => a[0].localeCompare(b[0])); };
-  const sel = (k, rot) => `<label style="display:flex;flex-direction:column;font-size:12px;font-weight:700;color:#3a4a55;min-width:0">${rot}<select data-ppfpun="${k}" style="font:inherit;font-weight:400;font-size:13px;padding:6px 8px;border:1px solid #c9d6cd;border-radius:7px;max-width:100%"><option value="">Todas</option>${opc(k).map(([v,t]) => `<option value="${esc(v)}" ${F[k] === v ? 'selected' : ''}>${esc(t.slice(0, 70))}</option>`).join('')}</select></label>`;
-  const filtrosTxt = () => [F.acao ? 'Ação: '+F.acao : '', F.ug ? 'UG: '+F.ug : '', F.pi ? 'PI: '+F.pi : ''].filter(Boolean);
+  // filtro "inteligente" (o mesmo jeito dos filtros do topo): várias opções, busca, contagem, marcar visíveis e limpar
+  const F = PPF.fPUN, passaF = (d, ex) => ['acao','ug','pi'].every(k => k === ex || !F[k].length || F[k].includes(String(d[k]||'')));
+  const opc = k => { const m = new Map(); lista.forEach(d => { if(!d[k]) return; const v = String(d[k]); if(!m.has(v)) m.set(v, [k === 'acao' ? d.acao+' – '+(d.acaoN||'') : k === 'ug' ? d.ug+' – '+(d.ugN||'') : d.pi+' – '+(d.piN||''), 0]); if(passaF(d, k)) m.get(v)[1]++; });
+    return [...m.entries()].map(([v,[t,n]]) => [v,t,n]).sort((a,b) => ((b[2]>0) - (a[2]>0)) || a[0].localeCompare(b[0])); };
+  const rotSel = k => !F[k].length ? 'Todas' : F[k].length === 1 ? F[k][0] : F[k].length+' selecionadas';
+  const sel = (k, rot) => `<div style="display:flex;flex-direction:column;font-size:12px;font-weight:700;color:#3a4a55;min-width:0">${rot}<div class="pms ${F[k].length ? 'ativo' : ''}" data-pms="${k}"><button type="button" class="pms-btn" title="${esc(F[k].join(', ') || 'Todas')}"><span>${esc(rotSel(k))}</span><i>▾</i></button>
+    <div class="pms-pop" hidden><input type="search" class="pms-busca" placeholder="Buscar…"><div class="pms-lista">${opc(k).map(([v,t,n]) => `<label class="${n === 0 && !F[k].includes(v) ? 'zero' : ''}" data-txt="${esc(t.toUpperCase())}"><input type="checkbox" value="${esc(v)}" ${F[k].includes(v) ? 'checked' : ''}><span>${esc(t)}</span><em>${n.toLocaleString('pt-BR')}</em></label>`).join('') || '<p style="padding:8px;color:#7b8790">Sem opções</p>'}</div>
+    <div class="pms-acoes"><button type="button" data-pmsacao="visiveis">Marcar visíveis</button><button type="button" data-pmsacao="limpar">Limpar</button><button type="button" data-pmsacao="ok">OK</button></div></div></div></div>`;
+  const filtrosTxt = () => [F.acao.length ? 'Ação: '+F.acao.join(', ') : '', F.ug.length ? 'UG: '+F.ug.join(', ') : '', F.pi.length ? 'PI: '+F.pi.join(', ') : ''].filter(Boolean);
   const monta = () => {
     const P = new Map();
     lista.forEach(d => { if(!d.pi && !d.ug) return; if(!passaF(d)) return;
@@ -10054,7 +10062,11 @@ function ppfTabPiUgNd(lista){
   };
   return {tit: 'Por PI · UG · ND', sub: 'crédito disponível e empenhado a liquidar, com subtotais', rot: 'PI · UG · ND',
     html: () => { const L = monta(), tot = L.filter(l => l.t === 'p').reduce((s, l) => [s[0] + l.disp, s[1] + l.aliq], [0, 0]);
-      return `<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:0 0 10px">${sel('acao','Ação')}${sel('ug','UG executora')}${sel('pi','PI')}<button type="button" data-ppfpunlimpa style="border:0;border-radius:8px;padding:8px 13px;font:inherit;font-weight:700;cursor:pointer;color:#fff;background:#5f6f66">Limpar</button></div>
+      return `<style>.pms{position:relative}.pms-btn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:6px;font:inherit;font-weight:400;font-size:13px;padding:7px 9px;border-radius:7px;border:1px solid #c9d6cd;background:#fff;cursor:pointer;text-align:left;color:#1d2b24}.pms-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pms.ativo .pms-btn{box-shadow:0 0 0 3px #f2c230;font-weight:700}
+      .pms-pop{position:absolute;z-index:30;top:calc(100% + 4px);left:0;width:min(520px,80vw);background:#fff;border:1px solid #c9d6cd;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:8px}.pms-busca{width:100%;box-sizing:border-box;font:inherit;font-weight:400;padding:6px 8px;border:1px solid #c9d6cd;border-radius:6px;margin-bottom:6px}
+      .pms-lista{max-height:300px;overflow:auto}.pms-lista label{display:flex;gap:7px;align-items:center;padding:4px 6px;font-weight:400;font-size:12.5px;cursor:pointer;border-radius:5px}.pms-lista label:hover{background:#eef4f0}.pms-lista label span{flex:1}.pms-lista label em{font-style:normal;color:#7b8790;font-size:11.5px}.pms-lista label.zero{opacity:.45}
+      .pms-acoes{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}.pms-acoes button{border:1px solid #c9d6cd;background:#fff;border-radius:6px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}.pms-acoes button[data-pmsacao="ok"]{background:#1e7a3c;color:#fff;border-color:#1e7a3c}</style>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:0 0 10px">${sel('acao','Ação')}${sel('ug','UG executora')}${sel('pi','PI')}<button type="button" data-ppfpunlimpa style="border:0;border-radius:8px;padding:8px 13px;font:inherit;font-weight:700;cursor:pointer;color:#fff;background:#5f6f66">Limpar</button></div>
       <label style="display:inline-flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px"><input type="checkbox" data-ppfzer ${PPF.zerPUN ? 'checked' : ''}> esconder as linhas zeradas</label>
       <div style="max-height:68vh;overflow:auto"><table><thead><tr><th>PI</th><th>UG executora</th><th>ND</th><th class="n">Crédito disponível</th><th class="n">Empenhado a liquidar</th></tr></thead><tbody>
       ${L.map(l => l.t === 'n' ? `<tr><td>${l.piR ? '<b>'+esc(l.piR)+'</b>' : ''}</td><td>${esc(l.ug)}</td><td>${esc(l.nd)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`
@@ -10078,10 +10090,22 @@ function ppfAbrirTab(i){
   m.innerHTML = `<div role="dialog" aria-modal="true"><div class="cab"><h2>📋 ${esc(it.tit)}</h2><div>${it.html && !it.xl ? '' : '<button type="button" data-ppfxl>Extração em Excel</button><button type="button" data-ppfpdf style="background:#8f2d22">Extração em PDF</button>'}<button type="button" class="f" data-ppffecha>✕ Fechar</button></div></div>
     <p class="dica" style="margin:0 0 10px">${esc(it.sub)} · posição de ${rotMes(+SEL.mes)} · acompanha os filtros da tela</p>${corpo}</div>`;
   document.body.appendChild(m);
-  m.addEventListener('change', e => { const s = e.target.closest('[data-ppfpun]'); if(s){ PPF.fPUN[s.dataset.ppfpun] = s.value; m.remove(); ppfAbrirTab(i); } });
+  m.addEventListener('change', e => { const x = e.target.closest('.pms-lista input'); if(x){ const k = x.closest('[data-pms]').dataset.pms, L = PPF.fPUN[k];
+    if(x.checked){ if(!L.includes(x.value)) L.push(x.value); } else PPF.fPUN[k] = L.filter(v => v !== x.value); m._mudou = true; } });
+  m.addEventListener('input', e => { if(e.target.matches('.pms-busca')){ const b = e.target.value.trim().toUpperCase(); e.target.nextElementSibling.querySelectorAll('label').forEach(l => l.hidden = !!b && !l.dataset.txt.includes(b)); } });
   m.addEventListener('click', e => {
     if(e.target===m || e.target.closest('[data-ppffecha]')){ m.remove(); return; }
-    if(e.target.closest('[data-ppfpunlimpa]')){ PPF.fPUN = {acao:'', ug:'', pi:''}; m.remove(); ppfAbrirTab(i); return; }
+    if(e.target.closest('[data-ppfpunlimpa]')){ PPF.fPUN = {acao:[], ug:[], pi:[]}; m.remove(); ppfAbrirTab(i); return; }
+    { // filtros inteligentes do quadro: abre/fecha, marcar visíveis, limpar, OK (aplica ao fechar)
+      const pb = e.target.closest('.pms-btn'), pa = e.target.closest('[data-pmsacao]'), aberto = m.querySelector('.pms-pop:not([hidden])');
+      const aplica = () => { m.remove(); ppfAbrirTab(i); };
+      if(pb){ const pop = pb.nextElementSibling, ia = !pop.hidden; if(aberto && aberto !== pop && m._mudou){ aplica(); return; } m.querySelectorAll('.pms-pop').forEach(p => p.hidden = true); pop.hidden = ia; if(!ia) pop.querySelector('.pms-busca').focus(); return; }
+      if(pa){ const box = pa.closest('[data-pms]'), k = box.dataset.pms, a = pa.dataset.pmsacao;
+        if(a === 'limpar'){ PPF.fPUN[k] = []; box.querySelectorAll('.pms-lista input').forEach(x => x.checked = false); m._mudou = true; return; }
+        if(a === 'visiveis'){ box.querySelectorAll('.pms-lista label').forEach(l => { if(!l.hidden){ const x = l.querySelector('input'); x.checked = true; if(!PPF.fPUN[k].includes(x.value)) PPF.fPUN[k].push(x.value); } }); m._mudou = true; return; }
+        if(a === 'ok'){ if(m._mudou) aplica(); else box.querySelector('.pms-pop').hidden = true; return; } }
+      if(aberto && !e.target.closest('.pms-pop')){ if(m._mudou){ aplica(); return; } aberto.hidden = true; }
+      if(e.target.closest('.pms-pop')) return; }
     if(e.target.closest('[data-ppfzer]')){ PPF.zerPUN = e.target.closest('[data-ppfzer]').checked; m.remove(); ppfAbrirTab(i); return; }
     if(e.target.closest('[data-ppfpdf]')){
       const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', ')).concat(it.filtros ? it.filtros() : []);
