@@ -10065,12 +10065,23 @@ function ppfAbrirTab(i){
   else { const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
     corpo = `<div style="max-height:70vh;overflow:auto"><table><thead><tr><th>${esc(it.rot)}</th>${C.map(c => `<th class="n">${c[0]}</th>`).join('')}</tr></thead><tbody>${G.map(g => `<tr><td>${esc(g.rot)}</td>${C.map(c => `<td class="n">${fmt2(c[1](g))}</td>`).join('')}</tr>`).join('')}</tbody>
       <tfoot><tr><td>Total · ${G.length.toLocaleString('pt-BR')}</td>${C.map(c => `<td class="n">${fmt2(G.reduce((s,g) => s+c[1](g), 0))}</td>`).join('')}</tr></tfoot></table></div>`; }
-  m.innerHTML = `<div role="dialog" aria-modal="true"><div class="cab"><h2>📋 ${esc(it.tit)}</h2><div>${it.html && !it.xl ? '' : '<button type="button" data-ppfxl>Extração em Excel</button>'}<button type="button" class="f" data-ppffecha>✕ Fechar</button></div></div>
+  m.innerHTML = `<div role="dialog" aria-modal="true"><div class="cab"><h2>📋 ${esc(it.tit)}</h2><div>${it.html && !it.xl ? '' : '<button type="button" data-ppfxl>Extração em Excel</button><button type="button" data-ppfpdf style="background:#8f2d22">Extração em PDF</button>'}<button type="button" class="f" data-ppffecha>✕ Fechar</button></div></div>
     <p class="dica" style="margin:0 0 10px">${esc(it.sub)} · posição de ${rotMes(+SEL.mes)} · acompanha os filtros da tela</p>${corpo}</div>`;
   document.body.appendChild(m);
   m.addEventListener('click', e => {
     if(e.target===m || e.target.closest('[data-ppffecha]')){ m.remove(); return; }
     if(e.target.closest('[data-ppfzer]')){ PPF.zerPUN = e.target.closest('[data-ppfzer]').checked; m.remove(); ppfAbrirTab(i); return; }
+    if(e.target.closest('[data-ppfpdf]')){
+      const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
+      const arq = ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_'+it.rot.replace(/\W+/g,'_');
+      let cab, linhas, tot;
+      if(it.xl){ const X = it.xl(); cab = X.cab.map(c => ({t: c.t, n: !!c.n, nw: !c.n && c.t === 'ND'}));
+        const L = X.linhas.map(l => l.map((v, j) => X.cab[j].n ? fmt2(+v||0) : String(v ?? ''))); tot = L.pop(); linhas = L; }
+      else { const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
+        cab = [{t: it.rot}].concat(C.map(c => ({t: c[0], n: true}))); linhas = G.map(g => [g.rot].concat(C.map(c => fmt2(+c[1](g)||0))));
+        tot = ['Total · '+G.length.toLocaleString('pt-BR')].concat(C.map(c => fmt2(G.reduce((a,g) => a + (+c[1](g)||0), 0)))); }
+      abrirPDF(documentoPDF({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes)+' · Tesouro Gerencial'+(it.xl && PPF.zerPUN ? ' · sem as linhas zeradas' : ''), filtros, cab, linhas, tot, total: linhas.length, arquivo: arq}), arq);
+      return; }
     if(e.target.closest('[data-ppfxl]') && it.xl){ const X = it.xl(), filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
       baixarXlsx({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes)+(PPF.zerPUN ? ' · sem as linhas zeradas' : ''), filtros, fonte: 'Tesouro Gerencial', arquivo: ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_PI_UG_ND', cab: X.cab, linhas: X.linhas}); return; }
     if(e.target.closest('[data-ppfxl]')){ const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
