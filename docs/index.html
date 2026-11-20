@@ -10019,6 +10019,8 @@ const PPF_COLS = {
   exerap: [['EXE pago', g => g.ePago],['RAP pago', g => g.rPago],['Total pago', g => g.pago],['EXE a pagar', g => g.eApg],['RAP a pagar', g => g.rSaldo]]
 };
 // "Por UG executora" (EXE): crédito total e também o disponível e o a liquidar (pedido de 19/11/2026)
+// "Por ação" e "Por plano orçamentário" (EXE): dotação atual ao lado do crédito (crédito = empenhado + disponível + indisponível + pré-empenho)
+const PPF_COLS_DOT = [['Dotação atual', g => g.dotAt||0],['Crédito', g => g.total],['Empenhado', g => g.emp],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 const PPF_COLS_UG = [['Crédito (total)', g => g.total],['Crédito disponível', g => g.disp],['Empenhado', g => g.emp],['A liquidar', g => g.aliq],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 // tabela "Por PI · UG · ND": crédito disponível e empenhado a liquidar com subtotais por UG e por PI (modelo da tabela dinâmica do Tesouro)
 PPF.zerPUN = true;
@@ -10185,7 +10187,7 @@ function ppfPagina(lista, t, rotAcao, g, sem){
   // tabelas detalhadas
   const T = (tit, sub, rot, k, fn, cols) => ({tit, sub, rot, cols, grupos: () => g(k, fn)});
   PPF.tabs = {
-    exe: [T('Por ação','crédito, empenhado, liquidado e pago','Ação','acao',rotAc), T('Por plano orçamentário','PO de cada ação','Plano orçamentário','po',rotPO), T('Por PI','plano interno','PI','pi',rotPI), T('Por elemento de despesa','GND 3 e 4','Elemento de despesa','el',rotEl), T('Por UG executora','unidades que receberam o crédito','UG executora','ug',rotUG, PPF_COLS_UG), ppfTabPiUgNd(lista), T('Maiores favorecidos','por CNPJ','Favorecido','fav',rotFav)],
+    exe: [T('Por ação','dotação, crédito, empenhado, liquidado e pago','Ação','acao',rotAc, PPF_COLS_DOT), T('Por plano orçamentário','PO de cada ação','Plano orçamentário','po',rotPO, PPF_COLS_DOT), T('Por PI','plano interno','PI','pi',rotPI), T('Por elemento de despesa','GND 3 e 4','Elemento de despesa','el',rotEl), T('Por UG executora','unidades que receberam o crédito','UG executora','ug',rotUG, PPF_COLS_UG), ppfTabPiUgNd(lista), T('Maiores favorecidos','por CNPJ','Favorecido','fav',rotFav)],
     rap: [{tit:'Quadro do Tesouro Gerencial', sub:'processados × não processados', html: () => topoRapQuadro(t)}, T('Por ação','inscrito, pago e a pagar','Ação','acao',rotAc), T('Por UGE','unidades executoras','UGE','ug',rotUG), T('Por elemento de despesa','GND','Elemento de despesa','el',rotEl), T('Por plano orçamentário','PO','Plano orçamentário','po',rotPO), T('Por PI','plano interno','PI','pi',rotPI), T('RAP por favorecido','por CNPJ','Favorecido','fav',rotFav)],
     exerap: [T('Pagamentos por ação','EXE × RAP','Ação','acao',rotAc), T('Pagamentos por UGE','unidades executoras','UGE','ug',rotUG), T('Por resultado primário','RP 2, 6, 7, 8','Resultado primário','rp',d => d.rpN), T('Por elemento de despesa','GND','Elemento de despesa','el',rotEl), T('Maiores favorecidos','EXE + RAP','Favorecido','fav',rotFav)]
   }[V];
