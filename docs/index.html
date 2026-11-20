@@ -10023,11 +10023,17 @@ const PPF_COLS = {
 const PPF_COLS_DOT = [['Dotação atual', g => g.dotAt||0],['Crédito', g => g.total],['Empenhado', g => g.emp],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 const PPF_COLS_UG = [['Crédito (total)', g => g.total],['Crédito disponível', g => g.disp],['Empenhado', g => g.emp],['A liquidar', g => g.aliq],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 // tabela "Por PI · UG · ND": crédito disponível e empenhado a liquidar com subtotais por UG e por PI (modelo da tabela dinâmica do Tesouro)
-PPF.zerPUN = true;
+PPF.zerPUN = true; PPF.fPUN = {acao:'', ug:'', pi:''};
 function ppfTabPiUgNd(lista){
+  // filtros do próprio quadro (ação, UG e PI): cada lista mostra só as opções que existem com os outros dois filtros
+  const F = PPF.fPUN, passaF = (d, ex) => ['acao','ug','pi'].every(k => k === ex || !F[k] || String(d[k]||'') === F[k]);
+  const opc = k => { const m = new Map(); lista.forEach(d => { if(passaF(d, k) && d[k]) m.set(String(d[k]), k === 'acao' ? d.acao+' – '+(d.acaoN||'') : k === 'ug' ? d.ug+' – '+(d.ugN||'') : d.pi+' – '+(d.piN||'')); });
+    if(F[k] && !m.has(F[k])) m.set(F[k], F[k]); return [...m.entries()].sort((a,b) => a[0].localeCompare(b[0])); };
+  const sel = (k, rot) => `<label style="display:flex;flex-direction:column;font-size:12px;font-weight:700;color:#3a4a55;min-width:0">${rot}<select data-ppfpun="${k}" style="font:inherit;font-weight:400;font-size:13px;padding:6px 8px;border:1px solid #c9d6cd;border-radius:7px;max-width:100%"><option value="">Todas</option>${opc(k).map(([v,t]) => `<option value="${esc(v)}" ${F[k] === v ? 'selected' : ''}>${esc(t.slice(0, 70))}</option>`).join('')}</select></label>`;
+  const filtrosTxt = () => [F.acao ? 'Ação: '+F.acao : '', F.ug ? 'UG: '+F.ug : '', F.pi ? 'PI: '+F.pi : ''].filter(Boolean);
   const monta = () => {
     const P = new Map();
-    lista.forEach(d => { if(!d.pi && !d.ug) return;
+    lista.forEach(d => { if(!d.pi && !d.ug) return; if(!passaF(d)) return;
       const pi = d.pi || '(sem PI)', ug = d.ug || '—', nd = String(d.nd||'').slice(0, 6) || '—';
       const p = P.get(pi) || P.set(pi, {pi, piN: d.piN||'', ugs: new Map()}).get(pi);
       const u = p.ugs.get(ug) || p.ugs.set(ug, {ug, ugN: d.ugN||'', nds: new Map()}).get(ug);
@@ -10048,12 +10054,14 @@ function ppfTabPiUgNd(lista){
   };
   return {tit: 'Por PI · UG · ND', sub: 'crédito disponível e empenhado a liquidar, com subtotais', rot: 'PI · UG · ND',
     html: () => { const L = monta(), tot = L.filter(l => l.t === 'p').reduce((s, l) => [s[0] + l.disp, s[1] + l.aliq], [0, 0]);
-      return `<label style="display:inline-flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px"><input type="checkbox" data-ppfzer ${PPF.zerPUN ? 'checked' : ''}> esconder as linhas zeradas</label>
+      return `<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:0 0 10px">${sel('acao','Ação')}${sel('ug','UG executora')}${sel('pi','PI')}<button type="button" data-ppfpunlimpa style="border:0;border-radius:8px;padding:8px 13px;font:inherit;font-weight:700;cursor:pointer;color:#fff;background:#5f6f66">Limpar</button></div>
+      <label style="display:inline-flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px"><input type="checkbox" data-ppfzer ${PPF.zerPUN ? 'checked' : ''}> esconder as linhas zeradas</label>
       <div style="max-height:68vh;overflow:auto"><table><thead><tr><th>PI</th><th>UG executora</th><th>ND</th><th class="n">Crédito disponível</th><th class="n">Empenhado a liquidar</th></tr></thead><tbody>
       ${L.map(l => l.t === 'n' ? `<tr><td>${l.piR ? '<b>'+esc(l.piR)+'</b>' : ''}</td><td>${esc(l.ug)}</td><td>${esc(l.nd)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`
         : l.t === 'u' ? `<tr style="background:#e8f0ea;font-weight:700"><td>${l.piR ? '<b>'+esc(l.piR)+'</b>' : ''}</td><td colspan="2">${esc(l.ug)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`
         : `<tr style="background:#cfe3d5;font-weight:700"><td colspan="3">${esc(l.pi)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`).join('') || '<tr><td colspan="5">Nada com os filtros escolhidos.</td></tr>'}</tbody>
       <tfoot><tr><td colspan="3">Total geral</td><td class="n">${fmt2(tot[0])}</td><td class="n">${fmt2(tot[1])}</td></tr></tfoot></table></div>`; },
+    filtros: filtrosTxt,
     xl: () => { const L = monta(); return {cab: [{t:'PI'},{t:'UG executora'},{t:'ND'},{t:'Crédito disponível', n:true},{t:'Empenhado a liquidar', n:true}],
       linhas: L.map(l => l.t === 'n' ? [l.piR || '', l.ug, l.nd, l.disp, l.aliq] : l.t === 'u' ? [l.piR || '', l.ug, '', l.disp, l.aliq] : [l.pi, '', '', l.disp, l.aliq])
         .concat([['Total geral', '', '', L.filter(l => l.t === 'p').reduce((s, l) => s + l.disp, 0), L.filter(l => l.t === 'p').reduce((s, l) => s + l.aliq, 0)]])}; }};
@@ -10070,11 +10078,13 @@ function ppfAbrirTab(i){
   m.innerHTML = `<div role="dialog" aria-modal="true"><div class="cab"><h2>📋 ${esc(it.tit)}</h2><div>${it.html && !it.xl ? '' : '<button type="button" data-ppfxl>Extração em Excel</button><button type="button" data-ppfpdf style="background:#8f2d22">Extração em PDF</button>'}<button type="button" class="f" data-ppffecha>✕ Fechar</button></div></div>
     <p class="dica" style="margin:0 0 10px">${esc(it.sub)} · posição de ${rotMes(+SEL.mes)} · acompanha os filtros da tela</p>${corpo}</div>`;
   document.body.appendChild(m);
+  m.addEventListener('change', e => { const s = e.target.closest('[data-ppfpun]'); if(s){ PPF.fPUN[s.dataset.ppfpun] = s.value; m.remove(); ppfAbrirTab(i); } });
   m.addEventListener('click', e => {
     if(e.target===m || e.target.closest('[data-ppffecha]')){ m.remove(); return; }
+    if(e.target.closest('[data-ppfpunlimpa]')){ PPF.fPUN = {acao:'', ug:'', pi:''}; m.remove(); ppfAbrirTab(i); return; }
     if(e.target.closest('[data-ppfzer]')){ PPF.zerPUN = e.target.closest('[data-ppfzer]').checked; m.remove(); ppfAbrirTab(i); return; }
     if(e.target.closest('[data-ppfpdf]')){
-      const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
+      const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', ')).concat(it.filtros ? it.filtros() : []);
       const arq = ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_'+it.rot.replace(/\W+/g,'_');
       let cab, linhas, tot;
       if(it.xl){ const X = it.xl(); cab = X.cab.map(c => ({t: c.t, n: !!c.n, nw: !c.n && c.t === 'ND'}));
@@ -10084,7 +10094,7 @@ function ppfAbrirTab(i){
         tot = ['Total · '+G.length.toLocaleString('pt-BR')].concat(C.map(c => fmt2(G.reduce((a,g) => a + (+c[1](g)||0), 0)))); }
       abrirPDF(documentoPDF({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes)+' · Tesouro Gerencial'+(it.xl && PPF.zerPUN ? ' · sem as linhas zeradas' : ''), filtros, cab, linhas, tot, total: linhas.length, arquivo: arq}), arq);
       return; }
-    if(e.target.closest('[data-ppfxl]') && it.xl){ const X = it.xl(), filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
+    if(e.target.closest('[data-ppfxl]') && it.xl){ const X = it.xl(), filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', ')).concat(it.filtros ? it.filtros() : []);
       baixarXlsx({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes)+(PPF.zerPUN ? ' · sem as linhas zeradas' : ''), filtros, fonte: 'Tesouro Gerencial', arquivo: ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_PI_UG_ND', cab: X.cab, linhas: X.linhas}); return; }
     if(e.target.closest('[data-ppfxl]')){ const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
       const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
