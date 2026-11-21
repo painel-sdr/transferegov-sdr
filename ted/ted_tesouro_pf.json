@@ -1,0 +1,22 @@
+{
+ "gerado_em": "21/11/2026 16:59",
+ "fontes": [
+  {
+   "link": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8khlUawIDFMPUSOMjki7m2RN3mIuL7E-n5h7-bneKZ2aitrRrxyr56LArOeSWQx2A261o2pOZ531z/pub?gid=50738838&single=true&output=csv",
+   "linhas": 991,
+   "ok": true
+  },
+  {
+   "link": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8khlUawIDFMPUSOMjki7m2RN3mIuL7E-n5h7-bneKZ2aitrRrxyr56LArOeSWQx2A261o2pOZ531z/pub?gid=1171553041&single=true&output=csv",
+   "linhas": 162,
+   "ok": true
+  },
+  {
+   "repetidas_ignoradas": 146
+  },
+  {
+   "pf_itens_corrigidas": 83
+  }
+ ],
+ "linhas": 914
+}
