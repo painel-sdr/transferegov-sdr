@@ -10029,21 +10029,33 @@ const PPF_COLS = {
 const PPF_COLS_DOT = [['Dotação atual', g => g.dotAt||0],['Crédito', g => g.total],['Empenhado', g => g.emp],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 const PPF_COLS_UG = [['Crédito (total)', g => g.total],['Crédito disponível', g => g.disp],['Empenhado', g => g.emp],['A liquidar', g => g.aliq],['Liquidado', g => g.liq],['Pago', g => g.pago],['A pagar', g => g.emp-g.pago]];
 // tabela "Por PI · UG · ND": crédito disponível e empenhado a liquidar com subtotais por UG e por PI (modelo da tabela dinâmica do Tesouro)
-PPF.zerPUN = true; PPF.fPUN = {acao:[], ug:[], pi:[]};
-function ppfTabPiUgNd(lista){
-  // filtros do próprio quadro (ação, UG e PI): cada lista mostra só as opções que existem com os outros dois filtros
-  // filtro "inteligente" (o mesmo jeito dos filtros do topo): várias opções, busca, contagem, marcar visíveis e limpar
-  const F = PPF.fPUN, passaF = (d, ex) => ['acao','ug','pi'].every(k => k === ex || !F[k].length || F[k].includes(String(d[k]||'')));
-  const opc = k => { const m = new Map(); lista.forEach(d => { if(!d[k]) return; const v = String(d[k]); if(!m.has(v)) m.set(v, [k === 'acao' ? d.acao+' – '+(d.acaoN||'') : k === 'ug' ? d.ug+' – '+(d.ugN||'') : d.pi+' – '+(d.piN||''), 0]); if(passaF(d, k)) m.get(v)[1]++; });
+// ===== filtros inteligentes das tabelas detalhadas (iguais aos do topo: várias opções, busca, contagem, marcar visíveis, limpar)
+// estado por tabela (PPF.fq[título]); cada lista mostra a contagem com os outros filtros da tabela aplicados
+PPF.zerPUN = true; PPF.fq = {};
+const PPF_DIMS = {acao:['Ação', d => d.acao+' – '+(d.acaoN||'')], ug:['UG executora', d => d.ug+' – '+(d.ugN||'')], pi:['PI', d => d.pi ? d.pi+' – '+(d.piN||'') : '(sem PI)'],
+  po:['Plano orçamentário', d => d.po+' – '+(d.poN||'')], el:['Elemento de despesa', d => d.el+' – '+(d.elN||'')], fav:['Favorecido', d => (d.favN||'')+' · '+(d.fav||'')],
+  rp:['Resultado primário', d => d.rpN || d.rp || ''], orig:['Origem do recurso', d => d.orig||'']};
+function pmsEstado(tit, dims){ const F = PPF.fq[tit] || (PPF.fq[tit] = {}); dims.forEach(k => { if(!F[k]) F[k] = []; }); Object.keys(F).forEach(k => { if(!dims.includes(k)) delete F[k]; }); return F; }
+const pmsPassa = (d, F, ex) => Object.keys(F).every(k => k === ex || !F[k].length || F[k].includes(String(d[k] ?? '')));
+const pmsTxt = F => Object.entries(F).filter(([,v]) => v.length).map(([k,v]) => PPF_DIMS[k][0]+': '+v.join(', '));
+function pmsBarra(rows, F, dims){
+  const opc = k => { const m = new Map(), rot = PPF_DIMS[k][1]; rows.forEach(d => { const v = String(d[k] ?? ''); if(!m.has(v)) m.set(v, [rot(d), 0]); if(pmsPassa(d, F, k)) m.get(v)[1]++; });
     return [...m.entries()].map(([v,[t,n]]) => [v,t,n]).sort((a,b) => ((b[2]>0) - (a[2]>0)) || a[0].localeCompare(b[0])); };
-  const rotSel = k => !F[k].length ? 'Todas' : F[k].length === 1 ? F[k][0] : F[k].length+' selecionadas';
-  const sel = (k, rot) => `<div style="display:flex;flex-direction:column;font-size:12px;font-weight:700;color:#3a4a55;min-width:0">${rot}<div class="pms ${F[k].length ? 'ativo' : ''}" data-pms="${k}"><button type="button" class="pms-btn" title="${esc(F[k].join(', ') || 'Todas')}"><span>${esc(rotSel(k))}</span><i>▾</i></button>
-    <div class="pms-pop" hidden><input type="search" class="pms-busca" placeholder="Buscar…"><div class="pms-lista">${opc(k).map(([v,t,n]) => `<label class="${n === 0 && !F[k].includes(v) ? 'zero' : ''}" data-txt="${esc(t.toUpperCase())}"><input type="checkbox" value="${esc(v)}" ${F[k].includes(v) ? 'checked' : ''}><span>${esc(t)}</span><em>${n.toLocaleString('pt-BR')}</em></label>`).join('') || '<p style="padding:8px;color:#7b8790">Sem opções</p>'}</div>
+  const rotSel = k => !F[k].length ? 'Todas' : F[k].length === 1 ? (F[k][0] || '(vazio)') : F[k].length+' selecionadas';
+  const sel = k => `<div style="display:flex;flex-direction:column;font-size:12px;font-weight:700;color:#3a4a55;min-width:0">${PPF_DIMS[k][0]}<div class="pms ${F[k].length ? 'ativo' : ''}" data-pms="${k}"><button type="button" class="pms-btn" title="${esc(F[k].join(', ') || 'Todas')}"><span>${esc(rotSel(k))}</span><i>▾</i></button>
+    <div class="pms-pop" hidden><input type="search" class="pms-busca" placeholder="Buscar…"><div class="pms-lista">${opc(k).map(([v,t,n]) => `<label class="${n === 0 && !F[k].includes(v) ? 'zero' : ''}" data-txt="${esc(String(t).toUpperCase())}"><input type="checkbox" value="${esc(v)}" ${F[k].includes(v) ? 'checked' : ''}><span>${esc(t)}</span><em>${n.toLocaleString('pt-BR')}</em></label>`).join('') || '<p style="padding:8px;color:#7b8790">Sem opções</p>'}</div>
     <div class="pms-acoes"><button type="button" data-pmsacao="visiveis">Marcar visíveis</button><button type="button" data-pmsacao="limpar">Limpar</button><button type="button" data-pmsacao="ok">OK</button></div></div></div></div>`;
-  const filtrosTxt = () => [F.acao.length ? 'Ação: '+F.acao.join(', ') : '', F.ug.length ? 'UG: '+F.ug.join(', ') : '', F.pi.length ? 'PI: '+F.pi.join(', ') : ''].filter(Boolean);
+  return `<style>.pms{position:relative}.pms-btn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:6px;font:inherit;font-weight:400;font-size:13px;padding:7px 9px;border-radius:7px;border:1px solid #c9d6cd;background:#fff;cursor:pointer;text-align:left;color:#1d2b24}.pms-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pms.ativo .pms-btn{box-shadow:0 0 0 3px #f2c230;font-weight:700}
+    .pms-pop{position:absolute;z-index:30;top:calc(100% + 4px);left:0;width:min(520px,80vw);background:#fff;border:1px solid #c9d6cd;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:8px}.pms-busca{width:100%;box-sizing:border-box;font:inherit;font-weight:400;padding:6px 8px;border:1px solid #c9d6cd;border-radius:6px;margin-bottom:6px}
+    .pms-lista{max-height:300px;overflow:auto}.pms-lista label{display:flex;gap:7px;align-items:center;padding:4px 6px;font-weight:400;font-size:12.5px;cursor:pointer;border-radius:5px}.pms-lista label:hover{background:#eef4f0}.pms-lista label span{flex:1}.pms-lista label em{font-style:normal;color:#7b8790;font-size:11.5px}.pms-lista label.zero{opacity:.45}
+    .pms-acoes{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}.pms-acoes button{border:1px solid #c9d6cd;background:#fff;border-radius:6px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}.pms-acoes button[data-pmsacao="ok"]{background:#1e7a3c;color:#fff;border-color:#1e7a3c}</style>
+    <div style="display:grid;grid-template-columns:repeat(${dims.length},minmax(0,1fr)) auto;gap:10px;align-items:end;margin:0 0 10px">${dims.map(sel).join('')}<button type="button" data-pmslimpa style="border:0;border-radius:8px;padding:8px 13px;font:inherit;font-weight:700;cursor:pointer;color:#fff;background:#5f6f66">Limpar</button></div>`;
+}
+function ppfTabPiUgNd(lista){
+  const TIT = 'Por PI · UG · ND', DIMS = ['acao','ug','pi'], F = pmsEstado(TIT, DIMS);
   const monta = () => {
     const P = new Map();
-    lista.forEach(d => { if(!d.pi && !d.ug) return; if(!passaF(d)) return;
+    lista.forEach(d => { if(!d.pi && !d.ug) return; if(!pmsPassa(d, F)) return;
       const pi = d.pi || '(sem PI)', ug = d.ug || '—', nd = String(d.nd||'').slice(0, 6) || '—';
       const p = P.get(pi) || P.set(pi, {pi, piN: d.piN||'', ugs: new Map()}).get(pi);
       const u = p.ugs.get(ug) || p.ugs.set(ug, {ug, ugN: d.ugN||'', nds: new Map()}).get(ug);
@@ -10062,20 +10074,15 @@ function ppfTabPiUgNd(lista){
       out.push(...linP, {t:'p', pi: p.pi+' Total', disp: pd, aliq: pa}); });
     return out;
   };
-  return {tit: 'Por PI · UG · ND', sub: 'crédito disponível e empenhado a liquidar, com subtotais', rot: 'PI · UG · ND',
+  return {tit: TIT, sub: 'crédito disponível e empenhado a liquidar, com subtotais', rot: 'PI · UG · ND', dims: DIMS, rows: () => lista,
     html: () => { const L = monta(), tot = L.filter(l => l.t === 'p').reduce((s, l) => [s[0] + l.disp, s[1] + l.aliq], [0, 0]);
-      return `<style>.pms{position:relative}.pms-btn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:6px;font:inherit;font-weight:400;font-size:13px;padding:7px 9px;border-radius:7px;border:1px solid #c9d6cd;background:#fff;cursor:pointer;text-align:left;color:#1d2b24}.pms-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pms.ativo .pms-btn{box-shadow:0 0 0 3px #f2c230;font-weight:700}
-      .pms-pop{position:absolute;z-index:30;top:calc(100% + 4px);left:0;width:min(520px,80vw);background:#fff;border:1px solid #c9d6cd;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:8px}.pms-busca{width:100%;box-sizing:border-box;font:inherit;font-weight:400;padding:6px 8px;border:1px solid #c9d6cd;border-radius:6px;margin-bottom:6px}
-      .pms-lista{max-height:300px;overflow:auto}.pms-lista label{display:flex;gap:7px;align-items:center;padding:4px 6px;font-weight:400;font-size:12.5px;cursor:pointer;border-radius:5px}.pms-lista label:hover{background:#eef4f0}.pms-lista label span{flex:1}.pms-lista label em{font-style:normal;color:#7b8790;font-size:11.5px}.pms-lista label.zero{opacity:.45}
-      .pms-acoes{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}.pms-acoes button{border:1px solid #c9d6cd;background:#fff;border-radius:6px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}.pms-acoes button[data-pmsacao="ok"]{background:#1e7a3c;color:#fff;border-color:#1e7a3c}</style>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:0 0 10px">${sel('acao','Ação')}${sel('ug','UG executora')}${sel('pi','PI')}<button type="button" data-ppfpunlimpa style="border:0;border-radius:8px;padding:8px 13px;font:inherit;font-weight:700;cursor:pointer;color:#fff;background:#5f6f66">Limpar</button></div>
-      <label style="display:inline-flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px"><input type="checkbox" data-ppfzer ${PPF.zerPUN ? 'checked' : ''}> esconder as linhas zeradas</label>
+      return `<label style="display:inline-flex;gap:6px;align-items:center;font-size:13px;margin:0 0 8px"><input type="checkbox" data-ppfzer ${PPF.zerPUN ? 'checked' : ''}> esconder as linhas zeradas</label>
       <div style="max-height:68vh;overflow:auto"><table><thead><tr><th>PI</th><th>UG executora</th><th>ND</th><th class="n">Crédito disponível</th><th class="n">Empenhado a liquidar</th></tr></thead><tbody>
       ${L.map(l => l.t === 'n' ? `<tr><td>${l.piR ? '<b>'+esc(l.piR)+'</b>' : ''}</td><td>${esc(l.ug)}</td><td>${esc(l.nd)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`
         : l.t === 'u' ? `<tr style="background:#e8f0ea;font-weight:700"><td>${l.piR ? '<b>'+esc(l.piR)+'</b>' : ''}</td><td colspan="2">${esc(l.ug)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`
         : `<tr style="background:#cfe3d5;font-weight:700"><td colspan="3">${esc(l.pi)}</td><td class="n">${fmt2(l.disp)}</td><td class="n">${fmt2(l.aliq)}</td></tr>`).join('') || '<tr><td colspan="5">Nada com os filtros escolhidos.</td></tr>'}</tbody>
       <tfoot><tr><td colspan="3">Total geral</td><td class="n">${fmt2(tot[0])}</td><td class="n">${fmt2(tot[1])}</td></tr></tfoot></table></div>`; },
-    filtros: filtrosTxt,
+    filtros: () => pmsTxt(F),
     xl: () => { const L = monta(); return {cab: [{t:'PI'},{t:'UG executora'},{t:'ND'},{t:'Crédito disponível', n:true},{t:'Empenhado a liquidar', n:true}],
       linhas: L.map(l => l.t === 'n' ? [l.piR || '', l.ug, l.nd, l.disp, l.aliq] : l.t === 'u' ? [l.piR || '', l.ug, '', l.disp, l.aliq] : [l.pi, '', '', l.disp, l.aliq])
         .concat([['Total geral', '', '', L.filter(l => l.t === 'p').reduce((s, l) => s + l.disp, 0), L.filter(l => l.t === 'p').reduce((s, l) => s + l.aliq, 0)]])}; }};
@@ -10085,26 +10092,27 @@ function ppfAbrirTab(i){
   document.querySelectorAll('.ppf-mod').forEach(x => x.remove());
   const m = document.createElement('div'); m.className = 'ppf-mod';
   let corpo = '';
+  const FS = it.dims ? pmsEstado(it.tit, it.dims) : null, barra = FS ? pmsBarra(it.rows(), FS, it.dims) : '';
   if(it.html) corpo = it.html();
   else { const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
     corpo = `<div style="max-height:70vh;overflow:auto"><table><thead><tr><th>${esc(it.rot)}</th>${C.map(c => `<th class="n">${c[0]}</th>`).join('')}</tr></thead><tbody>${G.map(g => `<tr><td>${esc(g.rot)}</td>${C.map(c => `<td class="n">${fmt2(c[1](g))}</td>`).join('')}</tr>`).join('')}</tbody>
       <tfoot><tr><td>Total · ${G.length.toLocaleString('pt-BR')}</td>${C.map(c => `<td class="n">${fmt2(G.reduce((s,g) => s+c[1](g), 0))}</td>`).join('')}</tr></tfoot></table></div>`; }
   m.innerHTML = `<div role="dialog" aria-modal="true"><div class="cab"><h2>📋 ${esc(it.tit)}</h2><div>${it.html && !it.xl ? '' : '<button type="button" data-ppfxl>Extração em Excel</button><button type="button" data-ppfpdf style="background:#8f2d22">Extração em PDF</button>'}<button type="button" class="f" data-ppffecha>✕ Fechar</button></div></div>
-    <p class="dica" style="margin:0 0 10px">${esc(it.sub)} · posição de ${rotMes(+SEL.mes)} · acompanha os filtros da tela</p>${corpo}</div>`;
+    <p class="dica" style="margin:0 0 10px">${esc(it.sub)} · posição de ${rotMes(+SEL.mes)} · acompanha os filtros da tela</p>${barra}${corpo}</div>`;
   document.body.appendChild(m);
-  m.addEventListener('change', e => { const x = e.target.closest('.pms-lista input'); if(x){ const k = x.closest('[data-pms]').dataset.pms, L = PPF.fPUN[k];
-    if(x.checked){ if(!L.includes(x.value)) L.push(x.value); } else PPF.fPUN[k] = L.filter(v => v !== x.value); m._mudou = true; } });
+  m.addEventListener('change', e => { const x = e.target.closest('.pms-lista input'); if(x && FS){ const k = x.closest('[data-pms]').dataset.pms, L = FS[k];
+    if(x.checked){ if(!L.includes(x.value)) L.push(x.value); } else FS[k] = L.filter(v => v !== x.value); m._mudou = true; } });
   m.addEventListener('input', e => { if(e.target.matches('.pms-busca')){ const b = e.target.value.trim().toUpperCase(); e.target.nextElementSibling.querySelectorAll('label').forEach(l => l.hidden = !!b && !l.dataset.txt.includes(b)); } });
   m.addEventListener('click', e => {
     if(e.target===m || e.target.closest('[data-ppffecha]')){ m.remove(); return; }
-    if(e.target.closest('[data-ppfpunlimpa]')){ PPF.fPUN = {acao:[], ug:[], pi:[]}; m.remove(); ppfAbrirTab(i); return; }
+    if(e.target.closest('[data-pmslimpa]') && FS){ Object.keys(FS).forEach(k => FS[k] = []); m.remove(); ppfAbrirTab(i); return; }
     { // filtros inteligentes do quadro: abre/fecha, marcar visíveis, limpar, OK (aplica ao fechar)
       const pb = e.target.closest('.pms-btn'), pa = e.target.closest('[data-pmsacao]'), aberto = m.querySelector('.pms-pop:not([hidden])');
       const aplica = () => { m.remove(); ppfAbrirTab(i); };
       if(pb){ const pop = pb.nextElementSibling, ia = !pop.hidden; if(aberto && aberto !== pop && m._mudou){ aplica(); return; } m.querySelectorAll('.pms-pop').forEach(p => p.hidden = true); pop.hidden = ia; if(!ia) pop.querySelector('.pms-busca').focus(); return; }
       if(pa){ const box = pa.closest('[data-pms]'), k = box.dataset.pms, a = pa.dataset.pmsacao;
-        if(a === 'limpar'){ PPF.fPUN[k] = []; box.querySelectorAll('.pms-lista input').forEach(x => x.checked = false); m._mudou = true; return; }
-        if(a === 'visiveis'){ box.querySelectorAll('.pms-lista label').forEach(l => { if(!l.hidden){ const x = l.querySelector('input'); x.checked = true; if(!PPF.fPUN[k].includes(x.value)) PPF.fPUN[k].push(x.value); } }); m._mudou = true; return; }
+        if(a === 'limpar'){ FS[k] = []; box.querySelectorAll('.pms-lista input').forEach(x => x.checked = false); m._mudou = true; return; }
+        if(a === 'visiveis'){ box.querySelectorAll('.pms-lista label').forEach(l => { if(!l.hidden){ const x = l.querySelector('input'); x.checked = true; if(!FS[k].includes(x.value)) FS[k].push(x.value); } }); m._mudou = true; return; }
         if(a === 'ok'){ if(m._mudou) aplica(); else box.querySelector('.pms-pop').hidden = true; return; } }
       if(aberto && !e.target.closest('.pms-pop')){ if(m._mudou){ aplica(); return; } aberto.hidden = true; }
       if(e.target.closest('.pms-pop')) return; }
@@ -10123,7 +10131,7 @@ function ppfAbrirTab(i){
     if(e.target.closest('[data-ppfxl]') && it.xl){ const X = it.xl(), filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', ')).concat(it.filtros ? it.filtros() : []);
       baixarXlsx({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes)+(PPF.zerPUN ? ' · sem as linhas zeradas' : ''), filtros, fonte: 'Tesouro Gerencial', arquivo: ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_PI_UG_ND', cab: X.cab, linhas: X.linhas}); return; }
     if(e.target.closest('[data-ppfxl]')){ const C = it.cols || PPF_COLS[VISAO], G = it.grupos().sort((a,b) => b.total-a.total);
-      const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
+      const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', ')).concat(it.filtros ? it.filtros() : []);
       baixarXlsx({titulo: CFG[VISAO].nome+' · '+it.tit, sub: 'Posição de '+rotMes(+SEL.mes), filtros, fonte: 'Tesouro Gerencial', arquivo: ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_'+it.rot.replace(/\W+/g,'_'),
         cab: [{t:it.rot}].concat(C.map(c => ({t:c[0], n:true}))), linhas: G.map(g => [g.rot].concat(C.map(c => +c[1](g)||0)))}); }
   });
@@ -10221,7 +10229,10 @@ function ppfPagina(lista, t, rotAcao, g, sem){
   }[V];
   const at = OPS.find(o => o[0]===PPF.exp[V]) || OPS[0], vis = at[2]();
   // tabelas detalhadas
-  const T = (tit, sub, rot, k, fn, cols) => ({tit, sub, rot, cols, grupos: () => g(k, fn)});
+  // cada tabela tem filtros inteligentes pela própria coluna e por ação, UG e PI
+  const T = (tit, sub, rot, k, fn, cols) => { const dims = [...new Set(['acao','ug','pi', k].filter(x => PPF_DIMS[x]))];
+    return {tit, sub, rot, cols, dims, rows: () => sem(k), filtros: () => pmsTxt(pmsEstado(tit, dims)),
+      grupos: () => { const F = pmsEstado(tit, dims); return agrupar(sem(k).filter(d => pmsPassa(d, F)), k, fn); }}; };
   PPF.tabs = {
     exe: [T('Por ação','dotação, crédito, empenhado, liquidado e pago','Ação','acao',rotAc, PPF_COLS_DOT), T('Por plano orçamentário','PO de cada ação','Plano orçamentário','po',rotPO, PPF_COLS_DOT), T('Por PI','plano interno','PI','pi',rotPI), T('Por elemento de despesa','GND 3 e 4','Elemento de despesa','el',rotEl), T('Por UG executora','unidades que receberam o crédito','UG executora','ug',rotUG, PPF_COLS_UG), ppfTabPiUgNd(lista), T('Maiores favorecidos','por CNPJ','Favorecido','fav',rotFav)],
     rap: [{tit:'Quadro do Tesouro Gerencial', sub:'processados × não processados', html: () => topoRapQuadro(t)}, T('Por ação','inscrito, pago e a pagar','Ação','acao',rotAc), T('Por UGE','unidades executoras','UGE','ug',rotUG), T('Por elemento de despesa','GND','Elemento de despesa','el',rotEl), T('Por plano orçamentário','PO','Plano orçamentário','po',rotPO), T('Por PI','plano interno','PI','pi',rotPI), T('RAP por favorecido','por CNPJ','Favorecido','fav',rotFav)],
