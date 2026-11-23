@@ -8823,7 +8823,8 @@ const SHEET_RAP = '1cPRChDP0KU0rfjgGij4hC2hz76auQ4a_rxL-XXFqrWQ';      // BASE G
 const PLANILHA = {exe: SHEET_ID, rap: SHEET_RAP};
 const FONTES = {
   exe: [ {gid:'1204904051', nome:'BASE EXE 2026'},
-         {gid:'32904262', nome:'EXE 2026 ATUALIZADOSDR mdir', ted:true} ],   // crédito de outros ministérios executado por UGs do MAPA (TED recebido)
+         {gid:'32904262', nome:'EXE 2026 ATUALIZADOSDR mdir', ted:true},   // crédito de outros ministérios executado por UGs do MAPA (TED recebido)
+         {gid:'449818234', nome:'EXE 2000 SDR', so2000:true} ],   // ação 2000 com UG Responsável ou Executora da SDR (relatório "[PAINEL] EXE_2000"): só entra o que outras UGs do MAPA executaram com crédito da SDR   // crédito de outros ministérios executado por UGs do MAPA (TED recebido)
   rap: [
     {gid:'1255285299', nome:'RAP - 20ZV'}, {gid:'1626303078', nome:'RAP - 20ZY'}, {gid:'1251866406', nome:'RAP - 2000'},
     {gid:'2071147261', nome:'RAP 215A'},   {gid:'296590604',  nome:'RAP - 8593'}, {gid:'557514819',  nome:'RAP - 214Z'},
@@ -8838,7 +8839,8 @@ const UO_PROPRIA = '22101';
 // UGs geridas pela SDR: o que elas executam com orçamento da SDR é recurso PRÓPRIO
 const UGS_PROPRIAS = ['130010','130141','130255','420013','135098'];
 // RAP - OUTRAS AÇÕES: só o que as 5 UGs da SDR executam (as ações com aba própria não entram duas vezes: ver donoAcao)
-const escopoSDR = (d, F) => !/OUTRAS/i.test(F.nome||'') || UGS_PROPRIAS.includes(d.ug);
+const escopoSDR = (d, F) => F.so2000 ? (d.acao === '2000' && !UGS_PROPRIAS.includes(d.ug) && d.ug !== UG_SETORIAL)   // a BASE EXE já traz a 2000 das 5 UGs e da setorial: não conta duas vezes
+  : !/OUTRAS/i.test(F.nome||'') || UGS_PROPRIAS.includes(d.ug);
 const ORIGENS = ['PRÓPRIA','SETORIAL 130101','COMPARTILHADA','DESTAQUE ENVIADO','TED RECEBIDO'];   // orçamento da SDR/MAPA — o que vier de outra UO é TED recebido
 const UO_NOME = {'22101':'MAPA','53101':'MIDR – Integração e Desenv. Regional','49101':'MDA – Desenv. Agrário','58101':'MPA – Pesca e Aquicultura'};
 
