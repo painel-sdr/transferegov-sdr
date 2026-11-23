@@ -8178,10 +8178,36 @@ const FORA = {menu:'menu', visao:'visao', financeiro:'exe', rap:'rap', 'exe-rap'
 // Viagem nossa = diárias pagas por uma UG SDR. Departamento, prestação de contas entregue e teto virão da planilha "Controle de SCDP".
 // =====================================================================
 const VIAG_NUG = {'420013':'420013 · SDR','130010':'130010 · CEPLAC','130141':'130141 · CGPI','130255':'130255 · PROMAQ','135098':'135098 · CGPI'};
-const VIAG_TETO = {'420013 · SDR':900000, '130010 · CEPLAC':220000, '130141 · CGPI':40000};   // teto de exemplo, até a planilha da equipe
+// teto = SCDP › Consultas › Limite de Recursos Orçamentários (Total = inicial + suplementação), posição informada pela equipe
+const VIAG_SCDP = {'420013 · SDR':{teto:1569380.15, andam:56771.86, real:1507371.87, saldo:5236.42}, '130010 · CEPLAC':{teto:194615.66, andam:2949.10, real:191657.71, saldo:8.85}}, VIAG_SCDP_DATA_PADRAO = '23/11/2026';
+let VIAG_SCDP_DATA = VIAG_SCDP_DATA_PADRAO, VIAG_SCDP_FONTE = 'valores fixos';
+const VIAG_TETO = {'420013 · SDR':VIAG_SCDP['420013 · SDR'].teto, '130010 · CEPLAC':VIAG_SCDP['130010 · CEPLAC'].teto, '130141 · CGPI':40000};   // 130141: ainda teto de exemplo
 const VIAG_MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const viagData = s => { const m = String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? new Date(+m[3], +m[2]-1, +m[1]) : null; };
 const viagHoje = () => { const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), h.getDate()); };
+// aba "TETO SCDP" da planilha PAINEL SDR 2026 (preenchida à mão a partir do SCDP › Consultas › Limite de Recursos Orçamentários)
+// colunas (pela ordem ou pelo nome): UG | Teto inicial | Suplementação | Teto total | Em andamento | Realizado | Devolução | Saldo | Data da consulta
+async function lerTetoSCDP(){
+  try{
+    const r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID_NOVA}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent('TETO SCDP')}&_=${Date.now()}`, {cache:'no-store'});
+    if(!r.ok) return;
+    const R = parseCSV(await r.text()); if(!R.length) return;
+    const nz = t => String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+    const H = R[0].map(nz); if(!H.some(h => /^UG/.test(h)) || !H.some(h => /TETO/.test(h))) return;   // o gviz devolve outra aba quando esta não existe
+    const col = (rx, pad) => { const i = H.findIndex(h => rx.test(h)); return i >= 0 ? i : pad; };
+    const iU = col(/^UG/, 0), iI = col(/INICIAL/, 1), iS = col(/SUPLEMENT/, 2), iT = col(/TETO TOTAL|^TOTAL/, 3), iA = col(/ANDAMENTO/, 4), iR = col(/REALIZADO/, 5), iD = col(/DEVOLU/, 6), iSa = col(/SALDO/, 7), iDt = col(/DATA/, 8);
+    const n = v => { let t = String(v ?? '').replace(/R\$|\s/g, ''); if(!t) return null; if(t.includes(',')) t = t.replace(/\./g, '').replace(',', '.'); const x = parseFloat(t); return isNaN(x) ? null : x; };
+    let datas = [], lidos = 0;
+    R.slice(1).forEach(l => {
+      const cod = (String(l[iU]||'').match(/\d{6}/) || [])[0], u = cod && VIAG_NUG[cod]; if(!u) return;
+      const ini = n(l[iI]) || 0, sup = n(l[iS]) || 0, tot = n(l[iT]) ?? (ini + sup), and = n(l[iA]) || 0, real = (n(l[iR]) || 0) - (n(l[iD]) || 0);
+      if(!tot) return;
+      VIAG_SCDP[u] = {teto:tot, andam:and, real, saldo: n(l[iSa]) ?? (tot - and - real)}; VIAG_TETO[u] = tot; lidos++;
+      if(l[iDt]) datas.push(String(l[iDt]).trim());
+    });
+    if(lidos){ VIAG_SCDP_FONTE = 'aba TETO SCDP'; if(datas.length) VIAG_SCDP_DATA = datas.sort((a, b) => (b.slice(6) + b.slice(3, 5) + b.slice(0, 2)).localeCompare(a.slice(6) + a.slice(3, 5) + a.slice(0, 2)))[0]; }
+  }catch(e){ console.warn('TETO SCDP:', e); }
+}
 async function lerViagens(){
   const ano = new Date().getFullYear();
   let J = null;
@@ -8189,6 +8215,7 @@ async function lerViagens(){
     try{ const r = await fetch(RAW_VIAG+'viagens_'+a+'.json?_='+Date.now(), {cache:'no-store'}); if(r.ok){ J = await r.json(); break; } }catch(e){}
   }
   if(!J) throw new Error('A base de viagens ainda não foi gerada pelo robô (Actions › Run workflow).');
+  await lerTetoSCDP();
   const hoje = viagHoje();
   const L = (J.viagens||[]).map(r => { const ini = viagData(r.ini), fim = viagData(r.fim), ant = (r.emis||[]).map(viagData).filter(Boolean).map(e => Math.round((ini - e) / 864e5)), a = ant.length ? Math.max(...ant) : null;
     const prazo = fim ? new Date(fim.getTime() + (r.ext ? 30 : 5) * 864e5) : null;
@@ -8415,7 +8442,7 @@ VIEWS.viag = {
         const nO = new Set(Lo.map(d => d.ug)).size;
         const sfa = Lo.length ? `<tr class="vt-sfa" data-campo="pag" data-valor="Superintendências e outras UGs" title="Clique para ver só estas viagens"><td>▸ Superintendências e outras UGs (ações SDR) · ${nO} UG${nO > 1 ? 's' : ''} <small>clique para filtrar</small></td><td></td><td>${intN(Lo.length)}</td><td>${fBv(to)}</td><td>—</td><td>—</td><td><span class="pill c">sem teto</span></td></tr>` : '';
         return sub + sfa + `<tr class="vt-tot"><td>TOTAL GERAL</td><td></td><td>${intN(L.length)}</td><td>${fBv(tot)}</td><td></td><td></td><td></td></tr>`; })()}</table>
-      <p class="dica" style="text-align:left;margin-top:8px"><span style="display:inline-block;width:2px;height:12px;background:#1f4e79;vertical-align:middle"></span> onde o gasto deveria estar hoje (${Math.round(frac * 100)}% do ano) · teto de exemplo · com a planilha da equipe a tabela abre por departamento</p>`;
+      <p class="dica" style="text-align:left;margin-top:8px"><span style="display:inline-block;width:2px;height:12px;background:#1f4e79;vertical-align:middle"></span> onde o gasto deveria estar hoje (${Math.round(frac * 100)}% do ano) · teto do SCDP de ${VIAG_SCDP_DATA} (inicial + suplementação, ${VIAG_SCDP_FONTE}) para ${Object.keys(VIAG_SCDP).join(', ')}${Object.keys(VIAG_TETO).filter(u => !VIAG_SCDP[u]).length ? ' · ' + Object.keys(VIAG_TETO).filter(u => !VIAG_SCDP[u]).join(', ') + ' ainda com teto de exemplo' : ''} · gasto = Portal da Transparência</p><p class="dica" style="text-align:left;margin-top:4px"><b>No SCDP em ${VIAG_SCDP_DATA}:</b> ${Object.entries(VIAG_SCDP).map(([u, x]) => `${esc(u)}: realizado ${fmtC(x.real)} + em andamento ${fmtC(x.andam)} · <b style="color:${x.saldo < .05 * x.teto ? '#b3261e' : '#155a30'}">saldo ${fBv(x.saldo)}</b> (${Math.round(100 * (x.real + x.andam) / x.teto)}% usado)`).join(' · ')}</p>`;
     const nM = ano < hoje.getFullYear() ? 12 : hoje.getMonth() + 1, meses = VIAG_MES.slice(0, nM), mx = Math.max(...meses.map(m => soma(L.filter(d => d.mes === m), 'total')), 1);
     const porMes = () => `<div class="hb" style="height:230px">${meses.map(m => { const l = L.filter(d => d.mes === m), dI = soma(l, 'diar'), pS = soma(l, 'pass');
         return `<div title="${m}: ${l.length} viagens · diárias ${fBv(dI)} · passagens ${fBv(pS)}"><span style="font-size:11px;color:#155a30;font-weight:700">${dI + pS ? fmtC(dI + pS) : ''}</span><i style="height:${(160 * pS / mx).toFixed(0)}px;background:#1f4e79;margin:0;border-radius:6px 6px 0 0"></i><i style="height:${(160 * dI / mx).toFixed(0)}px;background:#1f7a43;border-radius:0"></i>${m}</div>`; }).join('')}</div>
