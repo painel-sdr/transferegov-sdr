@@ -8405,7 +8405,15 @@ document.addEventListener('click', e => {
 });
 // atalhos do menu lateral (Agenda, Prestação de contas, Controle de teto)
 window.__viagIr = async function(alvo){
-  if(alvo === 'teto'){ PP_EXP.viag = 'teto'; if(VIEW && VIEW.id === 'viag') render(); return; }
+  if(alvo === 'teto'){   // espera a tela carregar, abre "Teto por UG" e rola até a tabela
+    PP_EXP.viag = 'teto';
+    const t0 = Date.now(); while(!(VIEW && VIEW.id === 'viag' && document.querySelector('table.vt, .pp-ex')) && Date.now() - t0 < 30000) await new Promise(ok => setTimeout(ok, 200));
+    if(VIEW && VIEW.id === 'viag') render();
+    await new Promise(ok => setTimeout(ok, 150));
+    const x = document.querySelector('table.vt') || document.querySelector('.pp-ex');
+    if(x){ const c = x.closest('.pp-ex') || x; c.scrollIntoView({behavior:'smooth', block:'start'}); c.style.transition = 'box-shadow .3s'; c.style.boxShadow = '0 0 0 4px #f2c230'; setTimeout(() => { c.style.boxShadow = ''; }, 2200); }
+    return;
+  }
   const i = {ag:0, gas:4, tes:5, pc:6}[alvo]; if(i === undefined) return;
   const t0 = Date.now(); while(!(PP_TAB.viag && PP_TAB.viag[i]) && Date.now() - t0 < 20000) await new Promise(ok => setTimeout(ok, 200));
   abrirPPTab('viag', i);
