@@ -859,7 +859,7 @@ html.gt-on,html.gt-on body{overflow:hidden!important}
 
 <section id="v-visao" hidden><div class="vg-wrap">
   <header class="vg-topo"><div><h1>VISÃO GERAL · SDR 2026</h1><small id="vg-sub">Carregando…</small></div>
-    <div class="vg-ctrl"><span id="vg-ug" class="vg-msx"></span><span id="vg-acao" class="vg-msx"></span>
+    <div class="vg-ctrl"><span id="vg-modo"></span><span id="vg-ug" class="vg-msx"></span><span id="vg-acao" class="vg-msx"></span>
     <select class="nav-sel" aria-label="Ir para o painel" data-nav><option value="menu">☰ Menu</option><option value="visao">Visão geral</option><option value="contratos">Base Contratos</option><option value="ctrsdr">Contratos SDR</option><option value="despesas">Despesas previstas</option><option value="orcacao">Orçamento por ações</option><option value="repasse">Contrato de Repasse</option><option value="exe">Financeiro EXE 2026</option><option value="rap">Financeiro RAP 2026</option><option value="exerap">EXE + RAP acumulado</option><option value="parc">Parceria SDR</option><option value="prop">Propostas SDR</option><option value="conv">Convênio e Termo de Fomento · 420013</option><option value="tedapi">TED GERAL SDR</option><option value="ted">TED EQUIPE SDR</option><option value="conferencia">Conferência de Contratos</option></select></div></header>
   <div id="vg-corpo"></div>
   <p style="font-size:12px;color:#5f6f66;text-align:right;margin:18px 0 6px">Visão geral SDR 2026 · verde = própria · amarelo = destaque enviado · azul-claro = compartilhada · roxo = TED recebido</p>
@@ -1932,6 +1932,13 @@ body[data-tema="fin"] .tabela-topo .acoes .btn:not(.btn-pdf){background:#1f6b3a}
 .lg-an small{display:block;font-size:11px;color:#5f6f66;font-weight:700}.lg-an b{font-size:15px}.lg-an em{display:block;font-style:normal;font-size:11px;color:#5f6f66;margin-top:2px;line-height:1.3}
 @media (max-width:700px){.lg-analise{grid-template-columns:1fr 1fr}}
 
+.dp-top{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:4px 0 12px}.dp-chip{background:#1e7a43;color:#fff;border-radius:999px;padding:6px 14px;font-weight:700;font-size:13px}.dp-nota{color:#4d5f55;font-size:13.5px}
+.dp-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0 0 14px}.dp-st{position:relative;padding:14px 18px 14px 32px;color:#fff;clip-path:polygon(0 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,0 100%,20px 50%)}
+.dp-st:first-child{clip-path:polygon(0 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,0 100%);padding-left:18px;border-radius:14px 0 0 14px}.dp-st small{display:block;font-size:12px;opacity:.88}.dp-st b{display:block;font-size:24px;letter-spacing:-.4px;margin:2px 0}.dp-st em{font-style:normal;font-size:12px;opacity:.9}
+.dp-tb{width:100%;border-collapse:collapse;font-size:13px}.dp-tb th{text-align:left;color:#6b7a72;font-weight:600;font-size:12px;padding:7px 8px;border-bottom:1px solid #e3ebe5}.dp-tb td{padding:9px 8px;border-bottom:1px solid #f0f3f1}.dp-tb .n{text-align:right;white-space:nowrap}
+.dp-cv{height:10px;border-radius:6px;background:#eef2ef;position:relative;width:min(260px,22vw)}.dp-cv i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+.dp-tg{font-size:11.5px;font-weight:700;border-radius:6px;padding:3px 8px;white-space:nowrap}.dp-tg.g{background:#e6f4ec;color:#1e7a43}.dp-tg.a{background:#fdf3df;color:#8a5a00}.dp-tg.r{background:#fdecec;color:#b3261e}
+@media(max-width:1100px){.dp-flow{grid-template-columns:1fr 1fr}.dp-st,.dp-st:first-child{clip-path:none;border-radius:10px;padding-left:16px;margin:3px}}
 </style>
 </head>
 <body data-tema="verde">
@@ -7302,6 +7309,8 @@ const VIEW_PARC = {
     const todos = DADOS.parc.linhas, L = filtrar(todos);
     const ativos = L.filter(d => d.situG==='Em execução'), validos = L.filter(d => d.situG!=='Anulado / cancelado');
     const repV = soma(validos,'repasse'), desV = soma(validos,'desemb'), aDesV = soma(validos,'aDes');
+    // 25/11/2026: "a desembolsar" = só a carteira em execução (o mesmo número da Visão geral); propostas com plano aprovado e ainda sem instrumento vêm à parte
+    const aprovP = L.filter(d => /PLANO DE TRABALHO APROVADO/.test(normAccent(d.situ||''))), aDesE = soma(ativos,'aDes'), aDesP = soma(aprovP,'aDes'), repE = soma(ativos,'repasse');
     const intN = n => Number(n).toLocaleString('pt-BR'), cnt = v => intN(Math.round(v));
     const K = ['global','repasse','desemb','aDes','saldo'];
     const ok = l => l.filter(d => d.situG!=='Anulado / cancelado');
@@ -7363,7 +7372,7 @@ const VIEW_PARC = {
       ${kpi({titulo:'Instrumentos', valor:intN(L.length), grande:1, destaque:1, nota:intN(ativos.length)+' em execução · '+intN(L.length-validos.length)+' anulados fora', lista:L, ord:'repasse', cols:KC.inst([KV('Repasse','repasse'),KV('Desembolsado','desemb')])})}
       ${kpi({titulo:'Valor de repasse', valor:fmtC(repV), tip:fmtBRL(repV), nota:'global '+fmtC(soma(validos,'global'))+' · contrapartida '+fmtC(soma(validos,'contrap')), lista:validos, ord:'repasse', cols:KC.inst([KV('Valor global','global'),KV('Repasse','repasse'),KV('Contrapartida','contrap')])})}
       ${kpi({titulo:'Desembolsado', valor:fmtC(desV), tip:fmtBRL(desV), barra:repV?desV/repV:0, nota:fmtPct(repV?desV/repV:0)+' do repasse', lista:validos.filter(d => d.desemb>0), ord:'desemb', cols:KC.inst([KV('Desembolsado','desemb'),['% do repasse', d => fmtPct(d.repasse?d.desemb/d.repasse:0), 'num']])})}
-      ${kpi({titulo:'A desembolsar', valor:fmtC(aDesV), tip:fmtBRL(aDesV), cor:'#b8650a', nota:fmtPct(repV?aDesV/repV:0)+' do repasse', lista:validos.filter(d => d.aDes>0), ord:'aDes', cols:KC.inst([KV('Repasse','repasse'),KV('A desembolsar','aDes')])})}
+      ${kpi({titulo:'A desembolsar · em execução', valor:fmtC(aDesE), tip:fmtBRL(aDesE)+' · '+intN(ativos.length)+' instrumentos em execução', cor:'#b8650a', nota:fmtPct(repE?aDesE/repE:0)+' do repasse em execução'+(aDesP>0.004 ? ' · + '+fmtC(aDesP)+' de propostas aprovadas ainda sem instrumento' : ''), lista:ativos.filter(d => d.aDes>0).concat(aprovP.filter(d => d.aDes>0)), ord:'aDes', cols:KC.inst([KV('Repasse','repasse'),KV('A desembolsar','aDes')])})}
     </div>
     ${ppSec('Precisa de ação', 'clique para filtrar')}
     ${ppAcao(cards)}
@@ -7420,6 +7429,24 @@ function viewGenerica(chave, titulo, tema){
   };
 }
 // Orçamento por ação (Tesouro Gerencial · robô): só a página gerada, sem filtros do painel antigo (teste)
+// ---------- Despesas previstas · ciclo dos contratos da CEPLAC (Contratos.gov.br + Tesouro) ----------
+function despCiclo(){
+  const re = () => { try{ if(VIEW && VIEW.id === 'despesas') render(); }catch(e){} };
+  if(!API_CTR){ carregarApiCtr().then(re).catch(() => {}); return '<div class="card estado" style="margin-bottom:12px">Lendo os contratos da CEPLAC no Contratos.gov.br…</div>'; }
+  if(!window.__despTes){ window.__despTes = 1; try{ pedirTesCtr(); if(_tesCtrP) _tesCtrP.then(() => { if(API_CTR) API_CTR._sdr = null; re(); }); }catch(e){} }
+  let L = []; try{ L = (linhasCtrSdr() || []).filter(d => d.ugc === '130010' && d.sit === 'Ativo'); }catch(e){}
+  if(!L.length) return '';
+  const S = k => L.reduce((a, d) => a + (d[k] || 0), 0), prev = S('prev'), emp = S('emp'), pago = S('pago'), fal = L.filter(d => d.falta > 0), falta = S('falta');
+  const pc = (a, b) => b > 0 ? fmtPct(a / b) : '—';
+  const st = (cor, rot, val, sub, tip) => `<div class="dp-st" style="background:${cor}"${tip !== undefined ? ` title="${esc(rot)}: ${esc(fmtBRL(tip))}"` : ''}><small>${rot}</small><b>${val}</b><em>${sub}</em></div>`;
+  const top = L.filter(d => d.prev > 0).sort((a, b) => (b.falta || 0) - (a.falta || 0) || b.prev - a.prev).slice(0, 8);
+  const barra = d => { const p = d.prev || 1; return `<div class="dp-cv" title="Previsto ${fmtBRL(d.prev)} · empenhado ${fmtBRL(d.emp)} · pago ${fmtBRL(d.pago)}"><i style="width:${Math.min(100, d.emp / p * 100).toFixed(1)}%;background:#8fd3a6"></i><i style="width:${Math.min(100, d.pago / p * 100).toFixed(1)}%;background:#1e7a43"></i></div>`; };
+  const sit = d => d.falta > 0 ? `<span class="dp-tg a">falta empenhar ${fmtC(d.falta)}</span>` : d.dias !== null && d.dias >= 0 && d.dias <= 30 ? `<span class="dp-tg r">vence em ${d.dias} dia(s)</span>` : d.dias !== null && d.dias < 0 ? `<span class="dp-tg r">vencido</span>` : `<span class="dp-tg g">em dia</span>`;
+  return `<div class="dp-flow">${st('#163f2b', 'Contratos ativos', String(L.length), 'CEPLAC no Contratos.gov.br')}${st('#1d5a3c', 'Previsto nos contratos ' + new Date().getFullYear(), fmtC(prev), 'previsto no ano (Contratos.gov.br)', prev)}${st('#23744c', 'Empenhado no ano', fmtC(emp), pc(emp, prev) + ' do previsto', emp)}${st('#2b8f5d', 'Pago (EXE + RAP)', fmtC(pago), pc(pago, emp) + ' do empenhado', pago)}${st('#c98a10', 'Falta empenhar', fmtC(falta), fal.length + ' contrato(s)', falta)}</div>
+    <section class="card grafico"><h3>Cobertura por contrato</h3><p class="dica">os ${top.length} com mais a empenhar · barra: <span style="color:#1e7a43">■ pago</span> · <span style="color:#5fae80">■ empenhado</span> · □ previsto no ano · a lista completa sai no Excel da tabela abaixo</p>
+      <table class="dp-tb"><thead><tr><th>Contrato</th><th>Fornecedor</th><th class="n">Previsto no ano</th><th>Cobertura</th><th>Situação</th></tr></thead><tbody>${top.map(d => `<tr><td><b>${esc(d.num)}</b></td><td>${esc(String(d.forn || '').slice(0, 48))}</td><td class="n" title="${esc(fmtBRL(d.prev))}">${fmtC(d.prev)}</td><td>${barra(d)}</td><td>${sit(d)}</td></tr>`).join('')}</tbody></table></section>
+    ${tabela('dpcob', 'Contratos da CEPLAC · previsto × empenhado × pago', [['num','Contrato'],['forn','Fornecedor','txt'],['cat','Categoria'],['fim','Fim da vigência'],['prev','Previsto no ano','n'],['emp','Empenhado no ano','n'],['pago','Pago (EXE + RAP)','n'],['falta','Falta empenhar','n'],['acaoTxt','Pendências','txt']], L, {ordem:{campo:'falta', dir:-1}, arquivo:'despesas-previstas-contratos-ceplac'})}`;
+}
 // ---------- Despesas previstas (abas "Novas despesas previtas" e "... - Diego"): menu próprio ----------
 const VIEW_DESPESAS = {
   abas:'Novas despesas previtas|Novas despesas previtas - Diego',
@@ -7901,12 +7928,8 @@ const VIEWS = {
       ];
     },
     render(){
-      // por enquanto só a CEPLAC (130010) tem despesas previstas e demandas; as outras UGs aparecem zeradas até terem dados
-      const ug = window.__despUG || '130010';
-      const UGS = [['130010','130010 · CEPLAC'],['130141','130141 · CGPI/SDR'],['130255','130255 · CGMAP/SDR'],['135098','135098 · Caixa/MA'],['420013','420013 · SDR']];
-      const seletor = `<div class="card" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><b style="margin-right:6px">UG:</b>${UGS.map(([c,n]) => `<button type="button" class="o-btn" data-despug="${c}" style="${c===ug?'':'background:#fff;color:var(--tinta);border:1px solid #cfd8d3'}">${n}</button>`).join('')}</div>`;
-      if(ug !== '130010') return `<div class="o-wrap">${seletor}<div class="card estado">A UG ${esc(UGS.find(x => x[0]===ug)[1])} ainda não tem despesas previstas nem demandas cadastradas.<br><small>Valores zerados até a planilha ter os dados desta UG.</small></div>
-        <div class="grade g4">${kpi({titulo:'Despesas previstas', valor:fmtC(0), grande:1, destaque:1})}${kpi({titulo:'Demandas administrativas', valor:'0'})}${kpi({titulo:'Saldo à empenhar', valor:fmtC(0)})}${kpi({titulo:'Diferença', valor:fmtC(0)})}</div></div>`;
+      // 25/11/2026: a tela fica dentro da Base Contratos (CEPLAC) e mostra só a 130010 · o ciclo que só a CEPLAC controla: prevê, empenha, paga e confere
+      const seletor = `<div class="dp-top"><span class="dp-chip">● 130010 · CEPLAC</span><span class="dp-nota">Só a CEPLAC controla o contrato do começo ao fim: prevê a despesa do ano, empenha, paga e confere.</span></div>` + despCiclo();
       const ceplacTodas = (DADOS.siop?.linhas||[]).filter(d => normAccent(d.depto)==='CEPLAC' || d.acao==='20ZY');
       const aEmp = soma(ceplacTodas,'aEmp');
       const desp = DADOS.despesas.itens.slice().sort((a,b) => b.valor-a.valor);
@@ -10993,7 +11016,12 @@ const alCols0 = a => [['prior','Prior.','p'],['dep','Departamento','']].concat(a
 // só as colunas que têm algum dado neste alerta (coluna toda vazia some da tela e da exportação)
 const alCols = a => a._cv || (a._cv = alCols0(a).filter(c => c[0] === 'info' || c[2] === 'ctr' || c[2] === 'inst' || a.itens.some(x => { const v = x[c[0]]; return v !== null && v !== undefined && v !== '' && v !== 0 && v !== '—'; })));
 const alTxtV = (x, c) => { const v = x[c[0]]; return v === null || v === undefined ? '' : String(v); };
-function alFiltrar(a, q){ const T = norm(q), fx = AL.faixa[a.menu+'|'+a.id], I = fx ? a.itens.filter(x => x.faixa === fx) : a.itens.slice(); if(!T) return I; const C = alCols(a); return I.filter(x => norm(C.map(c => alTxtV(x, c)).join(' ')).includes(T)); }
+// filtro de prazo vindo do "Para agir" da Visão geral (hoje · próximos 7 dias · atrasados); some ao voltar para a Visão geral ou em "ver todos"
+const AL_PZ_ROT = {hj:'com prazo hoje', sm:'que vencem nos próximos 7 dias', at:'com o prazo já vencido'};
+const alPzD = x => x.prazo_d !== undefined && x.prazo_d !== null ? +x.prazo_d : x.dias !== undefined && x.dias !== null && x.dias !== '' ? +x.dias : null;
+const alPzOk = (x, pz) => { const d = alPzD(x); return d !== null && (pz === 'hj' ? d === 0 : pz === 'sm' ? d > 0 && d <= 7 : d < 0); };
+const alPzAtivo = a => AL.prazoF && AL.prazoF.k === a.menu+'|'+a.id+'|'+a.titulo ? AL.prazoF.pz : '';
+function alFiltrar(a, q){ const T = norm(q), fx = AL.faixa[a.menu+'|'+a.id], pz = alPzAtivo(a); let I = fx ? a.itens.filter(x => x.faixa === fx) : a.itens.slice(); if(pz) I = I.filter(x => alPzOk(x, pz)); if(!T) return I; const C = alCols(a); return I.filter(x => norm(C.map(c => alTxtV(x, c)).join(' ')).includes(T)); }
 function alCel(x, c, tela){ const [k, , t] = c, v = x[k];
   if(t === 'p') return `<td>${alScore(v)}</td>`;
   if(x.novo && (t === 'inst' || t === 'ctr' || t === 'link' || k === 'num' || k === 'ne')){ const h = alCel(Object.assign({}, x, {novo:0}), c, tela); return h.replace(/<\/td>$/, ' <span class="al-novo">NOVO</span></td>'); }
@@ -11110,10 +11138,44 @@ function alFiltrosHTML(tela){ const C = AL.cache[tela]; alEnriquecer(C.itens); c
   return `<div class="al-fil"><span>Departamento</span>${msxHTML('al|dep', {rot:'Departamento', todos:'Todos · SDR', opts:() => deps.map(d => [d, d === 'SDR' ? 'SDR (gabinete)' : d, cnt('dep', d)]), get:() => AL.dep, set:x => { AL.dep = x; desenharAlerta(tela); }})}
     <span>Controle</span>${msxHTML('al|ctrl', {rot:'Controle', todos:'Equipe e Geral', opts:() => ['Equipe SDR','Geral SDR'].map(d => [d, d, cnt('ctrl', d)]), get:() => AL.ctrl, set:x => { AL.ctrl = x; desenharAlerta(tela); }})}
     <small>Equipe SDR = UGs 130010 e 420013 (TED EQUIPE, Convênio/TF 420013, contratos da CEPLAC) · Geral SDR = demais UGs</small></div>`; }
+// ---------- 25/11/2026 · Alerta Contratos: "onde preciso atuar?" (gravidade, ações, mapa UG × tipo, base de origem) ----------
+const ALC_UG = [['130010','CEPLAC','#1e7a43'],['130141','CGPI','#c98a10'],['130255','CGMAP','#5aa9e6']];
+const ALC_ACAO = {'ctrsdr|vencido':'Regularizar','contratos|venc':'Regularizar','contratos|vig30':'Abrir processo','contratos|vig120':'Abrir processo','ctrsdr|renovar':'Acompanhar','ctrsdr|fatura':'Cobrar','ctrsdr|semresp':'Designar','ctrsdr|empenho':'Reforçar empenho','conferencia|naoenc':'Conferir','conferencia|fimdif':'Corrigir data','conferencia|vgdif':'Corrigir valor','conferencia|fora':'Cadastrar'};
+const ALC_CURTO = {'ctrsdr|vencido':'Vencido (Compras)','contratos|venc':'Vencido (Base)','contratos|vig30':'Vence ≤ 30 d','contratos|vig120':'Vence 31–120 d','ctrsdr|renovar':'Vence ≤ 120 d','ctrsdr|fatura':'Fatura vencida','ctrsdr|semresp':'Sem gestor/fiscal','ctrsdr|empenho':'Empenho','conferencia|naoenc':'Não achado','conferencia|fimdif':'Fim diferente','conferencia|vgdif':'Valor diferente','conferencia|fora':'Fora da Base'};
+const ALC_BASE = {ctrsdr:['Contratos SDR (Compras)','#1e7a43'], contratos:['Base Contratos CEPLAC','#8fd3a6'], conferencia:['Conferência Base × Compras','#c98a10'], despesas:['Despesas previstas','#5aa9e6']};
+const alcUG = x => { const u = String(x.ugc || ''); if(/^\d{6}$/.test(u)) return u; const g = String(x.ug || ''); return /^\d{6}$/.test(g) ? g : '130010'; };
+function alCtrPainel(I){
+  const tela = 'alertactr', K = a => tela+'|'+a.menu+'|'+a.id+'|'+a.titulo, n = a => a.itens.length, ord = {r:0, y:1, b:2};
+  const L = I.slice().sort((a, b) => ord[a.sev] - ord[b.sev] || n(b) - n(a));
+  if(!L.length) return `<div class="al-auto ok" style="margin-top:14px"><b>Nenhum alerta de contratos${AL.dep.length || AL.ctrl.length ? ' com este filtro' : ''}.</b> Tudo em dia pelos dados de hoje.</div>`;
+  const sv = s => I.filter(a => a.sev === s).reduce((t, a) => t + n(a), 0), R = sv('r'), Y = sv('y'), B = sv('b'), T = R + Y + B || 1;
+  const top = L[0], hoje = new Date().toLocaleDateString('pt-BR');
+  const seg = [['r', R, '#e5484d', 'crítico'], ['y', Y, '#f2b640', 'atenção'], ['b', B, '#5aa9e6', 'acompanhar']];
+  const hero = `<div class="alc-hero"><div><div class="alc-d">HOJE · ${hoje}</div><h2>O mais urgente: <b>${nfmt(n(top))} ${esc(top.titulo.charAt(0).toLowerCase() + top.titulo.slice(1))}</b>.</h2><p>${esc(top.sugestao)}</p></div>
+    <div><div class="alc-sl">pendências por gravidade · clique para filtrar as listas</div><div class="alc-seg">${seg.map(([s, v, c]) => v ? `<i data-alsev="${s}" style="width:${(v / T * 100).toFixed(1)}%;background:${c}" title="${v} ${s === 'r' ? 'crítico' : s === 'y' ? 'atenção' : 'acompanhar'}"></i>` : '').join('')}</div>
+    <div class="alc-lg">${seg.map(([s, v, c, r]) => `<button type="button" data-alsev="${s}" class="${AL.filtroSev === s ? 'on' : ''}"><b>${nfmt(v)}</b><span style="color:${c}">●</span> ${r}</button>`).join('')}<div><b>${nfmt(R + Y + B)}</b>total</div></div></div></div>`;
+  const porUG = a => { const c = {}; a.itens.forEach(x => { const u = alcUG(x); c[u] = (c[u] || 0) + 1; }); return c; };
+  const corS = {r:['#e5484d','#b3261e'], y:['#f2b640','#8a5a00'], b:['#5aa9e6','#1d5f99']};
+  const lanes = L.slice(0, 6).map(a => { const c = porUG(a), tot = n(a), k = a.menu+'|'+a.id;
+    const mini = ALC_UG.filter(([u]) => c[u]).map(([u, nm, cor]) => `<i style="width:${(c[u] / tot * 100).toFixed(1)}%;background:${cor}" title="${nm}: ${c[u]}"></i>`).join('') + Object.keys(c).filter(u => !ALC_UG.some(x => x[0] === u)).map(u => `<i style="width:${(c[u] / tot * 100).toFixed(1)}%;background:#9aa8a0" title="${u}: ${c[u]}"></i>`).join('');
+    return `<div class="alc-ln" style="border-color:${corS[a.sev][0]}"><div class="n" style="color:${corS[a.sev][1]}">${nfmt(tot)}</div><div><b>${esc(a.titulo)}</b><small>${esc(String(a.sugestao || '').split(/\. | \(/)[0].replace(/\.$/, ''))}</small></div><div class="alc-mini">${mini}</div><button type="button" class="alc-go" style="background:${corS[a.sev][a.sev === 'y' ? 1 : 0]}" data-alcl="${esc(K(a))}">${ALC_ACAO[k] || 'Ver lista'} ›</button></div>`; }).join('');
+  const lgUG = `<div class="alc-lu">${ALC_UG.map(([, nm, c]) => `<span style="color:${c}">■ ${nm}</span>`).join('')}</div>`;
+  // mapa de calor UG × tipo
+  const cols = L.slice(0, 8), ugs = ALC_UG.filter(([u]) => cols.some(a => porUG(a)[u])), mx = Math.max(1, ...cols.flatMap(a => Object.values(porUG(a))));
+  const cel = (a, u) => { const v = porUG(a)[u] || 0, t = v / mx; if(!v) return `<div class="z">0</div>`;
+    const bg = `rgba(229,72,77,${(0.12 + t * 0.88).toFixed(2)})`; return `<button type="button" data-alcl="${esc(K(a))}" data-alug="${u}" style="background:${bg};color:${t > .55 ? '#fff' : '#5a1512'}" title="${esc(a.titulo)} · ${u}: ${v}">${nfmt(v)}</button>`; };
+  const heat = `<div class="alc-card"><b>Mapa de calor · UG × tipo</b><p>quanto mais escuro, mais casos · clique numa célula para abrir a lista daquela UG</p>
+    <div class="alc-mx" style="grid-template-columns:62px repeat(${cols.length},minmax(0,1fr))"><div class="h"></div>${cols.map(a => `<div class="h" title="${esc(a.titulo)}">${esc(ALC_CURTO[a.menu+'|'+a.id] || a.titulo.slice(0, 14))}</div>`).join('')}
+    ${ugs.map(([u, nm]) => `<div class="h u">${nm}</div>` + cols.map(a => cel(a, u)).join('')).join('')}</div></div>`;
+  const bs = {}; I.forEach(a => bs[a.menu] = (bs[a.menu] || 0) + n(a)); const BT = Object.values(bs).reduce((a, b) => a + b, 0) || 1;
+  const base = `<div class="alc-card" style="margin-top:14px"><b>De qual base vem</b><div class="alc-seg" style="height:14px;margin:10px 0">${Object.entries(bs).map(([m, v]) => `<i style="width:${(v / BT * 100).toFixed(1)}%;background:${(ALC_BASE[m] || ['', '#9aa8a0'])[1]}"></i>`).join('')}</div>
+    ${Object.entries(bs).sort((a, b) => b[1] - a[1]).map(([m, v]) => `<div class="alc-bl"><span><i style="background:${(ALC_BASE[m] || ['', '#9aa8a0'])[1]}"></i>${esc((ALC_BASE[m] || [m])[0])}</span><b>${nfmt(v)}</b></div>`).join('')}</div>`;
+  return hero + `<div class="alc-g"><div><div class="alc-t">Onde preciso atuar? <span>· do mais grave ao menos · a barra mostra de quem é</span></div>${lanes}${lgUG}</div><div>${heat}${base}</div></div>`;
+}
 function desenharAlerta(tela){
   const el = document.getElementById('v-extra'); if(!el || el.dataset.tela !== tela) return;
   const [area, menus] = AL_AREA[tela], C = AL.cache[tela] || {};
-  const topo = `<div class="vx-top"><div><h1>ALERTA · ${area}</h1><small>o que mudou desde ontem · prioridades · listas por menu</small></div>${C.itens ? `<div class="al-exp"><span>Exportar a página</span><button type="button" data-alxp="xls">⬇ Excel</button><button type="button" data-alxp="pdf">⬇ PDF</button></div>` : ''}</div>`;
+  const topo = `<div class="vx-top"><div><h1>ALERTA · ${area}</h1><small>${tela === 'alertactr' ? 'o mais urgente · onde atuar · mapa por UG · listas por menu' : 'o que mudou desde ontem · prioridades · listas por menu'}</small></div>${C.itens ? `<div class="al-exp"><span>Exportar a página</span><button type="button" data-alxp="xls">⬇ Excel</button><button type="button" data-alxp="pdf">⬇ PDF</button></div>` : ''}</div>`;
   if(!C.itens){ el.innerHTML = topo + `<div class="vx-card" style="margin-top:14px">${C.erro ? 'Não foi possível montar os alertas: '+esc(C.erro) : 'Juntando os alertas da área…'}</div>`; return; }
   const V = alVisao(tela), I = V.filter(a => a.itens.length), temH = !!AL.temHist[tela], M = alMudLista(tela), MR = AL.mud[tela] && AL.mud[tela].ref;
   const soma = s => I.filter(a => a.sev === s).reduce((t, a) => t + a.itens.length, 0), novS = s => I.filter(a => a.sev === s).reduce((t, a) => t + a.itens.filter(x => x.novo).length, 0);
@@ -11154,8 +11216,9 @@ function desenharAlerta(tela){
       return `<div class="al-a ${a.sev} ${aberto ? 'ab' : ''}"><div class="al-hw"><button type="button" class="al-h2" data-alsel="${esc(k)}"><em>${a.itens.length.toLocaleString('pt-BR')}</em><span><b>${esc(a.titulo)}</b><small>Sugestão: ${esc(a.sugestao)}</small></span>
         ${temH ? alTend(a) : '<div class="al-tr"></div>'}<div class="al-nv">${temH && MR ? `${nv ? `<span class="al-novo">NOVO</span> ${nv} hoje` : '—'}<br><span class="dn">${rs ? '✓ '+rs+' resolvido'+(rs > 1 ? 's' : '') : ''}</span>` : ''}</div><i>${aberto ? 'fechar ▴' : 'ver lista ▾'}</i></button>
         <span class="al-bx"><button type="button" data-alx="xls" data-alk="${esc(k)}" title="Baixar esta lista em Excel">Excel</button><button type="button" data-alx="pdf" data-alk="${esc(k)}" title="Baixar esta lista em PDF">PDF</button></span></div>${chips}
+        ${aberto && alPzAtivo(a) ? `<div class="al-pzf">Mostrando só os ${nfmt(alFiltrar(a, '').length)} caso(s) <b>${AL_PZ_ROT[alPzAtivo(a)]}</b>, como no "Para agir" da Visão geral. <button type="button" data-alpzx>ver todos os ${nfmt(a.itens.length)}</button></div>` : ''}
         ${aberto ? `<div class="al-busca"><input type="search" placeholder="Procurar nesta lista (UG, fornecedor, PI, UF…)" value="${esc(q)}" data-alq="${esc(k)}">${nv ? `<label><input type="checkbox" data-alnov ${AL.novosPrim ? 'checked' : ''}> novos primeiro</label>` : ''}<small>ordenado pela prioridade · ${alCols(a).length} colunas · role para o lado para ver todas</small></div><div class="al-l" data-alcorpo="${esc(k)}">${alTabela(a, tela, q)}</div>` : ''}</div>`; }).join('')}</div>` : `<p class="al-vazio">✓ Sem alertas neste menu${AL.dep.length || AL.ctrl.length ? ' com este filtro' : ''}.</p>`}</div>`; }).join('');
-  el.innerHTML = topo + tot + mud + alFiltrosHTML(tela) + (AL.verRes ? res + prio : prio + res) + auto + secs + `<p class="em-n">Alertas calculados com os dados de hoje${tela === 'alertaorc' && AL.mesOrc ? ' (Tesouro: posição de '+esc(AL.mesOrc)+')' : ''}. Fonte: ${esc(AL_FONTE[tela])}. Departamento: pela UG e pela ação (nas Parcerias, a coluna DEPARTAMENTO da planilha vale primeiro). Clique no número do contrato ou do instrumento para abrir o relatório.</p>`;
+  el.innerHTML = topo + (tela === 'alertactr' ? alCtrPainel(I) + alFiltrosHTML(tela) + `<div class="alc-lt">Listas detalhadas <span>· abra uma lista para ver os casos · cada uma com Excel e PDF</span></div>` : tot + mud + alFiltrosHTML(tela) + (AL.verRes ? res + prio : prio + res) + auto) + secs + `<p class="em-n">Alertas calculados com os dados de hoje${tela === 'alertaorc' && AL.mesOrc ? ' (Tesouro: posição de '+esc(AL.mesOrc)+')' : ''}. Fonte: ${esc(AL_FONTE[tela])}. Departamento: pela UG e pela ação (nas Parcerias, a coluna DEPARTAMENTO da planilha vale primeiro). Clique no número do contrato ou do instrumento para abrir o relatório.</p>`;
 }
 document.addEventListener('click', e => {
   const r = e.target.closest('[data-alres]'); if(r){ e.preventDefault(); AL.verRes = !AL.verRes; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
@@ -11172,7 +11235,10 @@ document.addEventListener('click', e => {
   const x = e.target.closest('[data-alx]'); if(x){ const a = alAchar(x.dataset.alk), tela = document.getElementById('v-extra').dataset.tela; if(a) (x.dataset.alx === 'xls' ? alXls : alPdf)(a, tela, AL.q[x.dataset.alk] || ''); return; }
   const p = e.target.closest('[data-alxp]'); if(p){ const tela = document.getElementById('v-extra').dataset.tela; (p.dataset.alxp === 'xls' ? alXlsPagina : alPdfPagina)(tela); return; }
   const s = e.target.closest('[data-alsev]'); if(s){ AL.filtroSev = AL.filtroSev === s.dataset.alsev ? '' : s.dataset.alsev; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
-  const a = e.target.closest('[data-alsel]'); if(a){ AL.sel = AL.sel === a.dataset.alsel ? null : a.dataset.alsel; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
+  const cl = e.target.closest('[data-alcl]'); if(cl){ const k = cl.dataset.alcl, tela = document.getElementById('v-extra').dataset.tela; AL.sel = k; AL.filtroSev = ''; AL.prazoF = null; AL.q[k] = cl.dataset.alug || ''; desenharAlerta(tela);
+    const b = document.querySelector('#v-extra .al-a.ab'); if(b){ b.scrollIntoView({behavior: 'smooth', block: 'start'}); b.classList.add('al-foco'); } return; }
+  if(e.target.closest('[data-alpzx]')){ AL.prazoF = null; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
+  const a = e.target.closest('[data-alsel]'); if(a){ AL.prazoF = null; AL.sel = AL.sel === a.dataset.alsel ? null : a.dataset.alsel; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
   const m = e.target.closest('[data-alir]'); if(m){ ir(m.dataset.alir); return; }
   const c = e.target.closest('[data-alctr]'); if(c){ e.preventDefault(); ir('relctr', {id: c.dataset.alctr}); return; }
   const n = e.target.closest('[data-alinst]'); if(n){ e.preventDefault(); ir('relinst', {nr: n.dataset.alinst}); return; }
@@ -11188,6 +11254,24 @@ document.addEventListener('click', e => {
 .al-expl{margin:0 0 8px;background:#f1f7f3;border:1px solid #d5e6da;border-radius:10px;padding:8px 12px;font-size:12.5px;line-height:1.5;color:#2c3d33}.al-expl b{color:#155a30}
 .al-hw{display:flex;align-items:stretch}.al-hw .al-h{flex:1}.al-bx{display:flex;align-items:center;gap:4px;padding-right:12px}.al-bx button,.al-exp button{border:1px solid #cfe3d5;background:#f4f8f5;color:#155a30;font:inherit;font-size:11.5px;font-weight:700;border-radius:7px;padding:4px 9px;cursor:pointer}.al-bx button:hover,.al-exp button:hover{background:#1f6b3a;color:#fff}
 .al-exp{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border-radius:10px;padding:6px 10px}.al-exp span{color:#fff;font-size:12px;font-weight:700;margin-right:2px}.al-exp button{background:#fff}
+.alc-hero{margin-top:14px;background:#0f2d20;color:#fff;border-radius:22px;padding:20px 26px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:26px;align-items:center}
+.alc-hero h2{margin:4px 0 0;font-size:clamp(19px,2vw,25px);line-height:1.25;font-weight:600}.alc-hero h2 b{color:#ffb4a8}.alc-hero p{color:#a9cdb8;font-size:13.5px;margin:8px 0 0}.alc-d{font-size:12px;letter-spacing:.12em;color:#8fd3a6;font-weight:700}
+.alc-sl{font-size:13px;color:#cfe3d6}.alc-seg{display:flex;height:16px;border-radius:9px;overflow:hidden;margin:10px 0;background:#eef2ef}.alc-seg i{display:block;cursor:pointer}
+.alc-lg{display:flex;gap:6px;flex-wrap:wrap}.alc-lg button,.alc-lg div{background:none;border:1px solid transparent;border-radius:10px;color:#cfe3d6;font:inherit;font-size:13px;text-align:left;padding:4px 10px;cursor:pointer}.alc-lg button.on{border-color:#8fd3a6;background:#1f5a3e}.alc-lg b{display:block;font-size:24px;color:#fff}.alc-lg div{cursor:default}
+.alc-g{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,430px);gap:22px;margin-top:18px;align-items:start}.alc-t{font-size:18px;font-weight:700}.alc-t span{font-size:13px;color:#6b7a72;font-weight:400}
+.alc-ln{display:grid;grid-template-columns:64px minmax(0,1fr) minmax(80px,150px) 150px;gap:14px;align-items:center;background:#fff;border-radius:16px;padding:12px 16px;margin-top:10px;border-left:6px solid;border-radius:0 16px 16px 0}
+.alc-ln .n{font-size:30px;font-weight:800;letter-spacing:-1px}.alc-ln small{display:block;color:#6b7a72;font-size:12.5px;margin-top:2px}.alc-mini{display:flex;height:10px;border-radius:6px;overflow:hidden;background:#eef2ef}
+.alc-go{border:0;border-radius:11px;padding:10px 12px;font:inherit;font-weight:700;font-size:13px;color:#fff;cursor:pointer}.alc-go:hover{filter:brightness(1.08)}
+.alc-lu{display:flex;gap:16px;font-size:12.5px;margin-top:8px;font-weight:600}
+.alc-card{background:#fff;border-radius:18px;padding:16px 18px}.alc-card>b{font-size:16px}.alc-card p{color:#6b7a72;font-size:12.5px;margin:4px 0 12px}
+.alc-mx{display:grid;gap:4px;font-size:12px}.alc-mx>*{border-radius:7px;padding:9px 0;text-align:center;font-weight:700;border:0;font:inherit;font-weight:700;font-size:12.5px}.alc-mx button{cursor:pointer}.alc-mx .z{background:#f6f3f2;color:#aaa}
+.alc-mx .h{background:none;color:#6b7a72;font-weight:600;font-size:10.5px;line-height:1.15;padding:2px 0;align-self:end}.alc-mx .h.u{text-align:left;font-size:12px;align-self:center;color:#2b3a32}
+.alc-bl{display:flex;justify-content:space-between;font-size:13px;padding:4px 0}.alc-bl i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px}
+.alc-lt{margin:22px 0 6px;font-weight:800;color:#2b3a32;font-size:16px}.alc-lt span{font-weight:400;color:#6b7a72;font-size:13px}
+@media(max-width:1150px){.alc-hero,.alc-g{grid-template-columns:1fr}.alc-ln{grid-template-columns:54px minmax(0,1fr) 130px}.alc-mini{display:none}}
+.al-pzf{padding:9px 14px;background:#fff4d6;border-top:1px solid #efc56f;color:#4a3000;font-size:13px}.al-pzf button{margin-left:8px;border:1px solid #c98a10;background:#fff;color:#6b4500;border-radius:8px;padding:4px 10px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.al-a.al-foco{animation:alFoco 2.4s ease-out 1}@keyframes alFoco{0%,40%{box-shadow:0 0 0 4px #f0b429}100%{box-shadow:0 0 0 0 rgba(240,180,41,0)}}
+@media (prefers-reduced-motion:reduce){.al-a.al-foco{animation:none;box-shadow:0 0 0 3px #f0b429}}
 .al-busca{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid #e3ebe5;background:#f8fbf9}.al-busca input{flex:0 1 380px;border:1px solid #cfe3d5;border-radius:8px;padding:5px 10px;font:inherit;font-size:12.5px}.al-busca small{color:#5f6f66;font-size:11.5px}
 .al-l{border-top:1px solid #e3ebe5;max-height:460px;overflow:auto}.al-t{border-collapse:collapse;font-size:12px;min-width:100%;font-variant-numeric:tabular-nums}
 .al-t th{position:sticky;top:0;z-index:1;background:#1f6b3a;color:#fff;text-align:left;padding:6px 8px;font-weight:600;white-space:nowrap}.al-t td{padding:5px 8px;border-bottom:1px solid #eef3ef;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
@@ -11572,7 +11656,7 @@ function telaExtra(tela){
   ['v-antigo','v-visao','v-menu','v-painel'].forEach(id => { const x = document.getElementById(id); if(x) x.hidden = true; });
   document.body.style.overflow = ''; document.body.dataset.tema = '';
   el.hidden = false; el.dataset.tela = tela; window.scrollTo(0,0); marcarHash(tela); setTimeout(pintarChips, 0);
-  if(tela === 'invceplac') desenharInvCep(); else if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'cronparc') calParAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(tela === 'viagmat') desenharViagMat(); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
+  if(tela === 'invceplac') desenharInvCep(); else if(tela === 'relgest') rgPagina(); else if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'cronparc') calParAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(tela === 'viagmat') desenharViagMat(); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
 }
 (function(){ const st = document.createElement('style'); st.textContent = `
 .vx{box-sizing:border-box;max-width:100%;overflow-x:hidden;padding:18px 24px 40px;background:#e9efe9;min-height:100vh;font-family:Barlow,'Segoe UI',Arial,sans-serif;color:#1d2b24}
@@ -14200,6 +14284,7 @@ function rgVar(a, b, bomSobe, pct){
 // ---------- janela de emissão ----------
 async function rgAbrir(modelo){
   if(!podeRel(modelo)){ avisoBloqueio(); return; }
+  RG.inline = false;
   const w = await garantirAntigo(); if(RG.modelo !== modelo){ RG.ugs = []; RG.acoes = []; RG.fases = []; RG.cats = []; } RG.modelo = modelo;
   if(!RG.per || !w.relPeriodos(RG.tipo).some(p => p[0] === RG.per)){ const L = w.relPeriodos(RG.tipo); RG.per = (L[1]||L[0])[0]; }
   if(modelo === 'orc'){ try{ await carregarVisao('exe'); }catch(e){} } else if(modelo === 'viag'){ try{ await w.dados('viag'); }catch(e){} } else if(modelo === 'ctr'){ try{ await rgCarregarCtr(); }catch(e){} } else { try{ await rgCarregarTed(); }catch(e){} }
@@ -14211,8 +14296,52 @@ function rgOpcoesUG(){
   if(RG.modelo === 'orc'){ const s = new Set(); (DADOS.exe.agg||[]).forEach(d => s.add(d.ug)); return [...s].filter(Boolean).sort().map(u => [u, u+(UG_NOMES_CURTOS[u] ? ' · '+UG_NOMES_CURTOS[u].split(' · ')[0] : ''), null]); }
   return (AS.dados.ted || []).reduce((a, d) => { const u = d['UG descentralizadora']; if(u && !a.some(x => x[0] === u)) a.push([u, u+(UG_NOMES_CURTOS[u] ? ' · '+UG_NOMES_CURTOS[u].split(' · ')[0] : ''), null]); return a; }, []).sort();
 }
+// 25/11/2026: Relatórios de contratos viram página (menu Relatórios › Mensal/Trimestral/Semestral/Anual), sem janela por cima
+async function rgPagina(){
+  const el = document.getElementById('v-extra'); if(!el || el.dataset.tela !== 'relgest') return;
+  const nome = {mensal:'mensal', trimestral:'trimestral', semestral:'semestral', anual:'anual'}[RG.tipo] || 'trimestral'; RG.tipo = nome;
+  el.innerHTML = `<div class="vx-top"><div><h1>RELATÓRIO ${nome.toUpperCase()} DE CONTRATOS</h1><small>escolha o período na faixa do ano · a prévia ao lado mostra o que vai sair no PDF</small></div></div><div id="rgPag"><div class="vx-card" style="margin-top:14px">Lendo os contratos do Contratos.gov.br e o Tesouro…</div></div>`;
+  if(!podeRel('ctr')){ avisoBloqueio(); return; }
+  const w = await garantirAntigo(); if(RG.modelo !== 'ctr'){ RG.ugs = []; RG.acoes = []; RG.fases = []; RG.cats = []; } RG.modelo = 'ctr'; RG.inline = true; RG.cats = RG.cats || [];
+  if(!RG.per || !w.relPerOk(RG.tipo, RG.per)){ const L = w.relPeriodos(RG.tipo); RG.per = (L[1]||L[0])[0]; }
+  try{ await rgCarregarCtr(); }catch(e){}
+  if(el.dataset.tela !== 'relgest' || el.hidden) return;
+  rgJanela();
+}
+function rgPagHTML(jan, w, P){
+  const t = RG.tipo, y = P.y, MS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const chave = i => t === 'mensal' ? y+'-'+String(i+1).padStart(2,'0') : t === 'trimestral' ? y+'-T'+(Math.floor(i/3)+1) : t === 'semestral' ? y+'-S'+(Math.floor(i/6)+1) : String(y);
+  const C = RG.cmp === 'ano' ? null : P.ant, emC = i => C && C.ini.getFullYear() === y && i >= C.ini.getMonth() && i <= C.fim.getMonth();
+  const faixa = `<div class="rgp-yr">${MS.map((m, i) => { const k = chave(i), ok = w.relPerOk(t, k), sel = i >= P.m0 && i < P.m0 + P.n;
+      return `<button type="button" data-rgsub="${k}" ${ok ? '' : 'disabled'} class="${sel ? 'on' : emC(i) ? 'cp' : ''}" title="${ok ? '' : 'período ainda não começou'}">${m}</button>`; }).join('')}</div>
+    ${t === 'trimestral' || t === 'semestral' ? `<div class="rgp-qs" style="grid-template-columns:repeat(${t === 'trimestral' ? 4 : 2},1fr)">${(t === 'trimestral' ? [1,2,3,4] : [1,2]).map(q => { const m0 = (q-1)*(t === 'trimestral' ? 3 : 6), on = m0 === P.m0, cp = !on && emC(m0);
+      return `<div class="${on ? 'on' : ''}">${q}º ${t === 'trimestral' ? 'tri' : 'sem'}${on ? ' · selecionado' : cp ? ' · comparação' : ''}</div>`; }).join('')}</div>` : ''}`;
+  let form = jan.replace(/<div class="rg-cab">[\s\S]*?<\/div>/, '').replace(/<div class="rg-rot">Tipo<\/div><div class="rg-op">[\s\S]*?<\/div>/, '')
+    .replace(/(<div class="rg-rot">(Mês|Trimestre|Semestre)<\/div>)<div class="rg-op[^"]*">[\s\S]*?<\/div>/, '<div class="rg-rot">'+({mensal:'Mês', trimestral:'Trimestre', semestral:'Semestre', anual:'Ano'})[t]+' · clique na faixa</div>'+faixa)
+    .replace(/<button type="button" class="rg-gerar" data-rggerar(="")?>⬇ Gerar PDF<\/button>/, '<div class="rgp-bt"><button type="button" class="rg-gerar" data-rggerar>⬇ Gerar PDF</button><button type="button" class="rgp-xls" data-rgxls>⬇ Excel</button></div>');
+  if(t === 'anual') form = form.replace('</select>', '</select><div class="rg-rot">Ano · o exercício inteiro</div>' + faixa);
+  const tipoTxt = `<div class="rgp-tipos">${[['mensal','Mensal'],['trimestral','Trimestral'],['semestral','Semestral'],['anual','Anual']].map(([k, r]) => `<button type="button" data-rgtipo="${k}" class="${t === k ? 'on' : ''}">${r}</button>`).join('')}</div>`;
+  const ugs = RG.ugs.length ? RG.ugs : ['130010'], L = (AS.dados.ctr || []).filter(d => ugs.includes(d.ugc) && (!RG.cats.length || RG.cats.includes(d.cat))), at = L.filter(d => d.sit === 'Ativo');
+  const sm = k => at.reduce((a, d) => a + (d[k] || 0), 0), dt = d => d.toLocaleDateString('pt-BR');
+  const prev = `<div class="rgp-pg"><div class="rgp-h"><span>SDR/MAPA · Painel SDR</span><span>${esc(P.rot)}</span></div>
+    <h3>Relatório de gestão de contratos · ${esc(ugs.map(u => u + (UG_NOMES_CURTOS[u] ? ' ' + UG_NOMES_CURTOS[u].split(' · ')[0] : '')).join(', '))}</h3>
+    <small>${dt(P.ini)} a ${dt(P.fim)}${P.parcial ? ' (parcial)' : ''} · comparado com ${esc(RG.cmp === 'ano' ? P.rotAno0 : P.rotAnt)}${RG.cats.length ? ' · ' + esc(RG.cats.join(', ')) : ''}</small>
+    <div class="rgp-k"><div>Ativos hoje<b>${nfmt(at.length)}</b></div><div>Valor global<b>${fmtC(sm('vg'))}</b></div><div>Empenhado no ano<b>${fmtC(sm('emp'))}</b></div></div>
+    <div class="rgp-sec">O que vai no PDF</div><ol>${['Resumo do período','Números comparados com o período anterior','Faturas liquidadas por mês × previsto mensal','Por categoria','Vigências que vencem em 120 dias e vencidas','Faturas','Empenho × previsto do ano','Maiores fornecedores','Gestão e fiscalização','Pontos de risco e de segurança','Plano de ação por responsável'].map(x => `<li>${x}</li>`).join('')}</ol>
+    <p class="rgp-n">${nfmt(L.length)} contrato(s) no recorte · fonte: Contratos.gov.br + Tesouro Gerencial</p></div>`;
+  return `<div class="rgp">${tipoTxt}<div class="rgp-g"><div class="rgp-f">${form}</div>${prev}</div></div>`;
+}
+function rgXlsCtr(){
+  const ugs = RG.ugs.length ? RG.ugs : ['130010'], L = (AS.dados.ctr || []).filter(d => ugs.includes(d.ugc) && (!RG.cats.length || RG.cats.includes(d.cat))).sort((a, b) => (b.vg || 0) - (a.vg || 0));
+  const P = rgW().relPeriodo(RG.tipo, RG.per);
+  baixarXlsx({titulo: 'Relatório de gestão de contratos · ' + P.rot, sub: 'Contratos do recorte (posição de hoje)', filtros: ['UG: ' + ugs.join(', ')].concat(RG.cats.length ? ['Categoria: ' + RG.cats.join(', ')] : []), arquivo: 'relatorio-contratos-' + RG.per, aba: 'Contratos',
+    cab: [{t:'Contrato'},{t:'UG'},{t:'Fornecedor'},{t:'Categoria'},{t:'Situação'},{t:'Início'},{t:'Fim'},{t:'Dias para o fim', n:true},{t:'Valor global', n:true},{t:'Previsto no ano', n:true},{t:'Empenhado no ano', n:true},{t:'Pago (EXE + RAP)', n:true},{t:'Falta empenhar', n:true},{t:'Pendências'}],
+    linhas: L.map(d => [d.num, d.ugc, d.forn || '', d.cat || '', d.sit, d.ini || '', d.fim || '', d.dias === null || d.dias === undefined ? '' : d.dias, d.vg || 0, d.prev || 0, d.emp || 0, d.pago || 0, d.falta || 0, d.acaoTxt || '']), fonte: 'Contratos.gov.br (API) + Tesouro Gerencial'});
+}
 function rgJanela(){
-  const w = rgW(); let f = document.getElementById('rgFundo');
+  const w = rgW(), vx = document.getElementById('v-extra'), inl = RG.inline && vx && !vx.hidden && vx.dataset.tela === 'relgest' && document.getElementById('rgPag');
+  if(!inl) RG.inline = false;
+  let f = inl ? document.getElementById('rgPag') : document.getElementById('rgFundo');
   if(!f){ f = document.createElement('div'); f.id = 'rgFundo'; document.body.appendChild(f); }
   const t = RG.tipo, per = RG.per, ano = +per.slice(0,4), aH = new Date().getFullYear(), P = w.relPeriodo(t, per);
   const subs = t === 'mensal' ? ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'].map((n, i) => [ano+'-'+String(i+1).padStart(2,'0'), n]) : t === 'trimestral' ? [1,2,3,4].map(q => [ano+'-T'+q, q+'º tri']) : t === 'semestral' ? [1,2].map(s => [ano+'-S'+s, s+'º sem']) : [];
@@ -14235,11 +14364,15 @@ function rgJanela(){
     <div class="rg-rot">Comparar com</div><div class="rg-op"><button type="button" data-rgcmp="ant" class="${RG.cmp === 'ant' ? 'on' : ''}">Período anterior (${P.rotAnt})</button><button type="button" data-rgcmp="ano" class="${RG.cmp === 'ano' ? 'on' : ''}">Mesmo período de ${P.y-1}</button></div>
     <button type="button" class="rg-gerar" data-rggerar>⬇ Gerar PDF</button>
     <p class="rg-nota">Abre o relatório numa aba nova; na janela de impressão escolha <b>Salvar como PDF</b>.</p></div>`;
+  if(inl) f.innerHTML = rgPagHTML(f.innerHTML, w, P);
   f.hidden = false;
 }
 document.addEventListener('click', async e => {
-  const f = document.getElementById('rgFundo'); if(!f || f.hidden || !e.target.closest('#rgFundo')) return;
-  if(e.target === f || e.target.closest('[data-rgfecha]')){ f.hidden = true; return; }
+  const f = e.target.closest('#rgFundo') || e.target.closest('#rgPag'); if(!f || f.hidden) return;
+  const pag = f.id === 'rgPag';
+  if(!pag && (e.target === f || e.target.closest('[data-rgfecha]'))){ f.hidden = true; return; }
+  if(e.target.closest('[data-rgxls]')){ rgXlsCtr(); return; }
+  if(pag && e.target.closest('[data-rgtipo]')){ RG.tipo = e.target.closest('[data-rgtipo]').dataset.rgtipo; RG.per = ''; rgPagina(); return; }
   const w = rgW();
   const t = e.target.closest('[data-rgtipo]'); if(t){ RG.tipo = t.dataset.rgtipo; const L = w.relPeriodos(RG.tipo); RG.per = (L[1]||L[0])[0]; rgJanela(); return; }
   const s = e.target.closest('[data-rgsub]'); if(s && !s.disabled){ RG.per = s.dataset.rgsub; rgJanela(); return; }
@@ -14249,7 +14382,7 @@ document.addEventListener('click', async e => {
     let jan = null; if(!PDF_ARQ) try{ jan = window.open('', '_blank'); if(jan && jan.document) jan.document.write('<p style="font:16px Arial;padding:30px">Montando o relatório…</p>'); }catch(x){}
     try{ const P = w.relPeriodo(RG.tipo, RG.per), html = RG.modelo === 'orc' ? await rgOrc(P) : RG.modelo === 'ctr' ? await rgCtr(P) : RG.modelo === 'viag' ? await rgViag(P) : await rgTed(P);
       if(jan && jan.document){ jan.document.open(); jan.document.write(html); jan.document.close(); } else abrirPDF(html, 'relatorio-'+RG.modelo+'-'+RG.per);
-      f.hidden = true; }
+      if(pag){ g.disabled = false; g.textContent = '⬇ Gerar PDF'; } else f.hidden = true; }
     catch(err){ if(jan) try{ jan.close(); }catch(x){} g.disabled = false; g.textContent = '⬇ Gerar PDF'; const n = f.querySelector('.rg-nota:last-child'); if(n) n.innerHTML = '<b style="color:#b3261e">Não foi possível montar o relatório: '+esc(err.message)+'</b>'; console.error(err); }
   }
 });
@@ -14600,6 +14733,15 @@ async function rgCtr(P){
 
 window.relExtrasParc = relExtrasParc; window.rgAbrir = rgAbrir;
 (function(){ const st = document.createElement('style'); st.textContent = `
+.rgp{margin-top:14px}.rgp-tipos{display:inline-flex;background:#fff;border-radius:12px;padding:4px;gap:2px;margin-bottom:14px}.rgp-tipos button{border:0;background:none;font:inherit;font-weight:600;font-size:14px;padding:8px 18px;border-radius:9px;cursor:pointer;color:#36503f}.rgp-tipos button.on{background:#155a30;color:#fff}
+.rgp-g{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:26px;align-items:start}.rgp-f .rg-jan{width:auto;max-height:none;box-shadow:0 1px 0 rgba(0,0,0,.04);border-radius:18px;padding:20px 24px;font-size:14px}
+.rgp-yr{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin:6px 0}.rgp-yr button{border:0;background:#eef2ef;border-radius:8px;padding:11px 0;font:inherit;font-size:13px;font-weight:600;color:#5d6f65;cursor:pointer}.rgp-yr button:hover{background:#dbe9df}.rgp-yr button.on{background:#1e7a43;color:#fff}.rgp-yr button.cp{background:#d9ecdf;color:#1e5a3a}.rgp-yr button:disabled{opacity:.4;cursor:default}
+.rgp-qs{display:grid;gap:4px;margin-bottom:6px}.rgp-qs div{text-align:center;font-size:12.5px;color:#6b7a72;border-top:3px solid #dfe7e1;padding-top:6px}.rgp-qs div.on{border-color:#1e7a43;color:#1e7a43;font-weight:800}
+.rgp-bt{display:flex;gap:10px;margin-top:14px}.rgp-bt .rg-gerar{flex:1;margin:0}.rgp-xls{border:0;background:#eef2ef;color:#1e5a3a;border-radius:10px;padding:0 22px;font:inherit;font-weight:700;cursor:pointer}
+.rgp-pg{background:#fff;border-radius:6px;box-shadow:0 20px 50px rgba(20,40,30,.18);padding:22px 26px;transform:rotate(.8deg);font-size:12.5px;color:#2b3a32}.rgp-h{display:flex;justify-content:space-between;font-size:11px;color:#6b7a72}.rgp-pg h3{margin:10px 0 2px;font-size:16px;color:#14231b}.rgp-pg small{color:#6b7a72}
+.rgp-k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.rgp-k div{background:#f2f7f3;border-radius:8px;padding:8px 10px;font-size:11px;color:#5d6f65}.rgp-k b{display:block;font-size:15px;color:#14231b}
+.rgp-sec{font-weight:700;color:#155a30;font-size:12px;margin-top:6px}.rgp-pg ol{margin:6px 0 0 18px;padding:0;line-height:1.7}.rgp-n{color:#8a978f;font-size:11.5px;margin:10px 0 0}
+@media(max-width:1100px){.rgp-g{grid-template-columns:1fr}.rgp-pg{transform:none}}
 #rgFundo{position:fixed;inset:0;background:rgba(10,30,20,.45);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding-top:60px}#rgFundo[hidden]{display:none}
 .rg-jan{background:#fff;border-radius:14px;width:min(520px,94vw);padding:16px 20px;box-shadow:0 18px 50px rgba(0,0,0,.3);font-family:inherit;font-size:13.5px;max-height:86vh;overflow:auto}
 .rg-cab{display:flex;justify-content:space-between;align-items:center;color:#155a30;font-size:16px}.rg-cab button{border:0;background:none;font-size:18px;cursor:pointer}
@@ -14614,7 +14756,7 @@ window.relExtrasParc = relExtrasParc; window.rgAbrir = rgAbrir;
 // =====================================================================
 const AREA_NOME = {CONTRATOS:'Contratos', PARCERIAS:'Parcerias', TED:'TED', DIARIAS:'Diárias e passagens', ORCAMENTO:'Orçamento e finanças'};
 const AREA_TELA = {
-  contratos:'CONTRATOS', invceplac:'CONTRATOS', busca:'CONTRATOS', ctrsdr:'CONTRATOS', despesas:'CONTRATOS', conferencia:'CONTRATOS', relctr:'CONTRATOS', alertactr:'CONTRATOS',
+  contratos:'CONTRATOS', invceplac:'CONTRATOS', busca:'CONTRATOS', ctrsdr:'CONTRATOS', despesas:'CONTRATOS', conferencia:'CONTRATOS', relctr:'CONTRATOS', relgest:'CONTRATOS', alertactr:'CONTRATOS',
   orcacao:'ORCAMENTO', orcamento:'ORCAMENTO', financeiro:'ORCAMENTO', exe:'ORCAMENTO', rap:'ORCAMENTO', exerap:'ORCAMENTO', cronorc:'ORCAMENTO', alertaorc:'ORCAMENTO',
   viag:'DIARIAS', viagmat:'DIARIAS', viagalerta:'DIARIAS',
   parc:'PARCERIAS', prop:'PARCERIAS', conv:'PARCERIAS', repasse:'PARCERIAS', relinst:'PARCERIAS', captacao:'PARCERIAS', indic:'PARCERIAS', cronparc:'PARCERIAS', alertaparc:'PARCERIAS',
@@ -14662,7 +14804,7 @@ async function ir(tela, sel){
   if(!podeTela(tela)){ if(IR_N > 0 || tela !== 'visao') avisoBloqueio(); const alvo = primeiraLiberada(); if(alvo === tela) return; tela = alvo; }
   IR_N++;
   { const vx = document.getElementById('v-extra'); if(vx) vx.hidden = true; }
-  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='invceplac' || tela==='portmapa' || tela==='acoessdr' || tela==='viagmat' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); if(tela==='invceplac'){ if(sel && sel.aba) CEP.aba = sel.aba; desenharInvCep(); } return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
+  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='relgest' || tela==='invceplac' || tela==='portmapa' || tela==='acoessdr' || tela==='viagmat' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); if(tela==='invceplac'){ if(sel && sel.aba) CEP.aba = sel.aba; desenharInvCep(); } return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
   if(TELAS_ANTIGAS.includes(tela)){
     marcarHash(tela);
     fecharMS(); VISAO = 'menu'; abrirAntiga(tela, sel); return;
@@ -14855,6 +14997,10 @@ function saudeRobo(k){
 }
 function desenharVisaoGeral(){
   const el = document.getElementById('vg-corpo'); if(!el || document.getElementById('v-visao').hidden) return;
+  AL.prazoF = null;   // voltou para a Visão geral: o filtro de prazo do "Para agir" deixa de valer na tela de alerta
+  // 25/11/2026: TED (TED GERAL SDR · API Transferegov) e Contratos SDR (Contratos.gov.br) entram em segundo plano
+  if(!VG.tedApi && !VG.tedCarr){ VG.tedCarr = 1; asTed().then(l => { VG.tedApi = l; vgRedesenhar(); }).catch(e => { VG.tedErr = e.message; vgRedesenhar(); }); }
+  if(!VG.ctrSdr && !VG.ctrCarr){ VG.ctrCarr = 1; asCtr().then(l => { VG.ctrSdr = l || []; vgRedesenhar(); }).catch(e => { VG.ctrErr = e.message; vgRedesenhar(); }); }
   const exeL = (DADOS.exe.det[VG.mes]||[]).filter(vgPassa), rapL = (DADOS.rap.det[VG.mesR||VG.mes]||[]).filter(vgPassa);
   const e = somar(exeL,'exe'), r = somar(rapL,'rap');
   // filtros do topo
@@ -14895,6 +15041,7 @@ function desenharVisaoGeral(){
   const A = VG.ant, L = k => (A[k] && A[k].linhas) || [];
   const parc = L('parc').filter(d => !VG.ug.length || VG.ug.includes(String(d.ug||'')));
   const nS = d => norm(d.situ);
+  const aprovP = parc.filter(d => /PLANO DE TRABALHO APROVADO/.test(nS(d)));
   const execu = parc.filter(d => /EM EXECUCAO/.test(nS(d))), aguard = parc.filter(d => /AGUARDANDO PRESTACAO/.test(nS(d))),
         anal = parc.filter(d => /PRESTACAO DE CONTAS/.test(nS(d)) && !/AGUARDANDO|CONCLUID|APROVAD/.test(nS(d))), concl = parc.filter(d => /CONCLUID|APROVAD/.test(nS(d)));
   const sm = (l,k) => l.reduce((a,d) => a+(d[k]||0), 0);
@@ -15004,10 +15151,330 @@ function desenharVisaoGeral(){
     ${st('RAP · Tesouro', DADOS.rap.pronto && !DADOS.rap.erros.length && !(DATAS.rap && diasDesde(DATAS.rap.ult)>4), DADOS.rap.pronto ? nfmt((DADOS.rap.det[VG.mesR||VG.mes]||[]).length)+' linhas'+(DADOS.rap.vazias.length?' · '+DADOS.rap.vazias.length+' aba(s) vazia(s)':'')+dTG('rap')+(TEMPOS_PAI.rap ? `<em>⏱ leu em ${String(TEMPOS_PAI.rap).replace('.',',')} s</em>` : '') : 'carregando…')}
     ${st('Parceria SDR', lin('parc'), tl('parc'))}${st('Propostas', lin('prop'), tl('prop'))}${st('TED vigentes', lin('tedVig'), tl('tedVig'))}${st('Contratos CEPLAC', lin('base'), tl('base'))}${['tg','ctr','ted'].map(saudeRobo).join('')}
   </div>${(VG.erros.concat(errAnt)).length ? `<p class="vg-erro">${esc(VG.erros.concat(errAnt).join(' · '))}</p>` : ''}`;
+  vgModoBarra();
+  if(vgModo() !== 'classico'){ try{
+    const iS = h.lastIndexOf('<h2 class="vg-sec">Saúde dos dados'), saude = h.slice(iS).replace(/<p class="vg-erro">[\s\S]*$/, '');
+    h = vgModoHTML({e, r, exeL, rapL, porUG, execu, aprovP, sm, vig, pc, base, cV, c30, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saude, erros: VG.erros.concat(errAnt)});
+  }catch(err){ console.warn('visão geral (modo novo)', err); h = `<p class="vg-erro">Não foi possível montar o modo ${esc(vgModo())}: ${esc(err.message)} · mostrando a visão clássica</p>` + h; } }
   el.innerHTML = h;
 }
 document.addEventListener('change', e => {
 });
+// =====================================================================
+// VISÃO GERAL · dois modos (esboços aprovados em 24/11/2026)
+//   Executivo ........ "como estamos?"  faixa do ano · curva mês a mês · para agir · parcerias/TED/contratos · por UG · saúde dos dados
+//   Sala de controle . "o que eu faço hoje?"  pulso desde ontem · fila do dia · saúde dos dados · dinheiro parado · quem tem o quê
+//   (a visão anterior continua disponível em "Clássica")
+// =====================================================================
+const VG_MODOS = [['exec','Executivo'],['sala','Sala de controle'],['classico','Clássica']];
+function vgModo(){ if(VG.modo) return VG.modo; let m = ''; try{ m = localStorage.getItem('sdrVgModo') || ''; }catch(e){} return (VG.modo = VG_MODOS.some(x => x[0] === m) ? m : 'exec'); }
+function vgModoBarra(){
+  const el = document.getElementById('vg-modo'); if(!el) return; const m = vgModo();
+  el.innerHTML = VG_MODOS.map(([k, t]) => `<button type="button" data-vgmodo="${k}" class="${k === m ? 'on' : ''}${k === 'classico' ? ' cl' : ''}">${t}</button>`).join('');
+  document.getElementById('v-visao').classList.toggle('vm-largo', m !== 'classico');
+}
+(function(){ const st = document.createElement('style'); st.textContent = `
+#v-visao.vm-largo .vg-wrap{max-width:1360px}
+#vg-modo{display:inline-flex;background:rgba(0,0,0,.22);border-radius:20px;padding:3px;gap:2px;margin-right:6px}
+#vg-modo button{border:0;background:transparent;color:#cfe6d7;font:inherit;font-size:13px;font-weight:600;padding:5px 13px;border-radius:16px;cursor:pointer}
+#vg-modo button.on{background:#8fd3a6;color:#0f3324}#vg-modo button.cl{font-weight:400;font-size:12px;opacity:.8}
+.vm{font-family:Inter,Barlow,system-ui,sans-serif;color:#17251e}
+.vm h3{margin:0;font-size:18px;font-weight:700;letter-spacing:-.2px}.vm .s{color:#6b7a72;font-size:13px;margin:3px 0 10px}
+.vm .c{background:#fff;border-radius:14px;padding:16px 18px}
+.vm a.vm-ir,.vm .vm-ir{color:#1e6b45;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none;background:none;border:0;font-family:inherit}
+.vm-faixa{background:linear-gradient(100deg,#164a33,#1e6b45);color:#fff;border-radius:16px;padding:18px 22px;display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;margin-top:12px}
+.vm-anel{display:flex;align-items:center;gap:14px}.vm-anel span{color:#cfe6d7;font-weight:600;font-size:14px;line-height:1.3}
+.vm-kp{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}.vm-kp>div.lp b{color:#ffb4a8}.vm-kp>div{border-left:1px solid #3b7a5c;padding:2px 16px;cursor:pointer}
+.vm-kp small{color:#bfdccb;font-size:12.5px}.vm-kp b{display:block;font-size:25px;letter-spacing:-.5px;margin:2px 0;white-space:nowrap}.vm-kp em{font-style:normal;font-size:12px;color:#cfe6d7}
+.vm-ins{grid-column:1/3;background:rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;font-size:15px;color:#eaf5ee}
+.vm-g2{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.vm-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+.vm-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}.vm-chips button{border:1px solid #cfdad3;border-radius:14px;padding:3px 11px;font:inherit;font-size:12.5px;color:#7d8b83;background:#fff;cursor:pointer}
+.vm-chips button.on{background:#17251e;color:#fff;border-color:#17251e}
+.vm-graf svg{width:100%;height:auto;display:block}
+.vm-al h4{margin:12px 0 4px;font-size:13px;color:#46554d}
+.vm-it{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid #f0f3f1;cursor:pointer}
+.vm-it .n{font-weight:800;font-size:21px;text-align:right}.vm-it .t{font-size:14px}.vm-it .t small{display:block;color:#6b7a72;font-size:12px}
+.vm-pz{font-size:11.5px;font-weight:700;border-radius:9px;padding:3px 9px;white-space:nowrap}
+.vm-pz.at{background:#b3261e;color:#fff}.vm-pz.hj{background:#fde4e1;color:#b3261e}.vm-pz.am{background:#fff0d4;color:#8a5a00}.vm-pz.sm{background:#e6eef7;color:#1f4e79}
+.vm-m .top{display:flex;justify-content:space-between;align-items:baseline}.vm-m .big{font-size:27px;font-weight:700;margin:8px 0}.vm-m .big span{font-size:14px;color:#6b7a72;font-weight:500}
+.vm-bar{height:10px;background:#e8eee9;border-radius:6px;overflow:hidden;display:flex}.vm-bar i{display:block;height:100%}
+.vm-q{display:flex;gap:14px;font-size:12.5px;color:#46554d;flex-wrap:wrap;margin:8px 0}.vm-q span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;background:var(--c)}
+.vm-m .vm-ir{display:block;text-align:right}
+.vm-m .big b{font-weight:700}.vm-sub{margin:-4px 0 8px;font-size:12.5px;color:#46554d}
+.vm-ugf{background:#fff4d6;border:1px solid #efc56f;color:#4a3000;border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:13.5px}
+.vm-ugf button{float:right;margin-left:10px;border:1px solid #c98a10;background:#fff;color:#6b4500;border-radius:8px;padding:4px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.vm [title]{cursor:help}.vm [data-vgir][title],.vm [data-vmal][title],.vm [data-vgug] [title]{cursor:pointer}
+.vm-ugl{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.vm-u{border:1px solid #e3ebe5;border-radius:12px;padding:10px 12px;cursor:pointer}.vm-u:hover{border-color:#8fbfa2}
+.vm-u .uh{display:flex;align-items:baseline;gap:6px}.vm-u .uh b{font-size:15px}.vm-u .uh small{color:#6b7a72;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.vm-u .st{margin-left:auto;font-size:11.5px;font-weight:700;white-space:nowrap}
+.vm-u .dt{display:block;color:#6b7a72;font-size:12px;margin:2px 0 6px}
+.vm-ln{display:grid;grid-template-columns:74px minmax(0,1fr) 58px 34px;gap:6px;align-items:center;font-size:12px;margin:5px 0}.vm-ln b{text-align:right;font-size:12.5px}.vm-ln em{font-style:normal;color:#6b7a72;text-align:right}
+.vm-ln .b{height:8px;background:#e8eee9;border-radius:5px;position:relative}.vm-ln .b i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}.vm-ln .b u{position:absolute;top:-4px;bottom:-4px;width:2px;background:#1f4e79}
+.vm-sd .vg-saude{margin:0}.vm-side .vg-saude{grid-template-columns:repeat(2,minmax(0,1fr))!important}.vm-sdh{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}.vm-sdh em{font-style:normal;font-weight:700;font-size:13.5px}
+.vm-ac{background:#123d2a;border-radius:14px;padding:12px 16px;display:flex;gap:10px;align-items:center;color:#cfe6d7;font-size:14px;margin-top:14px;flex-wrap:wrap}
+.vm-ac button{background:#1d553b;color:#fff;border:0;border-radius:9px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.vm-sec{margin-top:14px}
+.vm-pulso{background:#164a33;color:#e6f2ea;border-radius:14px;padding:12px 20px;display:flex;gap:26px;align-items:center;font-size:14px;margin-top:12px;flex-wrap:wrap}
+.vm-pulso b{font-size:20px;color:#fff;margin-right:5px}.vm-pulso .t{color:#9fc7b0;font-weight:600}.vm-pulso .up{color:#ffb4a8}.vm-pulso .ok{color:#8fd3a6}
+.vm-gs{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;margin-top:14px;align-items:start}
+.vm-tabs{display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap}.vm-tabs button{padding:6px 12px;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:#46554d;background:#f0f4f1;border:0;cursor:pointer}.vm-tabs button.on{background:#17251e;color:#fff}
+.vm-fl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:13px}.vm-fl em{font-style:normal;margin-left:auto;color:#6b7a72}
+.vm-t{width:100%;border-collapse:collapse}.vm-t th{font-size:11.5px;color:#6b7a72;text-align:left;padding:6px;font-weight:600}.vm-t td{padding:8px 6px;border-top:1px solid #eef2ef;font-size:13.5px;vertical-align:middle}
+.vm-t td small{display:block;color:#6b7a72;font-size:12px}.vm-t td.v{font-weight:700;text-align:right;white-space:nowrap}.vm-t .mut{color:#6b7a72;font-size:12.5px}
+.vm-t a{color:#1e6b45;font-weight:700}
+.vm-mais{text-align:center;padding-top:10px}
+.vm-side{display:flex;flex-direction:column;gap:14px}
+.vm-din .it{padding:9px 0;border-top:1px solid #f0f3f1}.vm-din .it b{font-size:21px;display:block}.vm-din .it small{color:#6b7a72;font-size:12.5px}.vm-din .vm-ir{float:right;margin-top:4px}
+.vm-qh,.vm-qr{display:grid;grid-template-columns:150px minmax(0,1fr) 72px 56px 64px 140px;gap:10px;align-items:center}
+.vm-qh{font-size:11.5px;color:#6b7a72;font-weight:600}.vm-qh span:nth-child(n+3){text-align:right}
+.vm-qr{padding:8px 0;border-top:1px solid #f0f3f1;font-size:14px}.vm-qr .nm{font-weight:700;cursor:pointer;background:none;border:0;font:inherit;font-weight:700;text-align:left;padding:0}
+.vm-qr .rb{height:10px;background:#f2e3e1;border-radius:5px;overflow:hidden}.vm-qr .rb i{display:block;height:100%;background:#b3261e}
+.vm-qr .a{color:#b3261e;font-weight:700;text-align:right}.vm-qr .h{color:#b3261e;text-align:right}.vm-qr .w{color:#8a5a00;text-align:right}
+.vm-xb{display:flex;gap:6px;justify-content:flex-end}.vm-xb button{border:1px solid #1e6b45;color:#1e6b45;background:#fff;border-radius:7px;padding:3px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.vm-det{background:#f7faf8;border-radius:10px;margin:2px 0 10px;padding:12px 14px;border:1px solid #e3ebe5}
+.vm-tp{display:grid;grid-template-columns:260px minmax(0,1fr) 60px 56px 64px;gap:10px;align-items:center;font-size:13px;padding:5px 0;border-top:1px solid #edf2ee}
+.vm-tp:first-child{border:0}.vm-tp .rb{height:8px;background:#f2e3e1;border-radius:5px;overflow:hidden}.vm-tp .rb i{display:block;height:100%;background:#b3261e}.vm-tp b{text-align:right;color:#b3261e}.vm-tp span.r{text-align:right}
+.vm-det .vm-t{background:#fff;border-radius:8px;margin-top:10px}
+.vm-cal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.vm-cal>div{border:1px solid #e3ebe5;border-radius:10px;padding:8px 10px;font-size:12.5px;min-height:86px}
+.vm-cal>div.hoje{border-color:#1e6b45;border-width:2px}.vm-cal b{display:block;font-size:20px}.vm-cal small{color:#6b7a72}.vm-cal ul{margin:6px 0 0;padding:0;list-style:none}.vm-cal li{margin:2px 0}
+.vm-nota{font-size:12px;color:#7d8b83;margin:12px 2px 0}
+@media (max-width:1100px){.vm-faixa{grid-template-columns:1fr}.vm-ins{grid-column:auto}.vm-kp{grid-template-columns:repeat(2,1fr);row-gap:10px}.vm-g2,.vm-g3,.vm-gs{grid-template-columns:1fr}.vm-ugl{grid-template-columns:repeat(2,1fr)}.vm-cal{grid-template-columns:repeat(2,1fr)}}
+`; document.head.appendChild(st); })();
+
+const vmTT = v => ` title="${esc(fmtBRL(+v || 0))}"`;   // valor exato ao passar o mouse (como no Orçamento por ações)
+const VM_UGC = {'130010':'CEPLAC','130141':'CGPI','130255':'CGMAP'};
+function vmFaixaUG(){ return VG.ug.length ? `<div class="vm-ugf">🔎 Mostrando só ${VG.ug.length > 1 ? 'as UGs' : 'a UG'} <b>${VG.ug.map(u => esc(u + (UG_NOMES_CURTOS[u] ? ' · ' + UG_NOMES_CURTOS[u].split(' · ')[0] : ''))).join(', ')}</b> em toda a tela (execução, para agir, convênios, TED e contratos). <button type="button" data-vgugx>limpar</button></div>` : ''; }
+function vgIrAlerta(o){ if(!o || !o.a) return; let {tela, menu, id, titulo} = o.a;
+  // os contratos da CEPLAC têm nomes próprios na tela de alerta
+  if(menu === 'contratos'){ if(o.pz === 'at'){ id = 'venc'; titulo = 'Contratos ativos com a vigência vencida'; } else if(id === 'ctr30'){ id = 'vig30'; titulo = 'Vigência vence em até 30 dias'; } else { id = 'vig120'; titulo = 'Vigência vence em 31 a 120 dias'; } }
+  const pf = o.pz ? {k: menu + '|' + id + '|' + titulo, pz: o.pz} : null;
+  AL.sel = tela + '|' + menu + '|' + id + '|' + titulo; AL.filtroSev = ''; ir(tela); AL.prazoF = pf;
+  // espera a lista aparecer, rola até ela e destaca
+  let n = 0; const t = setInterval(() => { n++; const el = document.querySelector('#v-extra .al-a.ab');
+    if(el){ clearInterval(t); AL.prazoF = pf; try{ desenharAlerta(tela); }catch(e){} const b = document.querySelector('#v-extra .al-a.ab'); if(b){ b.scrollIntoView({behavior: 'smooth', block: 'start'}); b.classList.add('al-foco'); } }
+    else if(n > 120) clearInterval(t); }, 150); }
+const vmPct = (a, b) => b > 0 ? (Math.floor(a / b * 1000) / 10).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%' : '—';
+const vmPz = d => d === null || d === undefined ? ['', ''] : d < 0 ? ['at', 'Atrasado'] : d === 0 ? ['hj', 'Hoje'] : d === 1 ? ['am', 'Amanhã'] : d <= 7 ? ['sm', 'Em ' + d + ' dias'] : ['sm', 'Em ' + d + ' dias'];
+const vmQuem = it => it.proponente || it.fav || it.unid || it.convenente || it.municipio || '';
+const vmSit = d => d === null || d === undefined ? '—' : d < 0 ? 'venceu há ' + nfmt(-d) + ' d' : d === 0 ? 'vence hoje' : 'vence em ' + d + ' d';
+
+function vgModoHTML(x){
+  // se o detalhe por nota do mês ainda não chegou (ou falhou), os totais saem do resumo mensal do Tesouro (o mesmo da curva)
+  const mesA = (() => { const ms = [...new Set((DADOS.exe.agg || []).map(d => d.mes))].sort((p, q) => p - q); return ms.length ? ms[ms.length - 1] : null; })();
+  if(!(x.e.emp > 0.004) && mesA){
+    const A = (DADOS.exe.agg || []).filter(d => d.mes === mesA && vgPassa(d)), mR = (() => { const ms = [...new Set((DADOS.rap.agg || []).map(d => d.mes))].sort((p, q) => p - q); return ms.length ? ms[ms.length - 1] : null; })();
+    const R = mR ? (DADOS.rap.agg || []).filter(d => d.mes === mR && vgPassa(d)) : [];
+    x = {...x, e: somar(A, 'exe'), porUG: u => ({eu: somar(A.filter(d => d.ug === u), 'exe'), ru: somar(R.filter(d => d.ug === u), 'rap')}), exeL: A};
+    if(R.length && !(x.r.apagar > 0.004)) x.r = somar(R, 'rap');
+  }
+  const m = vgModo(), {e, r, exeL, porUG, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saude} = x;
+  // fração do ano: a meta de empenho é a dotação dividida por igual entre os dias do ano
+  const ano = hoje0.getFullYear(), d365 = (new Date(ano, 11, 31) - new Date(ano, 0, 1)) / 864e5 + 1, frac = Math.min(1, ((hoje0 - new Date(ano, 0, 1)) / 864e5 + 1) / d365);
+  const dot = e.temDot ? e.dotAt : e.exec, meta = dot * frac, gap = meta - e.emp;
+  // todos os casos de alerta, um por linha
+  const F = []; TODOS.forEach(a => a.itens.forEach(it => F.push({a, it, d: it.prazo_d === undefined ? null : it.prazo_d})));
+  const okS = (saude.match(/class="ok"/g) || []).length, atS = (saude.match(/class="aten"/g) || []).length, totS = okS + atS;
+  const saudeCard = (lado) => `<div class="c vm-sd${lado ? '' : ' vm-sec'}"><div class="vm-sdh"><h3>Saúde dos dados</h3><em style="color:${atS ? '#a8650a' : '#1e7a43'}">${okS} de ${totS} bases em dia</em></div>
+    <p class="s">De onde vem cada número da tela e quando foi lido pela última vez. Verde = em dia · laranja = atrasada ou com falha.</p>${saude.replace(/<h2 class="vg-sec">[\s\S]*?<\/h2>/, '')}</div>`;
+  document.getElementById('vg-sub').textContent += totS ? ' · ' + okS + ' de ' + totS + ' bases em dia' : '';
+  const ugsS = UG_ORDEM.map(u => { const {eu, ru} = porUG(u), du = eu.temDot ? eu.dotAt : eu.exec; return {u, eu, ru, du, pe: du > 0 ? eu.emp / du : 0}; }).filter(o => o.du > 0.004 || o.eu.emp > 0.004);
+  const corU = pe => pe >= frac - 0.10 ? ['#1e7a43', 'no ritmo'] : pe >= frac - 0.25 ? ['#c98a10', 'atenção'] : ['#b3261e', 'atrasada'];
+  const lendo = !(dot > 0.004) && !(e.emp > 0.004);
+  if(m === 'sala') return vgSala({...x, F, frac, dot, saudeCard, lendo});
+  // ---------------- EXECUTIVO ----------------
+  const saldoE = Math.max(0, dot - e.emp), maior = ugsS.map(o => ({u: o.u, s: Math.max(0, o.du - o.eu.emp)})).sort((p, q) => q.s - p.s)[0];
+  const ins = lendo ? 'Lendo o Tesouro Gerencial… os números do ano aparecem em instantes.' : `Faltam ${fimAno} dias para fechar o exercício. Já foram empenhados ${vmPct(e.emp, dot)} da dotação (${fmtC(e.emp)} de ${fmtC(dot)}); restam ${fmtC(saldoE)} para empenhar`
+    + (maior && maior.s > 0.004 && saldoE > 0.004 ? `, ${Math.round(maior.s / saldoE * 100)}% deles na UG ${maior.u} (${esc((UG_NOMES_CURTOS[maior.u] || '').split(' · ')[0])}).` : '.');
+  const pE = dot > 0 ? Math.min(1, e.emp / dot) : 0;
+  const V = v => lendo ? '…' : fmtC(v);
+  let h = `<div class="vm">${vmFaixaUG()}<div class="vm-faixa">
+    <div class="vm-anel"><svg width="92" height="92" viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="none" stroke="#2f6e51" stroke-width="10"/><circle cx="48" cy="48" r="40" fill="none" stroke="#8fd3a6" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(pE * 251.3).toFixed(1)} 300" transform="rotate(-90 48 48)"/><text x="48" y="54" text-anchor="middle" font-weight="800" font-size="19" fill="#fff">${lendo ? '…' : vmPct(e.emp, dot)}</text></svg><span>da dotação já<br>empenhada</span></div>
+    <div class="vm-kp">
+      <div data-vgir="exe"><small>${e.temDot ? 'Dotação atual' : 'Crédito na seleção'}</small><b${lendo ? '' : vmTT(dot)}>${V(dot)}</b><em>orçamento do ano</em></div>
+      <div data-vgir="exe"><small>Empenhado</small><b${lendo ? '' : vmTT(e.emp)}>${V(e.emp)}</b><em${lendo ? '' : vmTT(Math.max(0, dot - e.emp))}>${lendo ? 'lendo…' : 'falta ' + fmtC(Math.max(0, dot - e.emp))}</em></div>
+      <div data-vgir="exe"><small>Liquidado</small><b${lendo ? '' : vmTT(e.liq)}>${V(e.liq)}</b><em>${lendo ? 'lendo…' : vmPct(e.liq, dot) + ' da dotação'}</em></div>
+      <div data-vgir="exerap"><small>Pago no ano</small><b${lendo ? '' : vmTT(e.pago)}>${V(e.pago)}</b><em${vmTT(r.pago)}>${VG.rapStatus === 'ok' || r.pago > 0.004 ? '+ ' + fmtC(r.pago) + ' de RAP' : 'RAP: lendo…'}</em></div>
+      <div data-vgir="exe" class="lp" title="Liquidado e ainda não pago: espera o financeiro (liquidado − pago)"><small>Liquidado a pagar</small><b${lendo ? '' : vmTT(Math.max(0, e.liq - e.pago))}>${V(Math.max(0, e.liq - e.pago))}</b><em>${lendo ? 'lendo…' : 'aguardando financeiro'}</em></div>
+      <div data-vgir="rap"><small>RAP a pagar</small><b${vmTT(r.apagar)}>${VG.rapStatus === 'ok' || r.apagar > 0.004 ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
+    </div>
+    <div class="vm-ins">💡 ${esc(ins)}</div></div>`;
+  // curva mês a mês (acumulado do Tesouro: saldo de cada mês)
+  const ser = new Map(); (DADOS.exe.agg || []).forEach(d => { if(!vgPassa(d) || Math.floor(d.mes / 100) !== ano) return; const o = ser.get(d.mes) || ser.set(d.mes, {emp:0, liq:0, pago:0}).get(d.mes); o.emp += d.emp || 0; o.liq += d.liq || 0; o.pago += d.pago || 0; });
+  const LIN = VG.linhas || (VG.linhas = {emp:1, liq:1, pago:1});
+  h += `<div class="vm-g2"><div class="c vm-graf"><h3>Execução acumulada do ano</h3>
+    <p class="s">Valores acumulados mês a mês, em reais (Tesouro Gerencial). A linha tracejada é a dotação atual de ${lendo ? '…' : fmtC(dot)}, o teto do ano.</p>
+    <div class="vm-chips">${[['emp','Empenhado'],['liq','Liquidado'],['pago','Pago']].map(([k, t]) => `<button type="button" data-vglin="${k}" class="${LIN[k] ? 'on' : ''}">${t}</button>`).join('')}</div>
+    ${vmCurva(ser, ano, dot, frac, LIN)}</div>`;
+  // para agir: hoje · próximos 7 dias · acumulado em atraso (agrupado por tipo de alerta)
+  const grupo = (lista, pz) => { const g = new Map(); lista.forEach(o => { const k = o.a.titulo, y = g.get(k) || g.set(k, {a:o.a, n:0, v:0, deps:new Map(), d:o.d, as:new Map(), pz}).get(k); y.n++; y.v += +o.it.vprior || 0; y.as.set(o.a, (y.as.get(o.a) || 0) + 1); const dp = o.it.dep || 'SDR'; y.deps.set(dp, (y.deps.get(dp) || 0) + 1); if(o.d !== null && o.d < y.d) y.d = o.d; });
+    return [...g.values()].map(y => Object.assign(y, {a: [...y.as.entries()].sort((p, q) => q[1] - p[1])[0][0]})).sort((p, q) => q.n - p.n); };
+  const depTxt = y => { const t = [...y.deps.entries()].sort((p, q) => q[1] - p[1]).slice(0, 2); return t.map(([k, n]) => k + ' ' + Math.round(n / y.n * 100) + '%').join(' · '); };
+  const linhaA = (y, cls, rot) => { VG.vmA.push({a: y.a, pz: y.pz}); return `<div class="vm-it" data-vmal="${VG.vmA.length - 1}" title="Abrir a lista destes ${nfmt(y.n)} casos na tela de alerta"><div class="n" style="color:${cls === 'at' || cls === 'hj' ? '#b3261e' : '#8a5a00'}">${nfmt(y.n)}</div><div class="t">${esc(y.a.titulo)}<small>${esc(depTxt(y))}${y.v ? ` · <span${vmTT(y.v)}>${fmtC(y.v)}</span>` : ''}</small></div><span class="vm-pz ${cls}">${rot}</span></div>`; };
+  VG.vmA = [];
+  const gH = grupo(F.filter(o => o.d === 0), 'hj'), gP = grupo(F.filter(o => o.d > 0 && o.d <= 7), 'sm'), gA = grupo(F.filter(o => o.d !== null && o.d < 0), 'at').slice(0, 3);
+  h += `<div class="c vm-al"><h3>Para agir</h3><p class="s">Pelo prazo, do mais urgente ao menos. Clique para abrir a lista desses casos na tela de alerta.</p>
+    ${!VG.al ? '<p class="s">lendo os alertas do robô…</p>' : ''}
+    ${gH.length ? '<h4>Hoje</h4>' + gH.map(y => linhaA(y, 'hj', 'Hoje')).join('') : ''}
+    ${gP.length ? '<h4>Próximos 7 dias</h4>' + gP.slice(0, 3).map(y => linhaA(y, y.d === 1 ? 'am' : 'sm', y.d === 1 ? 'Amanhã' : 'Em ' + y.d + ' dias')).join('') : ''}
+    ${gA.length ? '<h4>Acumulado em atraso</h4>' + gA.map(y => linhaA(y, 'at', 'Atrasado')).join('') : ''}
+    ${VG.al && !gH.length && !gP.length && !gA.length ? '<p class="s">Nenhum alerta com prazo para os filtros escolhidos.</p>' : ''}
+    <p style="text-align:right;margin:10px 0 0"><button type="button" class="vm-ir" data-vgmodo="sala">Ver a fila completa (${nfmt(cnt('r'))} críticos) ›</button></p></div></div>`;
+  // parcerias · TED · contratos
+  const {execu, aprovP = [], sm} = x;
+  const repT = sm(execu, 'repasse'), desT = sm(execu, 'desemb'), aDes = sm(execu, 'aDes') || execu.reduce((t, d) => t + Math.max(0, (d.repasse || 0) - (d.desemb || 0)), 0), aDesP = sm(aprovP, 'aDes');
+  const nAl = f => TODOS.filter(f).reduce((t, a) => t + a.itens.length, 0);
+  const pcAtr = nAl(a => /^(parc|conv|repasse)$/.test(a.menu) && a.id === 'pcvenc'), tedSemNE = nAl(a => /^(ted|tedapi)$/.test(a.menu) && a.id === 'ncsemne');
+  // TED · TED GERAL SDR (API do Transferegov): toda a Secretaria; a equipe controla os da 130010 e da 420013
+  const nT = v => { v = String(v || '').trim(); if(/,/.test(v)) v = v.replace(/\./g, '').replace(',', '.'); return +v || 0; };
+  const ugT = t => String(t['Enviado / recebido'] === 'Recebido' ? t['UG descentralizada'] : t['UG descentralizadora']).trim();
+  const TF = (VG.tedApi || []).filter(t => !VG.ug.length || VG.ug.includes(ugT(t))), tEx = TF.filter(t => t['Fase (painel)'] === 'Em execução');
+  const tEq = tEx.filter(t => ['130010', '420013'].includes(ugT(t))).length, tPC = TF.filter(t => t['Fase (painel)'] === 'Prestação de contas');
+  const sT = (l, k) => l.reduce((u, t) => u + nT(t[k]), 0), aCompT = sT(TF, 'A comprovar (Tesouro)'), aCompE = sT(tEx, 'A comprovar (Tesouro)'), aCompP = sT(tPC, 'A comprovar (Tesouro)'), aRepT = sT(tEx, 'A repassar (Tesouro)');
+  const tOk = !!VG.tedApi, semNE = Math.min(tEx.length, tedSemNE);
+  // Contratos · Contratos SDR (Contratos.gov.br): os mesmos números da tela Contratos SDR
+  const CS = (VG.ctrSdr || []).filter(d => d.sit === 'Ativo' && (!VG.ug.length || VG.ug.includes(String(d.ugc)))), cOk = !!VG.ctrSdr;
+  const cTem = k => CS.filter(d => (d.acoes || []).includes(k)).length, nVen = cTem('vencido'), nRen = cTem('renovar'), nFat = cTem('fatura');
+  const cUG = ['130010', '130141', '130255'].map(u => [u, CS.filter(d => String(d.ugc) === u).length]).filter(([, n]) => n);
+  const pc_ = (a, b) => b ? (a / b * 100).toFixed(1) : 0;
+  h += `<div class="vm-g3">
+    <div class="c vm-m"><div class="top"><h3>Convênios e termos</h3><span class="s">${nfmt(execu.length)} em execução</span></div><div class="big"><b${vmTT(aDes)}>${fmtC(aDes)}</b> <span>a desembolsar em execução</span></div>
+      ${aDesP > 0.004 ? `<p class="vm-sub"${vmTT(aDesP)}>+ ${fmtC(aDesP)} de propostas aprovadas ainda sem instrumento (${nfmt(aprovP.length)})</p>` : ''}
+      <div class="vm-bar"><i style="width:${pc_(desT, repT)}%;background:#1e7a43"></i></div>
+      <div class="vm-q"><span style="--c:#1e7a43"${vmTT(desT)}>${vmPct(desT, repT)} desembolsado</span>${pcAtr ? `<span style="--c:#b3261e">${nfmt(pcAtr)} prestações de contas atrasadas</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="parc">Abrir Parcerias ›</button></div>
+    <div class="c vm-m"><div class="top"><h3>TED</h3><span class="s">${tOk ? nfmt(tEx.length) + ' em execução' : VG.tedErr ? 'API indisponível' : 'lendo…'}</span></div><div class="big"><b${tOk ? vmTT(aCompT) : ''}>${tOk ? fmtC(aCompT) : '…'}</b> <span>a comprovar na Secretaria</span></div>
+      <p class="vm-sub">${tOk ? `${nfmt(tEq)} no controle da equipe (130010 e 420013)` : VG.tedErr ? 'não foi possível ler o TED GERAL SDR: ' + esc(VG.tedErr) : 'lendo o TED GERAL SDR (API do Transferegov)…'}</p>
+      <div class="vm-bar"><i style="width:${pc_(aCompE, aCompT)}%;background:#2b7bbd"></i><i style="width:${pc_(aCompP, aCompT)}%;background:#f0c36a"></i></div>
+      <div class="vm-q"><span style="--c:#2b7bbd"${vmTT(aCompE)}>${tOk ? fmtC(aCompE) : '…'} em execução</span><span style="--c:#f0c36a"${vmTT(aCompP)}>${tOk ? fmtC(aCompP) : '…'} em prestação de contas</span><span style="--c:#7d8b83"${vmTT(aRepT)}>${tOk ? fmtC(aRepT) : '…'} a repassar</span>${semNE ? `<span style="--c:#b3261e">${nfmt(semNE)} com crédito sem empenho</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="tedapi">Abrir TED ›</button></div>
+    <div class="c vm-m"><div class="top"><h3>Contratos</h3><span class="s">${cOk ? nfmt(CS.length) + ' ativos' : VG.ctrErr ? 'base indisponível' : 'lendo…'}</span></div><div class="big"><b>${cOk ? nfmt(nVen) : '…'}</b> <span>vencidos ainda ativos</span></div>
+      <p class="vm-sub">${cOk ? cUG.map(([u, n]) => VM_UGC[u] + ' ' + nfmt(n)).join(' · ') : VG.ctrErr ? 'não foi possível ler os Contratos SDR' : 'lendo os Contratos SDR (Contratos.gov.br)…'}</p>
+      <div class="vm-bar"><i style="width:${pc_(Math.max(0, CS.length - nVen - nRen), CS.length)}%;background:#1e7a43"></i><i style="width:${pc_(nRen, CS.length)}%;background:#f0c36a"></i><i style="width:${pc_(nVen, CS.length)}%;background:#b3261e"></i></div>
+      <div class="vm-q"><span style="--c:#1e7a43">${cOk ? nfmt(Math.max(0, CS.length - nVen - nRen)) : '…'} em dia</span><span style="--c:#f0c36a">${cOk ? nfmt(nRen) : '…'} a renovar em 120 dias</span><span style="--c:#b3261e">${cOk ? nfmt(nVen) : '…'} vencidos</span>${nFat ? `<span style="--c:#8a5a00">${nfmt(nFat)} com fatura vencida</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="ctrsdr">Abrir Contratos SDR ›</button></div>
+  </div>`;
+  // por UG
+  const fm = v => fmtC(v);
+  const lnU = (t, v, du, cor, mk) => `<div class="vm-ln"><span>${t}</span><div class="b"><i style="width:${du > 0 ? Math.min(100, Math.max(0, v / du * 100)).toFixed(1) : 0}%;background:${cor}"></i>${mk ? `<u style="left:${(frac * 100).toFixed(1)}%"></u>` : ''}</div><b${vmTT(v)}>${fm(v)}</b><em>${du > 0 ? Math.round(v / du * 100) + '%' : ''}</em></div>`;
+  h += `<div class="c vm-sec"><h3>Por UG</h3><p class="s">Cada linha em relação à dotação da UG. "Liq. a pagar" é o que já foi liquidado e ainda espera o financeiro. Clique para abrir o Financeiro da UG.</p><div class="vm-ugl">${ugsS.map(o => {
+      return `<div class="vm-u" data-vgug="${o.u}"><div class="uh"><b>${o.u}</b><small>${esc((UG_NOMES_CURTOS[o.u] || '').split(' · ')[0])}</small><span class="st" style="color:#1e7a43">${o.du > 0 ? vmPct(o.eu.emp, o.du) + ' empenhado' : ''}</span></div><small class="dt"${vmTT(o.du)}>Dotação ${fm(o.du)}</small>
+        ${lnU('Empenhado', o.eu.emp, o.du, '#1e7a43')}${lnU('A empenhar', Math.max(0, o.du - o.eu.emp), o.du, '#f2b640')}${lnU('Liquidado', o.eu.liq, o.du, '#2b7bbd')}${lnU('Pago', o.eu.pago, o.du, '#e08a1e')}${lnU('Liq. a pagar', Math.max(0, o.eu.liq - o.eu.pago), o.du, '#b3261e')}</div>`; }).join('')}</div></div>`;
+  h += saudeCard(false);
+  h += `<div class="vm-ac">Acesso rápido ${[['exe','Financeiro EXE'],['rap','Financeiro RAP'],['parc','Parcerias'],['tedapi','TED'],['ctrsdr','Contratos'],['viag','Viagens']].map(([k, t]) => `<button type="button" data-vgir="${k}">${t}</button>`).join('')}</div>`;
+  if(x.erros.length) h += `<p class="vg-erro">${esc(x.erros.join(' · '))}</p>`;
+  return h + '</div>';
+}
+
+// curva acumulada do ano (SVG): empenhado · liquidado · pago × meta (dotação / 12 por mês)
+function vmCurva(ser, ano, dot, frac, LIN){
+  const W = 820, H = 300, L = 58, T = 16, RW = 170, mx = Math.max(dot, ...[...ser.values()].map(o => o.emp)) * 1.04 || 1;
+  const X = i => L + i * (W - L - RW) / 11, Y = v => T + (mx - v) * (H - T - 30) / mx;
+  const meses = [...ser.keys()].sort((a, b) => a - b), ult = meses.length ? meses[meses.length - 1] % 100 - 1 : -1;
+  const g = [];
+  [0, .25, .5, .75, 1].forEach(p => { const v = mx * p; g.push(`<line x1="${L}" x2="${X(11)}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="#e8eee9"/><text x="${L - 8}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="#7d8b83">${fmtC(v)}</text>`); });
+  ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'].forEach((t, i) => g.push(`<text x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#7d8b83">${t}</text>`));
+  if(ult >= 0 && ult < 11) g.push(`<rect x="${(X(ult) + 4).toFixed(1)}" y="${T}" width="${(X(11) - X(ult) - 4).toFixed(1)}" height="${H - T - 30}" fill="#f4f7f5"/><text x="${((X(ult) + X(11)) / 2).toFixed(1)}" y="${T + 14}" text-anchor="middle" font-size="11" fill="#7d8b83">a fechar</text>`);
+  if(dot > 0.004) g.push(`<line x1="${L}" x2="${X(11).toFixed(1)}" y1="${Y(dot).toFixed(1)}" y2="${Y(dot).toFixed(1)}" stroke="#9fb3a8" stroke-width="2" stroke-dasharray="6 6"/>`);
+  const S = {emp:['#1e7a43', 4, 'Empenhado'], liq:['#2b7bbd', 3, 'Liquidado'], pago:['#e08a1e', 3, 'Pago']}, fim = [];
+  ['pago','liq','emp'].forEach(k => { if(!LIN[k]) return; const pts = meses.map(m => [m % 100 - 1, ser.get(m)[k]]); if(!pts.length) return;
+    g.push(`<polyline points="${pts.map(([i, v]) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${S[k][0]}" stroke-width="${S[k][1]}" stroke-linejoin="round" stroke-linecap="round"/>`);
+    pts.slice(0, -1).forEach(([i, v]) => g.push(`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="7" fill="transparent"><title>${S[k][2]} · ${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][i]}: ${fmtBRL(v)}</title></circle>`));
+    const [i, v] = pts[pts.length - 1]; g.push(`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="5" fill="${S[k][0]}"><title>${S[k][2]}: ${fmtBRL(v)}</title></circle>`); fim.push([v, S[k][0], S[k][2]]); });
+  // rótulos no fim (sem sobrepor) + a meta do mês atual
+  if(dot > 0.004) fim.push([dot, '#7d8b83', 'Dotação atual']);
+  fim.sort((a, b) => b[0] - a[0]); let yAnt = -99;
+  fim.forEach(([v, c, t]) => { let y = Y(v) + 4; if(y - yAnt < 17) y = yAnt + 17; yAnt = y; g.push(`<text x="${(X(11) + 12).toFixed(1)}" y="${y.toFixed(1)}" font-size="12.5" fill="${c}"><title>${t}: ${fmtBRL(v)}</title><tspan font-weight="700">${fmtC(v)}</tspan> ${t}</text>`); });
+  if(!meses.length) g.push(`<text x="${W / 2}" y="${H / 2}" text-anchor="middle" font-size="13" fill="#7d8b83">lendo os meses do Tesouro…</text>`);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Execução acumulada do ano">${g.join('')}</svg>`;
+}
+
+// ---------------- SALA DE CONTROLE ----------------
+function vgSala(x){
+  const {e, F, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saudeCard} = x;
+  const novos = nov('r') + nov('y') + nov('b'), resolv = MUD.filter(m => m.tipo === 'resolvido').length;
+  const semana = F.filter(o => o.d !== null && o.d >= 0 && o.d <= 7).length;
+  let h = `<div class="vm">${vmFaixaUG()}<div class="vm-pulso"><span class="t">${ref ? 'Desde ' + esc(ref.split('-').reverse().join('/')) : 'Hoje'}</span>
+    ${ref ? `<span><b class="up">+${nfmt(novos)}</b>alertas novos</span><span><b class="ok">${nfmt(resolv)}</b>resolvidos</span>` : ''}
+    <span><b>${nfmt(semana)}</b>vencem nos próximos 7 dias</span><span><b>${fimAno}</b>dias para fechar o exercício</span>
+    <span style="margin-left:auto"><b>${nfmt(cnt('r'))}</b>críticos · <b style="font-size:16px">${nfmt(cnt('y'))}</b>atenção</span></div>`;
+  // fila do dia: tudo com prazo até 7 dias, do mais atrasado ao que vence na semana
+  const tab = VG.vmTab || 'fila', pzF = VG.vmPzF || '';
+  const fila = F.filter(o => o.d !== null && o.d <= 7 && (!pzF || (pzF === 'at' ? o.d < 0 : pzF === 'hj' ? o.d === 0 : o.d > 0)))
+    .sort((p, q) => p.d - q.d || (+q.it.vprior || 0) - (+p.it.vprior || 0));
+  VG.vmFila = fila; const N = VG.vmN || 15;
+  const linF = (o, i) => { const [c, t] = vmPz(o.d), num = alNum(o.it);
+    return `<tr><td><span class="vm-pz ${c}">${t}</span></td><td><b>${esc(o.a.titulo)}</b><small>${num ? `<a href="#" data-vmfi="${i}">${esc(num)}</a> · ` : ''}${esc(vmQuem(o.it))}</small></td><td class="v"${+o.it.vprior ? vmTT(o.it.vprior) : ''}>${+o.it.vprior ? fmtC(+o.it.vprior) : '—'}</td><td>${esc(o.it.dep || 'SDR')}</td><td class="mut">${vmSit(o.d)}</td></tr>`; };
+  const deps = [...new Set(TODOS.flatMap(a => a.itens.map(it => it.dep)).concat(['CEPLAC']).filter(Boolean))].sort();
+  let corpo = '';
+  if(tab === 'fila') corpo = `<div class="vm-fl"><span>Departamento</span>${msxHTML('vg|aldep', {rot:'Departamento', todos:'Todos · SDR', opts:() => deps.map(d => [d, d, null]), get:() => AL.dep, set:z => { AL.dep = z; vgRedesenhar(); }})}
+      <span>Controle</span>${msxHTML('vg|alctrl', {rot:'Controle', todos:'Equipe e Geral', opts:() => [['Equipe SDR','Equipe SDR',null],['Geral SDR','Geral SDR',null]], get:() => AL.ctrl, set:z => { AL.ctrl = z; vgRedesenhar(); }})}
+      <span class="vm-tabs" style="margin:0">${[['','Todos'],['at','Atrasados'],['hj','Hoje'],['sm','Próximos 7 dias']].map(([k, t]) => `<button type="button" data-vmpz="${k}" class="${pzF === k ? 'on' : ''}">${t}</button>`).join('')}</span>
+      <em>mostrando ${nfmt(Math.min(N, fila.length))} de ${nfmt(fila.length)}</em></div>
+    ${!VG.al ? '<p class="s">lendo os alertas do robô…</p>' : fila.length ? `<table class="vm-t"><thead><tr><th>Prazo</th><th>O que e onde</th><th style="text-align:right">Valor</th><th>Responsável</th><th>Situação</th></tr></thead><tbody>${fila.slice(0, N).map(linF).join('')}</tbody></table>
+      ${fila.length > N ? `<div class="vm-mais"><button type="button" class="vm-ir" data-vmmais="1">Mostrar mais ${nfmt(Math.min(50, fila.length - N))} ›</button></div>` : ''}` : '<p class="s">Nada com prazo até 7 dias para os filtros escolhidos.</p>'}`;
+  else if(tab === 'cal'){ const MES3 = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'], SEM = ['dom','seg','ter','qua','qui','sex','sáb'];
+    corpo = `<div class="vm-cal">${Array.from({length: 15}, (_, d) => { const dt = new Date(hoje0.getTime() + d * 864e5), g = new Map(); F.filter(o => o.d === d).forEach(o => g.set(o.a.titulo, (g.get(o.a.titulo) || 0) + 1));
+      return `<div class="${d === 0 ? 'hoje' : ''}"><b>${dt.getDate()}</b><small>${SEM[dt.getDay()]} · ${MES3[dt.getMonth()]}${d === 0 ? ' · hoje' : ''}</small><ul>${[...g.entries()].map(([t, n]) => `<li><b style="display:inline;font-size:12.5px;color:#b3261e">${n}</b> ${esc(t)}</li>`).join('')}</ul></div>`; }).join('')}</div>`; }
+  else { const R = MUD.filter(m => m.tipo === 'resolvido');
+    corpo = !ref ? '<p class="s">A comparação com o dia anterior começa na próxima rodada do robô em outro dia.</p>' : R.length ? `<table class="vm-t"><thead><tr><th>Caso</th><th>Saiu de</th><th>Como saiu</th><th>Departamento</th></tr></thead><tbody>${R.slice(0, 60).map(m => `<tr><td><b>${esc(m.num)}</b></td><td>${esc(m.titulo)}</td><td class="mut">${esc(m.como || 'saiu da lista')}</td><td>${esc(m.dep || '')}</td></tr>`).join('')}</tbody></table>` : '<p class="s">Nenhum caso resolvido desde ' + esc(ref.split('-').reverse().join('/')) + '.</p>'; }
+  h += `<div class="vm-gs"><div class="c"><h3>Fila do dia</h3><p class="s">Tudo que pede ação, do mais atrasado ao que vence na semana. O número abre a ficha.</p>
+    <div class="vm-tabs">${[['fila','Fila · ' + nfmt(F.filter(o => o.d !== null && o.d <= 7).length)],['cal','Calendário 15 dias'],['res','Resolvidos' + (ref ? ' · ' + nfmt(resolv) : '')]].map(([k, t]) => `<button type="button" data-vmtab="${k}" class="${tab === k ? 'on' : ''}">${t}</button>`).join('')}</div>${corpo}</div>`;
+  // lateral: saúde dos dados · dinheiro parado
+  const tedNE = TODOS.filter(a => /^(ted|tedapi)$/.test(a.menu) && a.id === 'ncsemne'), tedN = tedNE.reduce((t, a) => t + a.itens.length, 0), tedV = tedNE.reduce((t, a) => t + a.itens.reduce((u, it) => u + (+it.vprior || 0), 0), 0);
+  h += `<div class="vm-side">${saudeCard(true)}
+    <div class="c vm-din"><h3>Dinheiro parado</h3><p class="s">Pede decisão antes do fim do exercício.</p>
+      <div class="it"><b${x.lendo ? '' : vmTT(e.disp)}>${x.lendo ? '…' : fmtC(e.disp)}</b><small>crédito disponível sem empenho · ${fimAno} dias para empenhar</small><button type="button" class="vm-ir" data-vgir="exe">Ver por ação ›</button></div>
+      <div class="it"><b${x.lendo ? '' : vmTT(Math.max(0, e.liq - e.pago))}>${x.lendo ? '…' : fmtC(Math.max(0, e.liq - e.pago))}</b><small>liquidado no ano e ainda não pago · aguardando financeiro</small><button type="button" class="vm-ir" data-vgir="exe">Ver por UG ›</button></div>
+      <div class="it"><b${rapT ? vmTT(rapT.v) : ''}>${rapT ? fmtC(rapT.v) : '…'}</b><small>RAP liquidado e não pago${rapT ? ' · ' + nfmt(rapT.n) + ' notas' : ''}</small><button type="button" class="vm-ir" data-vgir="rap">Ver notas ›</button></div>
+      <div class="it"><b${tedN ? vmTT(tedV) : ''}>${tedN ? fmtC(tedV) : '—'}</b><small>TED com crédito sem empenho · ${nfmt(tedN)} TED(s)</small><button type="button" class="vm-ir" data-vgir="tedapi">Ver TEDs ›</button></div></div></div></div>`;
+  // quem tem o quê
+  const porDep = new Map(); F.forEach(o => { const k = o.it.dep || 'SDR', y = porDep.get(k) || porDep.set(k, {k, a:0, h:0, w:0, itens:[]}).get(k); y.itens.push(o); if(o.d !== null && o.d < 0) y.a++; else if(o.d === 0) y.h++; else if(o.d !== null && o.d <= 7) y.w++; });
+  const D = [...porDep.values()].filter(y => y.a + y.h + y.w).sort((p, q) => q.a - p.a || q.h - p.h); VG.vmDep = D;
+  const mxA = Math.max(1, ...D.map(y => y.a)), aberto = VG.vmAberto || new Set();
+  h += `<div class="c vm-sec"><h3>Quem tem o quê</h3><p class="s">Casos com prazo vencido ou vencendo em 7 dias, por responsável. Clique no nome para abrir o detalhe. Excel e PDF exportam todos os casos daquele responsável.</p>
+    <div class="vm-qh"><span>Responsável</span><span>atrasados</span><span>Atrasados</span><span>Hoje</span><span>7 dias</span><span></span></div>
+    ${D.map((y, i) => { const ab = aberto.has(y.k); let det = '';
+      if(ab){ const t = new Map(); y.itens.forEach(o => { const z = t.get(o.a.titulo) || t.set(o.a.titulo, {a:0, h:0, w:0}).get(o.a.titulo); if(o.d !== null && o.d < 0) z.a++; else if(o.d === 0) z.h++; else if(o.d !== null && o.d <= 7) z.w++; });
+        const T = [...t.entries()].filter(([, z]) => z.a + z.h + z.w).sort((p, q) => q[1].a - p[1].a), mx = Math.max(1, ...T.map(([, z]) => z.a));
+        const L = y.itens.filter(o => o.d !== null && o.d <= 7).sort((p, q) => p.d - q.d); VG.vmDetL = VG.vmDetL || {}; VG.vmDetL[y.k] = L;
+        det = `<div class="vm-det">${T.map(([n, z]) => `<div class="vm-tp"><span>${esc(n)}</span><div class="rb"><i style="width:${(z.a / mx * 100).toFixed(0)}%"></i></div><b>${nfmt(z.a)}</b><span class="r">${nfmt(z.h)}</span><span class="r">${nfmt(z.w)}</span></div>`).join('')}
+          <table class="vm-t"><thead><tr><th>Instrumento</th><th>Convenente / favorecido</th><th>Alerta</th><th style="text-align:right">Valor</th><th>Situação</th></tr></thead><tbody>${L.slice(0, 40).map((o, j) => `<tr><td>${alNum(o.it) ? `<a href="#" data-vmdi="${esc(y.k)}|${j}">${esc(alNum(o.it))}</a>` : '—'}</td><td>${esc(vmQuem(o.it))}</td><td>${esc(o.a.titulo)}</td><td class="v"${+o.it.vprior ? vmTT(o.it.vprior) : ''}>${+o.it.vprior ? fmtC(+o.it.vprior) : '—'}</td><td class="mut">${vmSit(o.d)}</td></tr>`).join('')}</tbody></table>
+          ${L.length > 40 ? `<p class="s" style="margin-top:8px">mostrando 40 de ${nfmt(L.length)} · a lista completa sai no Excel ou no PDF</p>` : ''}</div>`; }
+      return `<div class="vm-qr"><button type="button" class="nm" data-vmdep="${esc(y.k)}">${ab ? '▾' : '▸'} ${esc(y.k)}</button><div class="rb"><i style="width:${(y.a / mxA * 100).toFixed(0)}%"></i></div><span class="a">${nfmt(y.a)}</span><span class="h">${nfmt(y.h)}</span><span class="w">${nfmt(y.w)}</span>
+        <span class="vm-xb"><button type="button" data-vmx="xls|${i}">Excel</button><button type="button" data-vmx="pdf|${i}">PDF</button></span></div>${det}`; }).join('') || '<p class="s">Nenhum caso vencido ou vencendo em 7 dias.</p>'}</div>`;
+  h += `<p class="vm-nota">O liquidado e não pago de restos a pagar fica em "Dinheiro parado" (é contado por nota de empenho, não por caso).</p>`;
+  if(x.erros.length) h += `<p class="vg-erro">${esc(x.erros.join(' · '))}</p>`;
+  return h + '</div>';
+}
+
+// abrir um caso (ficha do instrumento ou a tela de alerta)
+function vmAbrir(o){ if(!o) return; const n = String(alNum(o.it));
+  if(/^(parc|conv|repasse)$/.test(o.a.menu) && /^\d{6}$/.test(n)){ ir('relinst', {nr: n}); return; }
+  if(o.it.ctr && window.__abrirRelCtr){ window.__abrirRelCtr(o.it.ctr); return; }
+  AL.sel = o.a.tela + '|' + o.a.menu + '|' + o.a.id + '|' + o.a.titulo; AL.filtroSev = ''; ir(o.a.tela); }
+// exportar os casos de um responsável
+function vmExportar(tipo, y){
+  const L = y.itens.slice().sort((p, q) => (p.d === null ? 1e9 : p.d) - (q.d === null ? 1e9 : q.d));
+  const cab = [{t:'Prazo'},{t:'Alerta'},{t:'Instrumento / nota'},{t:'Convenente / favorecido'},{t:'UG'},{t:'Valor', n:true},{t:'Situação'},{t:'Departamento'}];
+  const lin = L.map(o => [vmPz(o.d)[1] || '—', o.a.titulo, alNum(o.it), vmQuem(o.it), o.it.ug || o.it.ugdor || '', +o.it.vprior || 0, vmSit(o.d), y.k]);
+  const tit = 'Casos de alerta · ' + y.k, arq = 'alertas_' + y.k.replace(/\W+/g, '_') + '_' + new Date().toISOString().slice(0, 10);
+  const filtros = ['Responsável: ' + y.k].concat(VG.ug.length ? ['UG: ' + VG.ug.join(', ')] : []).concat(AL.ctrl.length ? ['Controle: ' + AL.ctrl.join(', ')] : []);
+  if(tipo === 'xls') return baixarXlsx({titulo: tit, sub: 'Visão geral · Sala de controle', filtros, arquivo: arq, aba: y.k, cab, linhas: lin, fonte: 'Alertas do Painel SDR'});
+  abrirPDF(documentoPDF({titulo: tit, sub: 'Visão geral · Sala de controle · ' + nfmt(L.length) + ' caso(s)', filtros, cab, linhas: lin.map(l => l.map((v, j) => j === 5 ? (v ? fmtBRL(v) : '—') : v)), tot: null, total: L.length, arquivo: arq}), arq);
+}
+document.addEventListener('click', ev => {
+  const t = ev.target; if(!t.closest || !t.closest('#v-visao')) return;
+  const md = t.closest('[data-vgmodo]'); if(md){ VG.modo = md.dataset.vgmodo; try{ localStorage.setItem('sdrVgModo', VG.modo); }catch(e){} vgModoBarra(); desenharVisaoGeral(); window.scrollTo({top:0}); return; }
+  const ln = t.closest('[data-vglin]'); if(ln){ const L = VG.linhas || (VG.linhas = {emp:1, liq:1, pago:1}); L[ln.dataset.vglin] = L[ln.dataset.vglin] ? 0 : 1; desenharVisaoGeral(); return; }
+  const al = t.closest('[data-vmal]'); if(al){ vgIrAlerta((VG.vmA || [])[+al.dataset.vmal]); return; }
+  if(t.closest('[data-vgugx]')){ VG.ug = []; desenharVisaoGeral(); return; }
+  const tb = t.closest('[data-vmtab]'); if(tb){ VG.vmTab = tb.dataset.vmtab; desenharVisaoGeral(); return; }
+  const pz = t.closest('[data-vmpz]'); if(pz){ VG.vmPzF = pz.dataset.vmpz; VG.vmN = 15; desenharVisaoGeral(); return; }
+  const mm = t.closest('[data-vmmais]'); if(mm){ VG.vmN = (VG.vmN || 15) + 50; desenharVisaoGeral(); return; }
+  const fi = t.closest('[data-vmfi]'); if(fi){ ev.preventDefault(); vmAbrir((VG.vmFila || [])[+fi.dataset.vmfi]); return; }
+  const di = t.closest('[data-vmdi]'); if(di){ ev.preventDefault(); const [k, j] = di.dataset.vmdi.split('|'); vmAbrir(((VG.vmDetL || {})[k] || [])[+j]); return; }
+  const dp = t.closest('[data-vmdep]'); if(dp){ const s = VG.vmAberto || (VG.vmAberto = new Set()), k = dp.dataset.vmdep; s.has(k) ? s.delete(k) : s.add(k); desenharVisaoGeral(); return; }
+  const xp = t.closest('[data-vmx]'); if(xp){ const [tp, i] = xp.dataset.vmx.split('|'), y = (VG.vmDep || [])[+i]; if(y) vmExportar(tp, y); return; }
+});
+
 function vgAplicarFiltros(tela){
   FILTROS.forEach(f => { if(f.k!=='mes') SEL[f.k] = []; });
   if(VG.ug.length) SEL.ug = VG.ug.slice(); if(VG.acao.length) SEL.acao = VG.acao.slice();
@@ -15048,7 +15515,7 @@ function preCarregar(){
 (function(){
   const GRUPOS = [
     ['', [['visao','▦','Visão geral']]],
-    ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)',[['base','Base Contratos'],['vig','Inventário · vigentes'],['enc','Encerrar no Compras'],['sem','NEs sem contrato']]],['ctrsdr','📄','Contratos SDR'],['despesas','🧾','Despesas previstas'],['conferencia','✔','Conferência de Contratos'],['relctr','📄','Relatório do contrato'],['_relctr','📊','Relatório de gestão de contratos'],['alertactr','🔔','Alerta Contratos']]],
+    ['GESTÃO CONTRATUAL', [['contratos','📑','Base Contratos (CEPLAC)',[['base','Base Contratos'],['vig','Inventário · vigentes'],['desp','Despesas previstas'],['conf','Conferência de Contratos'],['enc','Encerrar no Compras'],['sem','NEs sem contrato']]],['ctrsdr','📄','Contratos SDR'],['relat','🧾','Relatórios',[['ctr','Por contrato'],['mensal','Mensal'],['trimestral','Trimestral'],['semestral','Semestral'],['anual','Anual']]],['alertactr','🔔','Alerta Contratos']]],
     ['ORÇAMENTO E FINANÇAS', [['orcacao','🏛','Orçamento por ações'],['exe','$','Financeiro EXE'],['rap','⏱','Financeiro RAP'],['exerap','⇄','EXE + RAP'],['_relorc','📊','Relatório de gestão orçamentária e financeira'],['cronorc','📅','Cronograma orçamentário'],['alertaorc','🔔','Alerta Orç & Fin']]],
     ['VIAGENS ✈', [['viag','✈','Viagens SDR'],['_viagag','🗓','Agenda de viagens'],['_viaggas','🧾','Gastos das viagens'],['_viagtes','🏛','Empenhos de viagem (Tesouro)'],['_viagpc','📑','Prestação de contas'],['_viagteto','💰','Controle de teto'],['_relviag','📊','Relatório de gestão de viagens'],['viagmat','📘','Material de apoio'],['viagalerta','🔔','Alerta viagens']]],
     ['PARCERIAS', [['parc','🤝','Parceria SDR',[['geral','Visão geral'],['prop','Propostas'],['inst','Instrumentos vigentes'],['pc','Prestação de contas']]],
@@ -15155,6 +15622,10 @@ function preCarregar(){
     if(/^_viag/.test(id)){ const alvo = id.slice(5); if(telaAtual() !== 'viag'){ await ir('viag'); await esperar(() => est().id === 'viag'); } const w = W(); try{ if(w && w.__viagIr) await w.__viagIr(alvo); }catch(e){} marcar(); return; }
     if(id.startsWith('_')) return;
     if(id === 'menu'){ ir('visao'); marcar(); return; }
+    // 25/11/2026: Despesas previstas e Conferência ficam dentro da Base Contratos (CEPLAC); Relatórios com submenu
+    if(id === 'contratos' && aba === 'desp'){ await ir('despesas'); marcar(); return; }
+    if(id === 'contratos' && aba === 'conf'){ await ir('conferencia'); marcar(); return; }
+    if(id === 'relat'){ if(!aba || aba === 'ctr'){ await ir('relctr'); marcar(); return; } RG.tipo = aba; RG.per = ''; await ir('relgest'); marcar(); return; }
     if(id === 'contratos' && aba && aba !== 'base'){ await ir('invceplac', {aba}); marcar(); return; }
     if(id === 'contratos' && aba === 'base'){ await ir('contratos'); marcar(); return; }
     await ir(id);
@@ -15182,7 +15653,8 @@ function preCarregar(){
   nav.querySelector('.sb-busca').addEventListener('input', e => { const q = e.target.value.trim(); nav.querySelectorAll('[data-sbgrc]').forEach(c => { if(q) c.classList.add('ab'); else grAbrir(c.dataset.sbgrc, !!ABERTOS[c.dataset.sbgrc]); }); });
   let _ultTela = null;
   function marcar(){
-    const t0 = telaAtual(), t = t0 === 'invceplac' ? 'contratos' : t0; const aba = t0 === 'invceplac' ? CEP.aba : t0 === 'contratos' ? 'base' : t === 'parc' ? (est().aba || '') : '';
+    const t0 = telaAtual(), t = ['invceplac','despesas','conferencia'].includes(t0) ? 'contratos' : ['relctr','relgest'].includes(t0) ? 'relat' : t0;
+    const aba = t0 === 'invceplac' ? CEP.aba : t0 === 'contratos' ? 'base' : t0 === 'despesas' ? 'desp' : t0 === 'conferencia' ? 'conf' : t0 === 'relctr' ? 'ctr' : t0 === 'relgest' ? RG.tipo : t === 'parc' ? (est().aba || '') : '';
     nav.querySelectorAll('[data-sbgr]').forEach(b => { const c = nav.querySelector(`[data-sbgrc="${b.dataset.sbgr}"]`); b.classList.toggle('tem', !!c.querySelector(`[data-sbir="${CSS.escape(t)}"]`)); });
     // grupos fechados: só abre o que a pessoa clicar; o grupo da tela atual fica marcado com ●
     nav.querySelectorAll('.sb-it').forEach(b => b.classList.toggle('on', b.dataset.sbir === t));
@@ -15191,7 +15663,7 @@ function preCarregar(){
   }
   // perfil executor: itens fora do perfil ficam com cadeado (clicar mostra o aviso); grupo todo bloqueado também
   function travarSb(){
-    nav.querySelectorAll('.sb-it[data-sbir]').forEach(b => { const lk = !podeTela(b.dataset.sbir === 'menu' ? 'visao' : b.dataset.sbir); b.classList.toggle('lk', lk); b.title = lk ? 'Bloqueado para o seu perfil' : b.textContent.trim(); });
+    nav.querySelectorAll('.sb-it[data-sbir]').forEach(b => { const lk = !podeTela(b.dataset.sbir === 'menu' ? 'visao' : b.dataset.sbir === 'relat' ? 'relctr' : b.dataset.sbir); b.classList.toggle('lk', lk); b.title = lk ? 'Bloqueado para o seu perfil' : b.textContent.trim(); });
     nav.querySelectorAll('[data-sbgr]').forEach(g => { const c = nav.querySelector(`[data-sbgrc="${g.dataset.sbgr}"]`); const it = c ? [...c.querySelectorAll('.sb-it[data-sbir]')] : []; g.classList.toggle('lk', it.length > 0 && it.every(b => b.classList.contains('lk'))); });
   }
   window.__sdrTravarSb = travarSb; travarSb();
