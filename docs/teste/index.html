@@ -15163,6 +15163,14 @@ const vmQuem = it => it.proponente || it.fav || it.unid || it.convenente || it.m
 const vmSit = d => d === null || d === undefined ? '—' : d < 0 ? 'venceu há ' + nfmt(-d) + ' d' : d === 0 ? 'vence hoje' : 'vence em ' + d + ' d';
 
 function vgModoHTML(x){
+  // se o detalhe por nota do mês ainda não chegou (ou falhou), os totais saem do resumo mensal do Tesouro (o mesmo da curva)
+  const mesA = (() => { const ms = [...new Set((DADOS.exe.agg || []).map(d => d.mes))].sort((p, q) => p - q); return ms.length ? ms[ms.length - 1] : null; })();
+  if(!(x.e.emp > 0.004) && mesA){
+    const A = (DADOS.exe.agg || []).filter(d => d.mes === mesA && vgPassa(d)), mR = (() => { const ms = [...new Set((DADOS.rap.agg || []).map(d => d.mes))].sort((p, q) => p - q); return ms.length ? ms[ms.length - 1] : null; })();
+    const R = mR ? (DADOS.rap.agg || []).filter(d => d.mes === mR && vgPassa(d)) : [];
+    x = {...x, e: somar(A, 'exe'), porUG: u => ({eu: somar(A.filter(d => d.ug === u), 'exe'), ru: somar(R.filter(d => d.ug === u), 'rap')}), exeL: A};
+    if(R.length && !(x.r.apagar > 0.004)) x.r = somar(R, 'rap');
+  }
   const m = vgModo(), {e, r, exeL, porUG, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saude} = x;
   // fração do ano: a meta de empenho é a dotação dividida por igual entre os dias do ano
   const ano = hoje0.getFullYear(), d365 = (new Date(ano, 11, 31) - new Date(ano, 0, 1)) / 864e5 + 1, frac = Math.min(1, ((hoje0 - new Date(ano, 0, 1)) / 864e5 + 1) / d365);
@@ -15175,7 +15183,7 @@ function vgModoHTML(x){
   document.getElementById('vg-sub').textContent += totS ? ' · ' + okS + ' de ' + totS + ' bases em dia' : '';
   const ugsS = UG_ORDEM.map(u => { const {eu, ru} = porUG(u), du = eu.temDot ? eu.dotAt : eu.exec; return {u, eu, ru, du, pe: du > 0 ? eu.emp / du : 0}; }).filter(o => o.du > 0.004 || o.eu.emp > 0.004);
   const corU = pe => pe >= frac - 0.10 ? ['#1e7a43', 'no ritmo'] : pe >= frac - 0.25 ? ['#c98a10', 'atenção'] : ['#b3261e', 'atrasada'];
-  const lendo = !DADOS.exe.pronto || !(dot > 0.004);
+  const lendo = !(dot > 0.004) && !(e.emp > 0.004);
   if(m === 'sala') return vgSala({...x, F, frac, dot, saudeCard, lendo});
   // ---------------- EXECUTIVO ----------------
   const abaixo = ugsS.filter(o => o.pe < frac - 0.10).map(o => o.u);
@@ -15189,8 +15197,8 @@ function vgModoHTML(x){
       <div data-vgir="exe"><small>${e.temDot ? 'Dotação atual' : 'Crédito na seleção'}</small><b>${V(dot)}</b><em>orçamento do ano</em></div>
       <div data-vgir="exe"><small>Empenhado</small><b>${V(e.emp)}</b><em>${lendo ? 'lendo…' : 'falta ' + fmtC(Math.max(0, dot - e.emp))}</em></div>
       <div data-vgir="exe"><small>Liquidado</small><b>${V(e.liq)}</b><em>${lendo ? 'lendo…' : vmPct(e.liq, dot) + ' da dotação'}</em></div>
-      <div data-vgir="exerap"><small>Pago no ano</small><b>${V(e.pago)}</b><em>${VG.rapStatus === 'ok' ? '+ ' + fmtC(r.pago) + ' de RAP' : 'RAP: lendo…'}</em></div>
-      <div data-vgir="rap"><small>RAP a pagar</small><b>${VG.rapStatus === 'ok' ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
+      <div data-vgir="exerap"><small>Pago no ano</small><b>${V(e.pago)}</b><em>${VG.rapStatus === 'ok' || r.pago > 0.004 ? '+ ' + fmtC(r.pago) + ' de RAP' : 'RAP: lendo…'}</em></div>
+      <div data-vgir="rap"><small>RAP a pagar</small><b>${VG.rapStatus === 'ok' || r.apagar > 0.004 ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
     </div>
     <div class="vm-ins">💡 ${esc(ins)}</div></div>`;
   // curva mês a mês (acumulado do Tesouro: saldo de cada mês)
