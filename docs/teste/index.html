@@ -2251,9 +2251,9 @@ const GIDS = {
   prop:'1382020454'        // BASE PROPOSTAS
 };
 // enquanto um gid estiver vazio, a aba é lida da planilha antiga pelo nome (provisório)
-const SHEET_ID = "1TlcBj0BBJ7_0kwv-4UhV2-Aoma4c8kKJJlltCcozkS8";
+const SHEET_ID = "1mVj_eVZVtdEB8ZOTMgZrjeZOLMidHY4lU71Q1GztpIA";
 // planilha nova (PAINEL SDR 2026 - ATUALIZADO): plano B quando o link publicado recusa uma aba (HTTP 400 = gid fora da publicação)
-const SHEET_ID_NOVA = "1wob7I4E7fAprnQP9BnsgfVxUVJYmat--oh30hsOGSZU";
+const SHEET_ID_NOVA = "1wN4o5tNVG8bNNivLWs6_ExCG8DsgVrScL8ozZ16f9CM";
 const urlGvizNova = chave => `https://docs.google.com/spreadsheets/d/${SHEET_ID_NOVA}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(NOME_ABA[chave])}${URL_EXTRA_GVIZ[chave]||''}`;
 const NOME_ABA = {base:'Base Contratos', exe:'BASE EXE GERAL SDR', rap:'BASE RAP GERAL SDR', siop:'SIOP SDR', despesas:'Novas despesas previtas',
   demandas:'Novas despesas previtas - Diego', confc:'CONFERÊNCIA CONTRATOS', atualiz:'Atualizacoes',
@@ -2265,10 +2265,10 @@ const urlAba = chave => GIDS[chave]
 // fontes novas (tentadas antes do link publicado antigo; se falharem, cai no antigo)
 const URL_NOVA = {
   // Parceria SDR: colunas A:AL (34 colunas hoje + folga; colunas vazias são ignoradas) — sem as colunas vazias da direita; o link publicado fica de reserva
-  parc: ['https://docs.google.com/spreadsheets/d/1QirRsKC6_xGsA13VvqyHjHI1ZJ_FOokpRoW0h9VZpxk/gviz/tq?tqx=out:csv&gid=273934927&range=A:AZ&headers=1',
+  parc: ['https://docs.google.com/spreadsheets/d/1T1iWn9lg-WR2RBKKc27xjYh2lvp7wQRzKYbj3zxMmLg/gviz/tq?tqx=out:csv&gid=273934927&range=A:AZ&headers=1',
          'https://docs.google.com/spreadsheets/d/e/2PACX-1vRPg0j1OKTCJGdpnRYo-hNqXqTaDnpTso9I_DEG08cCjaoFLmT5VsMkdWi9iO26gnsZ24L40glpTWAF/pub?gid=273934927&single=true&output=csv'],
-  prop: ['https://docs.google.com/spreadsheets/d/19kVJnFBu97j56ZjrCYzpzD5buJ9UBu2a3nnxMIaM5tM/gviz/tq?tqx=out:csv&gid=1661663693'],
-  conv: ['https://docs.google.com/spreadsheets/d/19kVJnFBu97j56ZjrCYzpzD5buJ9UBu2a3nnxMIaM5tM/gviz/tq?tqx=out:csv&gid=668349515']
+  prop: ['https://docs.google.com/spreadsheets/d/1f6_clsjTNDAkfTYGLLR3IcluPas1wAVfBXQh2qrxqhY/gviz/tq?tqx=out:csv&gid=1661663693'],
+  conv: ['https://docs.google.com/spreadsheets/d/1f6_clsjTNDAkfTYGLLR3IcluPas1wAVfBXQh2qrxqhY/gviz/tq?tqx=out:csv&gid=668349515']
 };
 const FONTE_USADA = {};
 // arquivo .gz do robô: o navegador descomprime (DecompressionStream); sem suporte, devolve null e o painel usa o arquivo normal
@@ -2521,7 +2521,7 @@ let ATUALIZ_OK = true;
 function paraData(t){ const m = (t||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/); return m ? new Date(+m[3], +m[2]-1, +m[1], +(m[4]||0), +(m[5]||0)) : null; }
 // as datas vêm da aba "Atualizacoes" de cada planilha que alimenta o painel (preenchida pelo script de registro);
 // vale a data mais recente de cada aba
-const PLANILHAS_ATUALIZ = [SHEET_ID, SHEET_ID_NOVA, '1QirRsKC6_xGsA13VvqyHjHI1ZJ_FOokpRoW0h9VZpxk', '19kVJnFBu97j56ZjrCYzpzD5buJ9UBu2a3nnxMIaM5tM', '1vmzTpUJrCAf7ATGcgZ35OyhthkHRqQDwz8Dypg25HY0'];   // + BASE PROPOSTAS SDR (robô)
+const PLANILHAS_ATUALIZ = [SHEET_ID, SHEET_ID_NOVA, '1T1iWn9lg-WR2RBKKc27xjYh2lvp7wQRzKYbj3zxMmLg', '1f6_clsjTNDAkfTYGLLR3IcluPas1wAVfBXQh2qrxqhY', '15sEOjuahbbzv6b1CVzi3XtL9mCncXCgHtG5tD8anMnA'];   // + BASE PROPOSTAS SDR (robô)
 async function carregarAtualiz(){
   const novo = {}; let ok = false;
   const urls = PLANILHAS_ATUALIZ.map(id => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ABA_ATUALIZ)}`);
@@ -5805,7 +5805,7 @@ window.__tgGet = async url => { const k = await tgVer()+'tg|url|'+url; let txt =
   const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); txt = await r.text(); IDB2.set(k, txt); return txt; };
 // a página de Propostas (robô) pede os dados da equipe da 420013 (planilha de Propostas)
 // fonte: planilha BASE PROPOSTAS SDR (colunas da equipe Z:AF); se não der para ler, a planilha antiga de Propostas
-const BASE_PROP_URL = 'https://docs.google.com/spreadsheets/d/1vmzTpUJrCAf7ATGcgZ35OyhthkHRqQDwz8Dypg25HY0/gviz/tq?tqx=out:csv&headers=1&sheet=PROPOSTAS&tq='+encodeURIComponent('select A,Z,AA,AB,AC,AD,AE where Z is not null or AA is not null');
+const BASE_PROP_URL = 'https://docs.google.com/spreadsheets/d/15sEOjuahbbzv6b1CVzi3XtL9mCncXCgHtG5tD8anMnA/gviz/tq?tqx=out:csv&headers=1&sheet=PROPOSTAS&tq='+encodeURIComponent('select A,Z,AA,AB,AC,AD,AE where Z is not null or AA is not null');
 let _propEq = null;
 window.__propEquipe = () => _propEq || (_propEq = (async () => {
   // junta as duas fontes: planilha antiga de Propostas da equipe + colunas da equipe na BASE PROPOSTAS SDR (esta vale quando preenchida)
@@ -8467,7 +8467,7 @@ VIEWS.viag = {
         const nO = new Set(Lo.map(d => d.ug)).size;
         const sfa = Lo.length ? `<tr class="vt-sfa" data-campo="pag" data-valor="Superintendências e outras UGs" title="Clique para ver só estas viagens"><td>▸ Superintendências e outras UGs (ações SDR) · ${nO} UG${nO > 1 ? 's' : ''} <small>clique para filtrar</small></td><td></td><td>${intN(Lo.length)}</td><td>${fBv(to)}</td><td>—</td><td>—</td><td>—</td><td><span class="pill c">sem teto</span></td></tr>` : '';
         return sub + sfa + `<tr class="vt-tot"><td>TOTAL GERAL</td><td></td><td>${intN(L.length)}</td><td>${fBv(tot)}</td><td></td><td></td><td></td><td></td></tr>`; })()}</table>
-      <p class="dica" style="text-align:left;margin-top:8px"><span style="display:inline-block;width:2px;height:12px;background:#1f4e79;vertical-align:middle"></span> onde o gasto deveria estar hoje (${Math.round(frac * 100)}% do ano) · teto do SCDP de ${VIAG_SCDP_DATA} (inicial + suplementação, ${VIAG_SCDP_FONTE}) para ${Object.keys(VIAG_SCDP).join(', ')}${ugs.filter(u => VIAG_NUG[u.slice(0, 6)] && !VIAG_TETO[u]).length ? ' · sem teto informado: ' + ugs.filter(u => VIAG_NUG[u.slice(0, 6)] && !VIAG_TETO[u]).join(', ') + ' (preencha a aba TETO SCDP)' : ''} · gasto = Portal da Transparência</p><p class="dica" style="text-align:left;margin-top:4px"><a href="https://docs.google.com/spreadsheets/d/1wN4o5tNVG8bNNivLWs6_ExCG8DsgVrScL8ozZ16f9CM/edit#gid=1305781694" target="_blank" rel="noopener" title="Abre a aba TETO SCDP da planilha PAINEL SDR 2026: altere lá, volte e atualize a página" style="display:inline-block;margin-right:10px;padding:4px 11px;border-radius:7px;background:#1f4e79;color:#fff;font-weight:700;text-decoration:none">✏ Editar teto</a><b>No SCDP em ${VIAG_SCDP_DATA}:</b> ${Object.entries(VIAG_SCDP).map(([u, x]) => `${esc(u)}: realizado ${fmtC(x.real)} + em andamento ${fmtC(x.andam)} · <b style="color:${x.saldo < .05 * x.teto ? '#b3261e' : '#155a30'}">saldo ${fBv(x.saldo)}</b> (${viagPct((x.real + x.andam) / x.teto)} usado)`).join(' · ')}</p>`;
+      <p class="dica" style="text-align:left;margin-top:8px"><span style="display:inline-block;width:2px;height:12px;background:#1f4e79;vertical-align:middle"></span> onde o gasto deveria estar hoje (${Math.round(frac * 100)}% do ano) · teto do SCDP de ${VIAG_SCDP_DATA} (inicial + suplementação, ${VIAG_SCDP_FONTE}) para ${Object.keys(VIAG_SCDP).join(', ')}${ugs.filter(u => VIAG_NUG[u.slice(0, 6)] && !VIAG_TETO[u]).length ? ' · sem teto informado: ' + ugs.filter(u => VIAG_NUG[u.slice(0, 6)] && !VIAG_TETO[u]).join(', ') + ' (preencha a aba TETO SCDP)' : ''} · gasto = Portal da Transparência</p><p class="dica" style="text-align:left;margin-top:4px"><a href="https://docs.google.com/spreadsheets/d/${SHEET_ID_NOVA}/edit#gid=1305781694" target="_blank" rel="noopener" title="Abre a aba TETO SCDP da planilha PAINEL SDR 2026: altere lá, volte e atualize a página" style="display:inline-block;margin-right:10px;padding:4px 11px;border-radius:7px;background:#1f4e79;color:#fff;font-weight:700;text-decoration:none">✏ Editar teto</a><b>No SCDP em ${VIAG_SCDP_DATA}:</b> ${Object.entries(VIAG_SCDP).map(([u, x]) => `${esc(u)}: realizado ${fmtC(x.real)} + em andamento ${fmtC(x.andam)} · <b style="color:${x.saldo < .05 * x.teto ? '#b3261e' : '#155a30'}">saldo ${fBv(x.saldo)}</b> (${viagPct((x.real + x.andam) / x.teto)} usado)`).join(' · ')}</p>`;
     const nM = ano < hoje.getFullYear() ? 12 : hoje.getMonth() + 1, meses = VIAG_MES.slice(0, nM), mx = Math.max(...meses.map(m => soma(L.filter(d => d.mes === m), 'total')), 1);
     const porMes = () => `<div class="hb" style="height:230px">${meses.map(m => { const l = L.filter(d => d.mes === m), dI = soma(l, 'diar'), pS = soma(l, 'pass');
         return `<div title="${m}: ${l.length} viagens · diárias ${fBv(dI)} · passagens ${fBv(pS)}"><span style="font-size:11px;color:#155a30;font-weight:700">${dI + pS ? fmtC(dI + pS) : ''}</span><i style="height:${(160 * pS / mx).toFixed(0)}px;background:#1f4e79;margin:0;border-radius:6px 6px 0 0"></i><i style="height:${(160 * dI / mx).toFixed(0)}px;background:#1f7a43;border-radius:0"></i>${m}</div>`; }).join('')}</div>
@@ -8881,8 +8881,8 @@ window.BM = BM;
 // O painel NÃO baixa as abas inteiras: faz consultas ao Google (gviz) e recebe só o que precisa:
 //   · resumo mensal somado pelo próprio Google (para a evolução mês a mês)
 //   · detalhe por nota de empenho apenas do mês escolhido
-const SHEET_ID = '1QJc3jJH0aePXpaqNYKFZXV92zIxjnFa9t15ahIziwCg';       // BASE TESOURO GERENCIAL 2026 — só EXE
-const SHEET_RAP = '15BVK8TS4Nzwqay9p18WbkZT2zHXJwHZBSMLjMBKvQlQ';      // BASE GERENCIAL RAP 2026 — abas de RAP
+const SHEET_ID = '1_RUExAfrzACboP-haD8kPhCFDa94LeslU8qpM62L-GU';       // BASE TESOURO GERENCIAL 2026 — só EXE
+const SHEET_RAP = '1cPRChDP0KU0rfjgGij4hC2hz76auQ4a_rxL-XXFqrWQ';      // BASE GERENCIAL RAP 2026 — abas de RAP
 const PLANILHA = {exe: SHEET_ID, rap: SHEET_RAP};
 const FONTES = {
   exe: [ {gid:'1204904051', nome:'BASE EXE 2026'},
