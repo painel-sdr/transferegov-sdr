@@ -628,11 +628,12 @@ def main(saida):
     # 8. tabelas de detalhe (colunas originais do Transferegov)
     gravar(saida, 'empenhos.csv', cab_emp or ['NR_CONVENIO'], empenhos)
     # versão leve das notas de empenho para a ficha do painel (nota exata de cada instrumento)
-    gravar(saida, 'painel_empenhos.csv', ['nr_instrumento', 'ne', 'ug', 'data', 'tipo', 'situacao', 'valor', 'ptres', 'pi', 'ns_saldo'],
+    gravar(saida, 'painel_empenhos.csv', ['nr_instrumento', 'ne', 'ug', 'data', 'tipo', 'situacao', 'valor', 'ptres', 'pi', 'ns_saldo', 'nd'],
            [{'nr_instrumento': e.get('NR_CONVENIO', ''), 'ne': e.get('NR_EMPENHO', ''), 'ug': e.get('UG_EMITENTE', ''), 'data': e.get('DATA_EMISSAO', ''),
              'tipo': e.get('DESC_TIPO_NOTA', ''), 'situacao': e.get('DESC_SITUACAO_EMPENHO', ''), 'valor': v2(num(e.get('VALOR_EMPENHO'))),
              'ptres': e.get('PTRES', ''), 'pi': e.get('PLANO_INTERNO', ''),
-             'ns_saldo': '1' if 'NSSALDO' in (e.get('OBSERVACAO_EMPENHO') or '').upper().replace(' ', '') else ''} for e in empenhos])   # nota gerada pela transferência de saldo entre UGs
+             'ns_saldo': '1' if 'NSSALDO' in (e.get('OBSERVACAO_EMPENHO') or '').upper().replace(' ', '') else '',
+             'nd': e.get('NATUREZA_DESPESA', '')} for e in empenhos])   # natureza: custeio (3…) × investimento (4…) quando a nota não está no Tesouro do ano   # nota gerada pela transferência de saldo entre UGs
     gravar(saida, 'desembolsos.csv', cab_des or ['NR_CONVENIO'], desembolsos)
     # versão leve dos desembolsos para a ficha do painel (ordem bancária de cada desembolso)
     gravar(saida, 'painel_desembolsos.csv', ['nr_instrumento', 'data', 'ob', 'ug', 'obs', 'valor'],

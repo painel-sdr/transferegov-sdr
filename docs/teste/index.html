@@ -5662,6 +5662,9 @@ function carregarEmpTG(){
   })().catch(e => { _tgEmp = null; throw e; }));
 }
 // ficha do instrumento · ORÇAMENTO (notas de empenho: Transferegov + pago/saldo do Tesouro numa tabela só) — estilo enxuto
+// custeio × investimento pela natureza de despesa do Transferegov (nota antiga ou fora das bases do Tesouro do ano)
+const gndTGchip = nd => { const g = String(nd||'').trim()[0]; if(g !== '3' && g !== '4') return '';
+  return `<span class="lg-gnd ${g==='3'?'c':'i'}" title="pela natureza de despesa da nota no Transferegov (não está nas bases do Tesouro deste ano)">${g==='3'?'Custeio':'Investimento'}</span><span class="lg-nd">ND ${esc(nd)} · Transferegov</span>`; };
 function blocoOrcamento(r, d, lista, emp){
   const neC = ne => (String(ne).match(/(\d{4}NE\d{6})$/)||[])[1] || String(ne);
   const noTes = new Map(); (r && r.itens || []).forEach(o => { const k = o.ug+'|'+neC(o.ne); if(!noTes.has(k)) noTes.set(k, []); noTes.get(k).push(o); });
@@ -5677,7 +5680,7 @@ function blocoOrcamento(r, d, lista, emp){
     const obs = e.ns_saldo ? '<small class="fx-obs">transferência de saldo (NS SALDO) · não soma de novo</small>' : origT.has(k) ? '<small class="fx-obs">saldo transferido para outra UG</small>' : '';
     const semTes = !ts.length ? (anoNE(e.ne) && anoNE(e.ne) < anoBase-1 ? '<small class="fx-cinza">fora das bases de '+anoBase+'</small>' : '<small class="fx-verm">não achada no Tesouro</small>') : '';
     const gm = {gnd:{}, nds:[...new Set(ts.flatMap(o => o.nds||[]))]}; ts.forEach(o => Object.entries(o.gnd||{}).forEach(([g, t]) => { gm.gnd[g] = gm.gnd[g] ? {emp:gm.gnd[g].emp+t.emp, pago:gm.gnd[g].pago+t.pago, apagar:gm.gnd[g].apagar+t.apagar} : {...t}; }));
-    return `<tr><td><b>${esc(e.ne)}</b> ${orig}${obs}</td><td>${esc(e.ug)}</td><td>${esc(e.data)}</td><td>${esc(e.tipo)}</td><td>${esc([e.ptres, e.pi].filter(Boolean).join(' · ')||'—')}</td><td>${ts.length ? lgGnd(gm) : '<span class="lg-nd">—</span>'}</td>
+    return `<tr><td><b>${esc(e.ne)}</b> ${orig}${obs}</td><td>${esc(e.ug)}</td><td>${esc(e.data)}</td><td>${esc(e.tipo)}</td><td>${esc([e.ptres, e.pi].filter(Boolean).join(' · ')||'—')}</td><td>${ts.length && Object.keys(gm.gnd).length ? lgGnd(gm) : (gndTGchip(e.nd) || (ts.length ? lgGnd(gm) : '<span class="lg-nd">—</span>'))}</td>
       <td class="n">${e.ns_saldo ? '<span class="fx-cinza">'+f2(nTG(e.valor))+'</span>' : f2(nTG(e.valor))}</td><td class="n">${ts.length ? f2(pago) : '—'}</td><td class="n">${ts.length ? f2(saldo) : semTes}</td></tr>`; }).join('');
   const tes = r && r.mes ? 'pago e saldo: Tesouro '+esc(r.mes) : 'Tesouro: lendo…';
   let html = `<div class="fx"><div class="fx-cab"><h4>Orçamento · notas de empenho</h4><span>Transferegov · ${tes}</span></div>
@@ -13166,7 +13169,10 @@ function riEmpRodape(d, i){
   }
   return L;
 }
-const riGnd = x => RI.gnd === null ? '<span class="lg-nd">lendo o Tesouro…</span>' : !RI.gnd ? '' : gndChip(RI.gnd.get(String(x[1])+'|'+((String(x[0]).match(/(\d{4}NE\d{6})$/)||[])[1]||x[0])));
+const riGndTG = nd => { const g = String(nd||'').trim()[0]; return g === '3' || g === '4' ? `<span class="lg-gnd ${g==='3'?'c':'i'}" title="pela natureza de despesa da nota no Transferegov">${g==='3'?'Custeio':'Investimento'}</span><span class="lg-nd">ND ${esc(nd)} · Transferegov</span>` : ''; };
+const riGnd = x => { if(RI.gnd === null) return '<span class="lg-nd">lendo o Tesouro…</span>'; const o = RI.gnd ? RI.gnd.get(String(x[1])+'|'+((String(x[0]).match(/(\d{4}NE\d{6})$/)||[])[1]||x[0])) : null;
+  if(o && Object.keys(o.gnd||{}).length) return gndChip(o);
+  return riGndTG(x[6]) || (RI.gnd ? gndChip(o) : ''); };
 const riSec = (t, extra) => `<div class="ri-sec">${t}${extra ? ' '+extra : ''}</div>`;
 const riTab = (cab, linhas, cls) => `<table class="ri-t ${cls||''}"><tr>${cab.map(c => `<th class="${c[1]||''}">${c[0]}</th>`).join('')}</tr>${linhas.join('')}</table>`;
 function riCabecalho(C, sub){

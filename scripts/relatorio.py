@@ -118,7 +118,7 @@ for r in ler('ajustes_pt.csv'):
 for r in ler('painel_empenhos.csv'):
     n = r.get('nr_instrumento', '')
     if n in por_nr:
-        R[n]['ne'].append([r.get('ne', ''), r.get('ug', ''), r.get('data', ''), r.get('tipo', ''), num(r.get('valor')), 1 if r.get('ns_saldo') else 0])   # 6º: cópia da transferência de saldo (NS SALDO), não soma
+        R[n]['ne'].append([r.get('ne', ''), r.get('ug', ''), r.get('data', ''), r.get('tipo', ''), num(r.get('valor')), 1 if r.get('ns_saldo') else 0, r.get('nd', '')])   # 6º: cópia da transferência de saldo (NS SALDO), não soma · 7º: natureza de despesa (Transferegov)
 
 for r in ler('historico_situacao.csv'):
     n = nr_de(r)
