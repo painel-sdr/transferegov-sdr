@@ -15120,8 +15120,8 @@ function vgModoBarra(){
 .vm a.vm-ir,.vm .vm-ir{color:#1e6b45;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none;background:none;border:0;font-family:inherit}
 .vm-faixa{background:linear-gradient(100deg,#164a33,#1e6b45);color:#fff;border-radius:16px;padding:18px 22px;display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;margin-top:12px}
 .vm-anel{display:flex;align-items:center;gap:14px}.vm-anel span{color:#cfe6d7;font-weight:600;font-size:14px;line-height:1.3}
-.vm-kp{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}.vm-kp>div{border-left:1px solid #3b7a5c;padding:2px 16px;cursor:pointer}
-.vm-kp small{color:#bfdccb;font-size:12.5px}.vm-kp b{display:block;font-size:27px;letter-spacing:-.5px;margin:2px 0;white-space:nowrap}.vm-kp em{font-style:normal;font-size:12px;color:#cfe6d7}
+.vm-kp{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}.vm-kp>div.lp b{color:#ffb4a8}.vm-kp>div{border-left:1px solid #3b7a5c;padding:2px 16px;cursor:pointer}
+.vm-kp small{color:#bfdccb;font-size:12.5px}.vm-kp b{display:block;font-size:25px;letter-spacing:-.5px;margin:2px 0;white-space:nowrap}.vm-kp em{font-style:normal;font-size:12px;color:#cfe6d7}
 .vm-ins{grid-column:1/3;background:rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;font-size:15px;color:#eaf5ee}
 .vm-g2{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:14px;margin-top:14px}
 .vm-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
@@ -15231,6 +15231,7 @@ function vgModoHTML(x){
       <div data-vgir="exe"><small>Empenhado</small><b${lendo ? '' : vmTT(e.emp)}>${V(e.emp)}</b><em${lendo ? '' : vmTT(Math.max(0, dot - e.emp))}>${lendo ? 'lendo…' : 'falta ' + fmtC(Math.max(0, dot - e.emp))}</em></div>
       <div data-vgir="exe"><small>Liquidado</small><b${lendo ? '' : vmTT(e.liq)}>${V(e.liq)}</b><em>${lendo ? 'lendo…' : vmPct(e.liq, dot) + ' da dotação'}</em></div>
       <div data-vgir="exerap"><small>Pago no ano</small><b${lendo ? '' : vmTT(e.pago)}>${V(e.pago)}</b><em${vmTT(r.pago)}>${VG.rapStatus === 'ok' || r.pago > 0.004 ? '+ ' + fmtC(r.pago) + ' de RAP' : 'RAP: lendo…'}</em></div>
+      <div data-vgir="exe" class="lp" title="Liquidado e ainda não pago: espera o financeiro (liquidado − pago)"><small>Liquidado a pagar</small><b${lendo ? '' : vmTT(Math.max(0, e.liq - e.pago))}>${V(Math.max(0, e.liq - e.pago))}</b><em>${lendo ? 'lendo…' : 'aguardando financeiro'}</em></div>
       <div data-vgir="rap"><small>RAP a pagar</small><b${vmTT(r.apagar)}>${VG.rapStatus === 'ok' || r.apagar > 0.004 ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
     </div>
     <div class="vm-ins">💡 ${esc(ins)}</div></div>`;
@@ -15289,9 +15290,9 @@ function vgModoHTML(x){
   // por UG
   const fm = v => fmtC(v);
   const lnU = (t, v, du, cor, mk) => `<div class="vm-ln"><span>${t}</span><div class="b"><i style="width:${du > 0 ? Math.min(100, Math.max(0, v / du * 100)).toFixed(1) : 0}%;background:${cor}"></i>${mk ? `<u style="left:${(frac * 100).toFixed(1)}%"></u>` : ''}</div><b${vmTT(v)}>${fm(v)}</b><em>${du > 0 ? Math.round(v / du * 100) + '%' : ''}</em></div>`;
-  h += `<div class="c vm-sec"><h3>Por UG</h3><p class="s">Cada linha em relação à dotação da UG. Clique para abrir o Financeiro da UG.</p><div class="vm-ugl">${ugsS.map(o => {
+  h += `<div class="c vm-sec"><h3>Por UG</h3><p class="s">Cada linha em relação à dotação da UG. "Liq. a pagar" é o que já foi liquidado e ainda espera o financeiro. Clique para abrir o Financeiro da UG.</p><div class="vm-ugl">${ugsS.map(o => {
       return `<div class="vm-u" data-vgug="${o.u}"><div class="uh"><b>${o.u}</b><small>${esc((UG_NOMES_CURTOS[o.u] || '').split(' · ')[0])}</small><span class="st" style="color:#1e7a43">${o.du > 0 ? vmPct(o.eu.emp, o.du) + ' empenhado' : ''}</span></div><small class="dt"${vmTT(o.du)}>Dotação ${fm(o.du)}</small>
-        ${lnU('Empenhado', o.eu.emp, o.du, '#1e7a43')}${lnU('A empenhar', Math.max(0, o.du - o.eu.emp), o.du, '#f2b640')}${lnU('Liquidado', o.eu.liq, o.du, '#2b7bbd')}${lnU('Pago', o.eu.pago, o.du, '#e08a1e')}</div>`; }).join('')}</div></div>`;
+        ${lnU('Empenhado', o.eu.emp, o.du, '#1e7a43')}${lnU('A empenhar', Math.max(0, o.du - o.eu.emp), o.du, '#f2b640')}${lnU('Liquidado', o.eu.liq, o.du, '#2b7bbd')}${lnU('Pago', o.eu.pago, o.du, '#e08a1e')}${lnU('Liq. a pagar', Math.max(0, o.eu.liq - o.eu.pago), o.du, '#b3261e')}</div>`; }).join('')}</div></div>`;
   h += saudeCard(false);
   h += `<div class="vm-ac">Acesso rápido ${[['exe','Financeiro EXE'],['rap','Financeiro RAP'],['parc','Parcerias'],['tedapi','TED'],['ctrsdr','Contratos'],['viag','Viagens']].map(([k, t]) => `<button type="button" data-vgir="${k}">${t}</button>`).join('')}</div>`;
   if(x.erros.length) h += `<p class="vg-erro">${esc(x.erros.join(' · '))}</p>`;
@@ -15357,6 +15358,7 @@ function vgSala(x){
   h += `<div class="vm-side">${saudeCard(true)}
     <div class="c vm-din"><h3>Dinheiro parado</h3><p class="s">Pede decisão antes do fim do exercício.</p>
       <div class="it"><b${x.lendo ? '' : vmTT(e.disp)}>${x.lendo ? '…' : fmtC(e.disp)}</b><small>crédito disponível sem empenho · ${fimAno} dias para empenhar</small><button type="button" class="vm-ir" data-vgir="exe">Ver por ação ›</button></div>
+      <div class="it"><b${x.lendo ? '' : vmTT(Math.max(0, e.liq - e.pago))}>${x.lendo ? '…' : fmtC(Math.max(0, e.liq - e.pago))}</b><small>liquidado no ano e ainda não pago · aguardando financeiro</small><button type="button" class="vm-ir" data-vgir="exe">Ver por UG ›</button></div>
       <div class="it"><b${rapT ? vmTT(rapT.v) : ''}>${rapT ? fmtC(rapT.v) : '…'}</b><small>RAP liquidado e não pago${rapT ? ' · ' + nfmt(rapT.n) + ' notas' : ''}</small><button type="button" class="vm-ir" data-vgir="rap">Ver notas ›</button></div>
       <div class="it"><b${tedN ? vmTT(tedV) : ''}>${tedN ? fmtC(tedV) : '—'}</b><small>TED com crédito sem empenho · ${nfmt(tedN)} TED(s)</small><button type="button" class="vm-ir" data-vgir="tedapi">Ver TEDs ›</button></div></div></div></div>`;
   // quem tem o quê
