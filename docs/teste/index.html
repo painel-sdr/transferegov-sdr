@@ -15186,9 +15186,9 @@ function vgModoHTML(x){
   const lendo = !(dot > 0.004) && !(e.emp > 0.004);
   if(m === 'sala') return vgSala({...x, F, frac, dot, saudeCard, lendo});
   // ---------------- EXECUTIVO ----------------
-  const abaixo = ugsS.filter(o => o.pe < frac - 0.10).map(o => o.u);
-  const ins = lendo ? 'Lendo o Tesouro Gerencial… os números do ano aparecem em instantes.' : `Faltam ${fimAno} dias para fechar o ano e o empenho está ${gap > 0 ? fmtC(gap) + ' abaixo' : fmtC(-gap) + ' acima'} do ritmo ideal (${vmPct(e.emp, dot)} empenhado; o ritmo de hoje é ${vmPct(frac, 1)}). `
-    + (abaixo.length ? (abaixo.length === 1 ? 'A UG ' + abaixo[0] + ' concentra' : 'As UGs ' + abaixo.slice(0, -1).join(', ') + ' e ' + abaixo.slice(-1) + ' concentram') + ' a diferença.' : 'Todas as UGs estão no ritmo.');
+  const saldoE = Math.max(0, dot - e.emp), maior = ugsS.map(o => ({u: o.u, s: Math.max(0, o.du - o.eu.emp)})).sort((p, q) => q.s - p.s)[0];
+  const ins = lendo ? 'Lendo o Tesouro Gerencial… os números do ano aparecem em instantes.' : `Faltam ${fimAno} dias para fechar o exercício. Já foram empenhados ${vmPct(e.emp, dot)} da dotação (${fmtC(e.emp)} de ${fmtC(dot)}); restam ${fmtC(saldoE)} para empenhar`
+    + (maior && maior.s > 0.004 && saldoE > 0.004 ? `, ${Math.round(maior.s / saldoE * 100)}% deles na UG ${maior.u} (${esc((UG_NOMES_CURTOS[maior.u] || '').split(' · ')[0])}).` : '.');
   const pE = dot > 0 ? Math.min(1, e.emp / dot) : 0;
   const V = v => lendo ? '…' : fmtC(v);
   let h = `<div class="vm"><div class="vm-faixa">
@@ -15204,8 +15204,8 @@ function vgModoHTML(x){
   // curva mês a mês (acumulado do Tesouro: saldo de cada mês)
   const ser = new Map(); (DADOS.exe.agg || []).forEach(d => { if(!vgPassa(d) || Math.floor(d.mes / 100) !== ano) return; const o = ser.get(d.mes) || ser.set(d.mes, {emp:0, liq:0, pago:0}).get(d.mes); o.emp += d.emp || 0; o.liq += d.liq || 0; o.pago += d.pago || 0; });
   const LIN = VG.linhas || (VG.linhas = {emp:1, liq:1, pago:1});
-  h += `<div class="vm-g2"><div class="c vm-graf"><h3>${lendo ? 'Execução do ano' : gap > 0 ? 'O empenho está ' + fmtC(gap) + ' atrás da meta' : 'O empenho está ' + fmtC(-gap) + ' à frente da meta'}</h3>
-    <p class="s">Valores acumulados no ano, em reais. A linha tracejada é a meta: a dotação de ${fmtC(dot)} dividida por igual entre os meses.</p>
+  h += `<div class="vm-g2"><div class="c vm-graf"><h3>Execução acumulada do ano</h3>
+    <p class="s">Valores acumulados mês a mês, em reais (Tesouro Gerencial). A linha tracejada é a dotação atual de ${lendo ? '…' : fmtC(dot)}, o teto do ano.</p>
     <div class="vm-chips">${[['emp','Empenhado'],['liq','Liquidado'],['pago','Pago']].map(([k, t]) => `<button type="button" data-vglin="${k}" class="${LIN[k] ? 'on' : ''}">${t}</button>`).join('')}</div>
     ${vmCurva(ser, ano, dot, frac, LIN)}</div>`;
   // para agir: hoje · próximos 7 dias · acumulado em atraso (agrupado por tipo de alerta)
@@ -15241,9 +15241,9 @@ function vgModoHTML(x){
   // por UG
   const fm = v => fmtC(v);
   const lnU = (t, v, du, cor, mk) => `<div class="vm-ln"><span>${t}</span><div class="b"><i style="width:${du > 0 ? Math.min(100, Math.max(0, v / du * 100)).toFixed(1) : 0}%;background:${cor}"></i>${mk ? `<u style="left:${(frac * 100).toFixed(1)}%"></u>` : ''}</div><b>${fm(v)}</b><em>${du > 0 ? Math.round(v / du * 100) + '%' : ''}</em></div>`;
-  h += `<div class="c vm-sec"><h3>Por UG</h3><p class="s">Cada linha em relação à dotação da UG. O traço azul no empenhado é o ritmo de hoje (${vmPct(frac, 1)}). Clique para abrir o Financeiro da UG.</p><div class="vm-ugl">${ugsS.map(o => { const [cor, tx] = corU(o.pe);
-      return `<div class="vm-u" data-vgug="${o.u}"><div class="uh"><b>${o.u}</b><small>${esc((UG_NOMES_CURTOS[o.u] || '').split(' · ')[0])}</small><span class="st" style="color:${cor}">● ${tx}</span></div><small class="dt">Dotação ${fm(o.du)}</small>
-        ${lnU('Empenhado', o.eu.emp, o.du, '#1e7a43', 1)}${lnU('A empenhar', Math.max(0, o.du - o.eu.emp), o.du, '#f2b640')}${lnU('Liquidado', o.eu.liq, o.du, '#2b7bbd')}${lnU('Pago', o.eu.pago, o.du, '#e08a1e')}</div>`; }).join('')}</div></div>`;
+  h += `<div class="c vm-sec"><h3>Por UG</h3><p class="s">Cada linha em relação à dotação da UG. Clique para abrir o Financeiro da UG.</p><div class="vm-ugl">${ugsS.map(o => {
+      return `<div class="vm-u" data-vgug="${o.u}"><div class="uh"><b>${o.u}</b><small>${esc((UG_NOMES_CURTOS[o.u] || '').split(' · ')[0])}</small><span class="st" style="color:#1e7a43">${o.du > 0 ? vmPct(o.eu.emp, o.du) + ' empenhado' : ''}</span></div><small class="dt">Dotação ${fm(o.du)}</small>
+        ${lnU('Empenhado', o.eu.emp, o.du, '#1e7a43')}${lnU('A empenhar', Math.max(0, o.du - o.eu.emp), o.du, '#f2b640')}${lnU('Liquidado', o.eu.liq, o.du, '#2b7bbd')}${lnU('Pago', o.eu.pago, o.du, '#e08a1e')}</div>`; }).join('')}</div></div>`;
   h += saudeCard(false);
   h += `<div class="vm-ac">Acesso rápido ${[['exe','Financeiro EXE'],['rap','Financeiro RAP'],['parc','Parcerias'],['tedapi','TED'],['ctrsdr','Contratos'],['viag','Viagens']].map(([k, t]) => `<button type="button" data-vgir="${k}">${t}</button>`).join('')}</div>`;
   if(x.erros.length) h += `<p class="vg-erro">${esc(x.erros.join(' · '))}</p>`;
@@ -15259,14 +15259,13 @@ function vmCurva(ser, ano, dot, frac, LIN){
   [0, .25, .5, .75, 1].forEach(p => { const v = mx * p; g.push(`<line x1="${L}" x2="${X(11)}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="#e8eee9"/><text x="${L - 8}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="#7d8b83">${fmtC(v)}</text>`); });
   ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'].forEach((t, i) => g.push(`<text x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#7d8b83">${t}</text>`));
   if(ult >= 0 && ult < 11) g.push(`<rect x="${(X(ult) + 4).toFixed(1)}" y="${T}" width="${(X(11) - X(ult) - 4).toFixed(1)}" height="${H - T - 30}" fill="#f4f7f5"/><text x="${((X(ult) + X(11)) / 2).toFixed(1)}" y="${T + 14}" text-anchor="middle" font-size="11" fill="#7d8b83">a fechar</text>`);
-  g.push(`<polyline points="${Array.from({length: 12}, (_, i) => X(i).toFixed(1) + ',' + Y(dot * (i + 1) / 12).toFixed(1)).join(' ')}" fill="none" stroke="#9fb3a8" stroke-width="2" stroke-dasharray="6 6"/>`);
+  if(dot > 0.004) g.push(`<line x1="${L}" x2="${X(11).toFixed(1)}" y1="${Y(dot).toFixed(1)}" y2="${Y(dot).toFixed(1)}" stroke="#9fb3a8" stroke-width="2" stroke-dasharray="6 6"/>`);
   const S = {emp:['#1e7a43', 4, 'Empenhado'], liq:['#2b7bbd', 3, 'Liquidado'], pago:['#e08a1e', 3, 'Pago']}, fim = [];
   ['pago','liq','emp'].forEach(k => { if(!LIN[k]) return; const pts = meses.map(m => [m % 100 - 1, ser.get(m)[k]]); if(!pts.length) return;
     g.push(`<polyline points="${pts.map(([i, v]) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${S[k][0]}" stroke-width="${S[k][1]}" stroke-linejoin="round" stroke-linecap="round"/>`);
     const [i, v] = pts[pts.length - 1]; g.push(`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="5" fill="${S[k][0]}"><title>${S[k][2]}: ${fmtBRL(v)}</title></circle>`); fim.push([v, S[k][0], S[k][2]]); });
   // rótulos no fim (sem sobrepor) + a meta do mês atual
-  if(ult >= 0){ const mt = dot * (ult + 1) / 12; fim.push([mt, '#7d8b83', 'Meta do mês']);
-    const e = LIN.emp && ser.get(meses[meses.length - 1]); if(e && mt > e.emp) g.push(`<line x1="${X(ult).toFixed(1)}" x2="${X(ult).toFixed(1)}" y1="${Y(mt).toFixed(1)}" y2="${(Y(e.emp) - 7).toFixed(1)}" stroke="#b3261e" stroke-width="2.5"/>`); }
+  if(dot > 0.004) fim.push([dot, '#7d8b83', 'Dotação atual']);
   fim.sort((a, b) => b[0] - a[0]); let yAnt = -99;
   fim.forEach(([v, c, t]) => { let y = Y(v) + 4; if(y - yAnt < 17) y = yAnt + 17; yAnt = y; g.push(`<text x="${(X(11) + 12).toFixed(1)}" y="${y.toFixed(1)}" font-size="12.5" fill="${c}"><tspan font-weight="700">${fmtC(v)}</tspan> ${t}</text>`); });
   if(!meses.length) g.push(`<text x="${W / 2}" y="${H / 2}" text-anchor="middle" font-size="13" fill="#7d8b83">lendo os meses do Tesouro…</text>`);
