@@ -7305,6 +7305,8 @@ const VIEW_PARC = {
     const todos = DADOS.parc.linhas, L = filtrar(todos);
     const ativos = L.filter(d => d.situG==='Em execução'), validos = L.filter(d => d.situG!=='Anulado / cancelado');
     const repV = soma(validos,'repasse'), desV = soma(validos,'desemb'), aDesV = soma(validos,'aDes');
+    // 25/11/2026: "a desembolsar" = só a carteira em execução (o mesmo número da Visão geral); propostas com plano aprovado e ainda sem instrumento vêm à parte
+    const aprovP = L.filter(d => /PLANO DE TRABALHO APROVADO/.test(normAccent(d.situ||''))), aDesE = soma(ativos,'aDes'), aDesP = soma(aprovP,'aDes'), repE = soma(ativos,'repasse');
     const intN = n => Number(n).toLocaleString('pt-BR'), cnt = v => intN(Math.round(v));
     const K = ['global','repasse','desemb','aDes','saldo'];
     const ok = l => l.filter(d => d.situG!=='Anulado / cancelado');
@@ -7366,7 +7368,7 @@ const VIEW_PARC = {
       ${kpi({titulo:'Instrumentos', valor:intN(L.length), grande:1, destaque:1, nota:intN(ativos.length)+' em execução · '+intN(L.length-validos.length)+' anulados fora', lista:L, ord:'repasse', cols:KC.inst([KV('Repasse','repasse'),KV('Desembolsado','desemb')])})}
       ${kpi({titulo:'Valor de repasse', valor:fmtC(repV), tip:fmtBRL(repV), nota:'global '+fmtC(soma(validos,'global'))+' · contrapartida '+fmtC(soma(validos,'contrap')), lista:validos, ord:'repasse', cols:KC.inst([KV('Valor global','global'),KV('Repasse','repasse'),KV('Contrapartida','contrap')])})}
       ${kpi({titulo:'Desembolsado', valor:fmtC(desV), tip:fmtBRL(desV), barra:repV?desV/repV:0, nota:fmtPct(repV?desV/repV:0)+' do repasse', lista:validos.filter(d => d.desemb>0), ord:'desemb', cols:KC.inst([KV('Desembolsado','desemb'),['% do repasse', d => fmtPct(d.repasse?d.desemb/d.repasse:0), 'num']])})}
-      ${kpi({titulo:'A desembolsar', valor:fmtC(aDesV), tip:fmtBRL(aDesV), cor:'#b8650a', nota:fmtPct(repV?aDesV/repV:0)+' do repasse', lista:validos.filter(d => d.aDes>0), ord:'aDes', cols:KC.inst([KV('Repasse','repasse'),KV('A desembolsar','aDes')])})}
+      ${kpi({titulo:'A desembolsar · em execução', valor:fmtC(aDesE), tip:fmtBRL(aDesE)+' · '+intN(ativos.length)+' instrumentos em execução', cor:'#b8650a', nota:fmtPct(repE?aDesE/repE:0)+' do repasse em execução'+(aDesP>0.004 ? ' · + '+fmtC(aDesP)+' de propostas aprovadas ainda sem instrumento' : ''), lista:ativos.filter(d => d.aDes>0).concat(aprovP.filter(d => d.aDes>0)), ord:'aDes', cols:KC.inst([KV('Repasse','repasse'),KV('A desembolsar','aDes')])})}
     </div>
     ${ppSec('Precisa de ação', 'clique para filtrar')}
     ${ppAcao(cards)}
@@ -11056,7 +11058,12 @@ const alCols0 = a => [['prior','Prior.','p'],['dep','Departamento','']].concat(a
 // só as colunas que têm algum dado neste alerta (coluna toda vazia some da tela e da exportação)
 const alCols = a => a._cv || (a._cv = alCols0(a).filter(c => c[0] === 'info' || c[2] === 'ctr' || c[2] === 'inst' || a.itens.some(x => { const v = x[c[0]]; return v !== null && v !== undefined && v !== '' && v !== 0 && v !== '—'; })));
 const alTxtV = (x, c) => { const v = x[c[0]]; return v === null || v === undefined ? '' : String(v); };
-function alFiltrar(a, q){ const T = norm(q), fx = AL.faixa[a.menu+'|'+a.id], I = fx ? a.itens.filter(x => x.faixa === fx) : a.itens.slice(); if(!T) return I; const C = alCols(a); return I.filter(x => norm(C.map(c => alTxtV(x, c)).join(' ')).includes(T)); }
+// filtro de prazo vindo do "Para agir" da Visão geral (hoje · próximos 7 dias · atrasados); some ao voltar para a Visão geral ou em "ver todos"
+const AL_PZ_ROT = {hj:'com prazo hoje', sm:'que vencem nos próximos 7 dias', at:'com o prazo já vencido'};
+const alPzD = x => x.prazo_d !== undefined && x.prazo_d !== null ? +x.prazo_d : x.dias !== undefined && x.dias !== null && x.dias !== '' ? +x.dias : null;
+const alPzOk = (x, pz) => { const d = alPzD(x); return d !== null && (pz === 'hj' ? d === 0 : pz === 'sm' ? d > 0 && d <= 7 : d < 0); };
+const alPzAtivo = a => AL.prazoF && AL.prazoF.k === a.menu+'|'+a.id+'|'+a.titulo ? AL.prazoF.pz : '';
+function alFiltrar(a, q){ const T = norm(q), fx = AL.faixa[a.menu+'|'+a.id], pz = alPzAtivo(a); let I = fx ? a.itens.filter(x => x.faixa === fx) : a.itens.slice(); if(pz) I = I.filter(x => alPzOk(x, pz)); if(!T) return I; const C = alCols(a); return I.filter(x => norm(C.map(c => alTxtV(x, c)).join(' ')).includes(T)); }
 function alCel(x, c, tela){ const [k, , t] = c, v = x[k];
   if(t === 'p') return `<td>${alScore(v)}</td>`;
   if(x.novo && (t === 'inst' || t === 'ctr' || t === 'link' || k === 'num' || k === 'ne')){ const h = alCel(Object.assign({}, x, {novo:0}), c, tela); return h.replace(/<\/td>$/, ' <span class="al-novo">NOVO</span></td>'); }
@@ -11217,6 +11224,7 @@ function desenharAlerta(tela){
       return `<div class="al-a ${a.sev} ${aberto ? 'ab' : ''}"><div class="al-hw"><button type="button" class="al-h2" data-alsel="${esc(k)}"><em>${a.itens.length.toLocaleString('pt-BR')}</em><span><b>${esc(a.titulo)}</b><small>Sugestão: ${esc(a.sugestao)}</small></span>
         ${temH ? alTend(a) : '<div class="al-tr"></div>'}<div class="al-nv">${temH && MR ? `${nv ? `<span class="al-novo">NOVO</span> ${nv} hoje` : '—'}<br><span class="dn">${rs ? '✓ '+rs+' resolvido'+(rs > 1 ? 's' : '') : ''}</span>` : ''}</div><i>${aberto ? 'fechar ▴' : 'ver lista ▾'}</i></button>
         <span class="al-bx"><button type="button" data-alx="xls" data-alk="${esc(k)}" title="Baixar esta lista em Excel">Excel</button><button type="button" data-alx="pdf" data-alk="${esc(k)}" title="Baixar esta lista em PDF">PDF</button></span></div>${chips}
+        ${aberto && alPzAtivo(a) ? `<div class="al-pzf">Mostrando só os ${nfmt(alFiltrar(a, '').length)} caso(s) <b>${AL_PZ_ROT[alPzAtivo(a)]}</b>, como no "Para agir" da Visão geral. <button type="button" data-alpzx>ver todos os ${nfmt(a.itens.length)}</button></div>` : ''}
         ${aberto ? `<div class="al-busca"><input type="search" placeholder="Procurar nesta lista (UG, fornecedor, PI, UF…)" value="${esc(q)}" data-alq="${esc(k)}">${nv ? `<label><input type="checkbox" data-alnov ${AL.novosPrim ? 'checked' : ''}> novos primeiro</label>` : ''}<small>ordenado pela prioridade · ${alCols(a).length} colunas · role para o lado para ver todas</small></div><div class="al-l" data-alcorpo="${esc(k)}">${alTabela(a, tela, q)}</div>` : ''}</div>`; }).join('')}</div>` : `<p class="al-vazio">✓ Sem alertas neste menu${AL.dep.length || AL.ctrl.length ? ' com este filtro' : ''}.</p>`}</div>`; }).join('');
   el.innerHTML = topo + tot + mud + alFiltrosHTML(tela) + (AL.verRes ? res + prio : prio + res) + auto + secs + `<p class="em-n">Alertas calculados com os dados de hoje${tela === 'alertaorc' && AL.mesOrc ? ' (Tesouro: posição de '+esc(AL.mesOrc)+')' : ''}. Fonte: ${esc(AL_FONTE[tela])}. Departamento: pela UG e pela ação (nas Parcerias, a coluna DEPARTAMENTO da planilha vale primeiro). Clique no número do contrato ou do instrumento para abrir o relatório.</p>`;
 }
@@ -11235,7 +11243,8 @@ document.addEventListener('click', e => {
   const x = e.target.closest('[data-alx]'); if(x){ const a = alAchar(x.dataset.alk), tela = document.getElementById('v-extra').dataset.tela; if(a) (x.dataset.alx === 'xls' ? alXls : alPdf)(a, tela, AL.q[x.dataset.alk] || ''); return; }
   const p = e.target.closest('[data-alxp]'); if(p){ const tela = document.getElementById('v-extra').dataset.tela; (p.dataset.alxp === 'xls' ? alXlsPagina : alPdfPagina)(tela); return; }
   const s = e.target.closest('[data-alsev]'); if(s){ AL.filtroSev = AL.filtroSev === s.dataset.alsev ? '' : s.dataset.alsev; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
-  const a = e.target.closest('[data-alsel]'); if(a){ AL.sel = AL.sel === a.dataset.alsel ? null : a.dataset.alsel; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
+  if(e.target.closest('[data-alpzx]')){ AL.prazoF = null; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
+  const a = e.target.closest('[data-alsel]'); if(a){ AL.prazoF = null; AL.sel = AL.sel === a.dataset.alsel ? null : a.dataset.alsel; desenharAlerta(document.getElementById('v-extra').dataset.tela); return; }
   const m = e.target.closest('[data-alir]'); if(m){ ir(m.dataset.alir); return; }
   const c = e.target.closest('[data-alctr]'); if(c){ e.preventDefault(); ir('relctr', {id: c.dataset.alctr}); return; }
   const n = e.target.closest('[data-alinst]'); if(n){ e.preventDefault(); ir('relinst', {nr: n.dataset.alinst}); return; }
@@ -11251,6 +11260,9 @@ document.addEventListener('click', e => {
 .al-expl{margin:0 0 8px;background:#f1f7f3;border:1px solid #d5e6da;border-radius:10px;padding:8px 12px;font-size:12.5px;line-height:1.5;color:#2c3d33}.al-expl b{color:#155a30}
 .al-hw{display:flex;align-items:stretch}.al-hw .al-h{flex:1}.al-bx{display:flex;align-items:center;gap:4px;padding-right:12px}.al-bx button,.al-exp button{border:1px solid #cfe3d5;background:#f4f8f5;color:#155a30;font:inherit;font-size:11.5px;font-weight:700;border-radius:7px;padding:4px 9px;cursor:pointer}.al-bx button:hover,.al-exp button:hover{background:#1f6b3a;color:#fff}
 .al-exp{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border-radius:10px;padding:6px 10px}.al-exp span{color:#fff;font-size:12px;font-weight:700;margin-right:2px}.al-exp button{background:#fff}
+.al-pzf{padding:9px 14px;background:#fff4d6;border-top:1px solid #efc56f;color:#4a3000;font-size:13px}.al-pzf button{margin-left:8px;border:1px solid #c98a10;background:#fff;color:#6b4500;border-radius:8px;padding:4px 10px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.al-a.al-foco{animation:alFoco 2.4s ease-out 1}@keyframes alFoco{0%,40%{box-shadow:0 0 0 4px #f0b429}100%{box-shadow:0 0 0 0 rgba(240,180,41,0)}}
+@media (prefers-reduced-motion:reduce){.al-a.al-foco{animation:none;box-shadow:0 0 0 3px #f0b429}}
 .al-busca{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid #e3ebe5;background:#f8fbf9}.al-busca input{flex:0 1 380px;border:1px solid #cfe3d5;border-radius:8px;padding:5px 10px;font:inherit;font-size:12.5px}.al-busca small{color:#5f6f66;font-size:11.5px}
 .al-l{border-top:1px solid #e3ebe5;max-height:460px;overflow:auto}.al-t{border-collapse:collapse;font-size:12px;min-width:100%;font-variant-numeric:tabular-nums}
 .al-t th{position:sticky;top:0;z-index:1;background:#1f6b3a;color:#fff;text-align:left;padding:6px 8px;font-weight:600;white-space:nowrap}.al-t td{padding:5px 8px;border-bottom:1px solid #eef3ef;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
@@ -14921,6 +14933,10 @@ function saudeRobo(k){
 }
 function desenharVisaoGeral(){
   const el = document.getElementById('vg-corpo'); if(!el || document.getElementById('v-visao').hidden) return;
+  AL.prazoF = null;   // voltou para a Visão geral: o filtro de prazo do "Para agir" deixa de valer na tela de alerta
+  // 25/11/2026: TED (TED GERAL SDR · API Transferegov) e Contratos SDR (Contratos.gov.br) entram em segundo plano
+  if(!VG.tedApi && !VG.tedCarr){ VG.tedCarr = 1; asTed().then(l => { VG.tedApi = l; vgRedesenhar(); }).catch(e => { VG.tedErr = e.message; vgRedesenhar(); }); }
+  if(!VG.ctrSdr && !VG.ctrCarr){ VG.ctrCarr = 1; asCtr().then(l => { VG.ctrSdr = l || []; vgRedesenhar(); }).catch(e => { VG.ctrErr = e.message; vgRedesenhar(); }); }
   const exeL = (DADOS.exe.det[VG.mes]||[]).filter(vgPassa), rapL = (DADOS.rap.det[VG.mesR||VG.mes]||[]).filter(vgPassa);
   const e = somar(exeL,'exe'), r = somar(rapL,'rap');
   // filtros do topo
@@ -14961,6 +14977,7 @@ function desenharVisaoGeral(){
   const A = VG.ant, L = k => (A[k] && A[k].linhas) || [];
   const parc = L('parc').filter(d => !VG.ug.length || VG.ug.includes(String(d.ug||'')));
   const nS = d => norm(d.situ);
+  const aprovP = parc.filter(d => /PLANO DE TRABALHO APROVADO/.test(nS(d)));
   const execu = parc.filter(d => /EM EXECUCAO/.test(nS(d))), aguard = parc.filter(d => /AGUARDANDO PRESTACAO/.test(nS(d))),
         anal = parc.filter(d => /PRESTACAO DE CONTAS/.test(nS(d)) && !/AGUARDANDO|CONCLUID|APROVAD/.test(nS(d))), concl = parc.filter(d => /CONCLUID|APROVAD/.test(nS(d)));
   const sm = (l,k) => l.reduce((a,d) => a+(d[k]||0), 0);
@@ -15073,7 +15090,7 @@ function desenharVisaoGeral(){
   vgModoBarra();
   if(vgModo() !== 'classico'){ try{
     const iS = h.lastIndexOf('<h2 class="vg-sec">Saúde dos dados'), saude = h.slice(iS).replace(/<p class="vg-erro">[\s\S]*$/, '');
-    h = vgModoHTML({e, r, exeL, rapL, porUG, execu, sm, vig, pc, base, cV, c30, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saude, erros: VG.erros.concat(errAnt)});
+    h = vgModoHTML({e, r, exeL, rapL, porUG, execu, aprovP, sm, vig, pc, base, cV, c30, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saude, erros: VG.erros.concat(errAnt)});
   }catch(err){ console.warn('visão geral (modo novo)', err); h = `<p class="vg-erro">Não foi possível montar o modo ${esc(vgModo())}: ${esc(err.message)} · mostrando a visão clássica</p>` + h; } }
   el.innerHTML = h;
 }
@@ -15120,6 +15137,10 @@ function vgModoBarra(){
 .vm-bar{height:10px;background:#e8eee9;border-radius:6px;overflow:hidden;display:flex}.vm-bar i{display:block;height:100%}
 .vm-q{display:flex;gap:14px;font-size:12.5px;color:#46554d;flex-wrap:wrap;margin:8px 0}.vm-q span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;background:var(--c)}
 .vm-m .vm-ir{display:block;text-align:right}
+.vm-m .big b{font-weight:700}.vm-sub{margin:-4px 0 8px;font-size:12.5px;color:#46554d}
+.vm-ugf{background:#fff4d6;border:1px solid #efc56f;color:#4a3000;border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:13.5px}
+.vm-ugf button{float:right;margin-left:10px;border:1px solid #c98a10;background:#fff;color:#6b4500;border-radius:8px;padding:4px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.vm [title]{cursor:help}.vm [data-vgir][title],.vm [data-vmal][title],.vm [data-vgug] [title]{cursor:pointer}
 .vm-ugl{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .vm-u{border:1px solid #e3ebe5;border-radius:12px;padding:10px 12px;cursor:pointer}.vm-u:hover{border-color:#8fbfa2}
 .vm-u .uh{display:flex;align-items:baseline;gap:6px}.vm-u .uh b{font-size:15px}.vm-u .uh small{color:#6b7a72;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.vm-u .st{margin-left:auto;font-size:11.5px;font-weight:700;white-space:nowrap}
@@ -15157,6 +15178,18 @@ function vgModoBarra(){
 @media (max-width:1100px){.vm-faixa{grid-template-columns:1fr}.vm-ins{grid-column:auto}.vm-kp{grid-template-columns:repeat(2,1fr);row-gap:10px}.vm-g2,.vm-g3,.vm-gs{grid-template-columns:1fr}.vm-ugl{grid-template-columns:repeat(2,1fr)}.vm-cal{grid-template-columns:repeat(2,1fr)}}
 `; document.head.appendChild(st); })();
 
+const vmTT = v => ` title="${esc(fmtBRL(+v || 0))}"`;   // valor exato ao passar o mouse (como no Orçamento por ações)
+const VM_UGC = {'130010':'CEPLAC','130141':'CGPI','130255':'CGMAP'};
+function vmFaixaUG(){ return VG.ug.length ? `<div class="vm-ugf">🔎 Mostrando só ${VG.ug.length > 1 ? 'as UGs' : 'a UG'} <b>${VG.ug.map(u => esc(u + (UG_NOMES_CURTOS[u] ? ' · ' + UG_NOMES_CURTOS[u].split(' · ')[0] : ''))).join(', ')}</b> em toda a tela (execução, para agir, convênios, TED e contratos). <button type="button" data-vgugx>limpar</button></div>` : ''; }
+function vgIrAlerta(o){ if(!o || !o.a) return; let {tela, menu, id, titulo} = o.a;
+  // os contratos da CEPLAC têm nomes próprios na tela de alerta
+  if(menu === 'contratos'){ if(o.pz === 'at'){ id = 'venc'; titulo = 'Contratos ativos com a vigência vencida'; } else if(id === 'ctr30'){ id = 'vig30'; titulo = 'Vigência vence em até 30 dias'; } else { id = 'vig120'; titulo = 'Vigência vence em 31 a 120 dias'; } }
+  const pf = o.pz ? {k: menu + '|' + id + '|' + titulo, pz: o.pz} : null;
+  AL.sel = tela + '|' + menu + '|' + id + '|' + titulo; AL.filtroSev = ''; ir(tela); AL.prazoF = pf;
+  // espera a lista aparecer, rola até ela e destaca
+  let n = 0; const t = setInterval(() => { n++; const el = document.querySelector('#v-extra .al-a.ab');
+    if(el){ clearInterval(t); AL.prazoF = pf; try{ desenharAlerta(tela); }catch(e){} const b = document.querySelector('#v-extra .al-a.ab'); if(b){ b.scrollIntoView({behavior: 'smooth', block: 'start'}); b.classList.add('al-foco'); } }
+    else if(n > 120) clearInterval(t); }, 150); }
 const vmPct = (a, b) => b > 0 ? (Math.floor(a / b * 1000) / 10).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%' : '—';
 const vmPz = d => d === null || d === undefined ? ['', ''] : d < 0 ? ['at', 'Atrasado'] : d === 0 ? ['hj', 'Hoje'] : d === 1 ? ['am', 'Amanhã'] : d <= 7 ? ['sm', 'Em ' + d + ' dias'] : ['sm', 'Em ' + d + ' dias'];
 const vmQuem = it => it.proponente || it.fav || it.unid || it.convenente || it.municipio || '';
@@ -15191,14 +15224,14 @@ function vgModoHTML(x){
     + (maior && maior.s > 0.004 && saldoE > 0.004 ? `, ${Math.round(maior.s / saldoE * 100)}% deles na UG ${maior.u} (${esc((UG_NOMES_CURTOS[maior.u] || '').split(' · ')[0])}).` : '.');
   const pE = dot > 0 ? Math.min(1, e.emp / dot) : 0;
   const V = v => lendo ? '…' : fmtC(v);
-  let h = `<div class="vm"><div class="vm-faixa">
+  let h = `<div class="vm">${vmFaixaUG()}<div class="vm-faixa">
     <div class="vm-anel"><svg width="92" height="92" viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="none" stroke="#2f6e51" stroke-width="10"/><circle cx="48" cy="48" r="40" fill="none" stroke="#8fd3a6" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(pE * 251.3).toFixed(1)} 300" transform="rotate(-90 48 48)"/><text x="48" y="54" text-anchor="middle" font-weight="800" font-size="19" fill="#fff">${lendo ? '…' : vmPct(e.emp, dot)}</text></svg><span>da dotação já<br>empenhada</span></div>
     <div class="vm-kp">
-      <div data-vgir="exe"><small>${e.temDot ? 'Dotação atual' : 'Crédito na seleção'}</small><b>${V(dot)}</b><em>orçamento do ano</em></div>
-      <div data-vgir="exe"><small>Empenhado</small><b>${V(e.emp)}</b><em>${lendo ? 'lendo…' : 'falta ' + fmtC(Math.max(0, dot - e.emp))}</em></div>
-      <div data-vgir="exe"><small>Liquidado</small><b>${V(e.liq)}</b><em>${lendo ? 'lendo…' : vmPct(e.liq, dot) + ' da dotação'}</em></div>
-      <div data-vgir="exerap"><small>Pago no ano</small><b>${V(e.pago)}</b><em>${VG.rapStatus === 'ok' || r.pago > 0.004 ? '+ ' + fmtC(r.pago) + ' de RAP' : 'RAP: lendo…'}</em></div>
-      <div data-vgir="rap"><small>RAP a pagar</small><b>${VG.rapStatus === 'ok' || r.apagar > 0.004 ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
+      <div data-vgir="exe"><small>${e.temDot ? 'Dotação atual' : 'Crédito na seleção'}</small><b${lendo ? '' : vmTT(dot)}>${V(dot)}</b><em>orçamento do ano</em></div>
+      <div data-vgir="exe"><small>Empenhado</small><b${lendo ? '' : vmTT(e.emp)}>${V(e.emp)}</b><em${lendo ? '' : vmTT(Math.max(0, dot - e.emp))}>${lendo ? 'lendo…' : 'falta ' + fmtC(Math.max(0, dot - e.emp))}</em></div>
+      <div data-vgir="exe"><small>Liquidado</small><b${lendo ? '' : vmTT(e.liq)}>${V(e.liq)}</b><em>${lendo ? 'lendo…' : vmPct(e.liq, dot) + ' da dotação'}</em></div>
+      <div data-vgir="exerap"><small>Pago no ano</small><b${lendo ? '' : vmTT(e.pago)}>${V(e.pago)}</b><em${vmTT(r.pago)}>${VG.rapStatus === 'ok' || r.pago > 0.004 ? '+ ' + fmtC(r.pago) + ' de RAP' : 'RAP: lendo…'}</em></div>
+      <div data-vgir="rap"><small>RAP a pagar</small><b${vmTT(r.apagar)}>${VG.rapStatus === 'ok' || r.apagar > 0.004 ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
     </div>
     <div class="vm-ins">💡 ${esc(ins)}</div></div>`;
   // curva mês a mês (acumulado do Tesouro: saldo de cada mês)
@@ -15209,12 +15242,13 @@ function vgModoHTML(x){
     <div class="vm-chips">${[['emp','Empenhado'],['liq','Liquidado'],['pago','Pago']].map(([k, t]) => `<button type="button" data-vglin="${k}" class="${LIN[k] ? 'on' : ''}">${t}</button>`).join('')}</div>
     ${vmCurva(ser, ano, dot, frac, LIN)}</div>`;
   // para agir: hoje · próximos 7 dias · acumulado em atraso (agrupado por tipo de alerta)
-  const grupo = lista => { const g = new Map(); lista.forEach(o => { const k = o.a.titulo, y = g.get(k) || g.set(k, {a:o.a, n:0, v:0, deps:new Map(), d:o.d}).get(k); y.n++; y.v += +o.it.vprior || 0; const dp = o.it.dep || 'SDR'; y.deps.set(dp, (y.deps.get(dp) || 0) + 1); if(o.d !== null && o.d < y.d) y.d = o.d; }); return [...g.values()].sort((p, q) => q.n - p.n); };
+  const grupo = (lista, pz) => { const g = new Map(); lista.forEach(o => { const k = o.a.titulo, y = g.get(k) || g.set(k, {a:o.a, n:0, v:0, deps:new Map(), d:o.d, as:new Map(), pz}).get(k); y.n++; y.v += +o.it.vprior || 0; y.as.set(o.a, (y.as.get(o.a) || 0) + 1); const dp = o.it.dep || 'SDR'; y.deps.set(dp, (y.deps.get(dp) || 0) + 1); if(o.d !== null && o.d < y.d) y.d = o.d; });
+    return [...g.values()].map(y => Object.assign(y, {a: [...y.as.entries()].sort((p, q) => q[1] - p[1])[0][0]})).sort((p, q) => q.n - p.n); };
   const depTxt = y => { const t = [...y.deps.entries()].sort((p, q) => q[1] - p[1]).slice(0, 2); return t.map(([k, n]) => k + ' ' + Math.round(n / y.n * 100) + '%').join(' · '); };
-  const linhaA = (y, cls, rot) => { VG.vmA.push(y.a); return `<div class="vm-it" data-vmal="${VG.vmA.length - 1}"><div class="n" style="color:${cls === 'at' || cls === 'hj' ? '#b3261e' : '#8a5a00'}">${nfmt(y.n)}</div><div class="t">${esc(y.a.titulo)}<small>${esc(depTxt(y))}${y.v ? ' · ' + fmtC(y.v) : ''}</small></div><span class="vm-pz ${cls}">${rot}</span></div>`; };
+  const linhaA = (y, cls, rot) => { VG.vmA.push({a: y.a, pz: y.pz}); return `<div class="vm-it" data-vmal="${VG.vmA.length - 1}" title="Abrir a lista destes ${nfmt(y.n)} casos na tela de alerta"><div class="n" style="color:${cls === 'at' || cls === 'hj' ? '#b3261e' : '#8a5a00'}">${nfmt(y.n)}</div><div class="t">${esc(y.a.titulo)}<small>${esc(depTxt(y))}${y.v ? ` · <span${vmTT(y.v)}>${fmtC(y.v)}</span>` : ''}</small></div><span class="vm-pz ${cls}">${rot}</span></div>`; };
   VG.vmA = [];
-  const gH = grupo(F.filter(o => o.d === 0)), gP = grupo(F.filter(o => o.d > 0 && o.d <= 7)), gA = grupo(F.filter(o => o.d !== null && o.d < 0)).slice(0, 3);
-  h += `<div class="c vm-al"><h3>Para agir</h3><p class="s">Pelo prazo, do mais urgente ao menos. Clique para abrir o alerta.</p>
+  const gH = grupo(F.filter(o => o.d === 0), 'hj'), gP = grupo(F.filter(o => o.d > 0 && o.d <= 7), 'sm'), gA = grupo(F.filter(o => o.d !== null && o.d < 0), 'at').slice(0, 3);
+  h += `<div class="c vm-al"><h3>Para agir</h3><p class="s">Pelo prazo, do mais urgente ao menos. Clique para abrir a lista desses casos na tela de alerta.</p>
     ${!VG.al ? '<p class="s">lendo os alertas do robô…</p>' : ''}
     ${gH.length ? '<h4>Hoje</h4>' + gH.map(y => linhaA(y, 'hj', 'Hoje')).join('') : ''}
     ${gP.length ? '<h4>Próximos 7 dias</h4>' + gP.slice(0, 3).map(y => linhaA(y, y.d === 1 ? 'am' : 'sm', y.d === 1 ? 'Amanhã' : 'Em ' + y.d + ' dias')).join('') : ''}
@@ -15222,27 +15256,41 @@ function vgModoHTML(x){
     ${VG.al && !gH.length && !gP.length && !gA.length ? '<p class="s">Nenhum alerta com prazo para os filtros escolhidos.</p>' : ''}
     <p style="text-align:right;margin:10px 0 0"><button type="button" class="vm-ir" data-vgmodo="sala">Ver a fila completa (${nfmt(cnt('r'))} críticos) ›</button></p></div></div>`;
   // parcerias · TED · contratos
-  const {execu, sm, vig, pc, base, cV, c30} = x;
-  const repT = sm(execu, 'repasse'), desT = sm(execu, 'desemb'), aDes = sm(execu, 'aDes') || execu.reduce((t, d) => t + Math.max(0, (d.repasse || 0) - (d.desemb || 0)), 0);
-  const nAl = f => TODOS.filter(f).reduce((t, a) => t + a.itens.length, 0), sAl = (f, k) => TODOS.filter(f).reduce((t, a) => t + a.itens.reduce((u, it) => u + (+it[k] || 0), 0), 0);
+  const {execu, aprovP = [], sm} = x;
+  const repT = sm(execu, 'repasse'), desT = sm(execu, 'desemb'), aDes = sm(execu, 'aDes') || execu.reduce((t, d) => t + Math.max(0, (d.repasse || 0) - (d.desemb || 0)), 0), aDesP = sm(aprovP, 'aDes');
+  const nAl = f => TODOS.filter(f).reduce((t, a) => t + a.itens.length, 0);
   const pcAtr = nAl(a => /^(parc|conv|repasse)$/.test(a.menu) && a.id === 'pcvenc'), tedSemNE = nAl(a => /^(ted|tedapi)$/.test(a.menu) && a.id === 'ncsemne');
-  const aComp = sm(pc, 'aComp'), aRep = sm(vig, 'aRep');
+  // TED · TED GERAL SDR (API do Transferegov): toda a Secretaria; a equipe controla os da 130010 e da 420013
+  const nT = v => { v = String(v || '').trim(); if(/,/.test(v)) v = v.replace(/\./g, '').replace(',', '.'); return +v || 0; };
+  const ugT = t => String(t['Enviado / recebido'] === 'Recebido' ? t['UG descentralizada'] : t['UG descentralizadora']).trim();
+  const TF = (VG.tedApi || []).filter(t => !VG.ug.length || VG.ug.includes(ugT(t))), tEx = TF.filter(t => t['Fase (painel)'] === 'Em execução');
+  const tEq = tEx.filter(t => ['130010', '420013'].includes(ugT(t))).length, tPC = TF.filter(t => t['Fase (painel)'] === 'Prestação de contas');
+  const sT = (l, k) => l.reduce((u, t) => u + nT(t[k]), 0), aCompT = sT(TF, 'A comprovar (Tesouro)'), aCompE = sT(tEx, 'A comprovar (Tesouro)'), aCompP = sT(tPC, 'A comprovar (Tesouro)'), aRepT = sT(tEx, 'A repassar (Tesouro)');
+  const tOk = !!VG.tedApi, semNE = Math.min(tEx.length, tedSemNE);
+  // Contratos · Contratos SDR (Contratos.gov.br): os mesmos números da tela Contratos SDR
+  const CS = (VG.ctrSdr || []).filter(d => d.sit === 'Ativo' && (!VG.ug.length || VG.ug.includes(String(d.ugc)))), cOk = !!VG.ctrSdr;
+  const cTem = k => CS.filter(d => (d.acoes || []).includes(k)).length, nVen = cTem('vencido'), nRen = cTem('renovar'), nFat = cTem('fatura');
+  const cUG = ['130010', '130141', '130255'].map(u => [u, CS.filter(d => String(d.ugc) === u).length]).filter(([, n]) => n);
+  const pc_ = (a, b) => b ? (a / b * 100).toFixed(1) : 0;
   h += `<div class="vm-g3">
-    <div class="c vm-m"><div class="top"><h3>Convênios e termos</h3><span class="s">${nfmt(execu.length)} em execução</span></div><div class="big">${fmtC(aDes)} <span>a desembolsar</span></div>
-      <div class="vm-bar"><i style="width:${repT > 0 ? (desT / repT * 100).toFixed(1) : 0}%;background:#1e7a43"></i></div>
-      <div class="vm-q"><span style="--c:#1e7a43">${vmPct(desT, repT)} desembolsado</span>${pcAtr ? `<span style="--c:#b3261e">${nfmt(pcAtr)} prestações de contas atrasadas</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="parc">Abrir Parcerias ›</button></div>
-    <div class="c vm-m"><div class="top"><h3>TED</h3><span class="s">${nfmt(vig.length)} vigentes</span></div><div class="big">${fmtC(aComp)} <span>a comprovar</span></div>
-      <div class="vm-bar"><i style="width:${vig.length ? ((vig.length - Math.min(vig.length, tedSemNE)) / vig.length * 100).toFixed(1) : 0}%;background:#2b7bbd"></i><i style="width:${vig.length ? (Math.min(vig.length, tedSemNE) / vig.length * 100).toFixed(1) : 0}%;background:#f0c36a"></i></div>
-      <div class="vm-q"><span style="--c:#2b7bbd">${fmtC(aRep)} a repassar</span>${tedSemNE ? `<span style="--c:#f0c36a">${nfmt(tedSemNE)} com crédito sem empenho</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="tedapi">Abrir TED ›</button></div>
-    <div class="c vm-m"><div class="top"><h3>Contratos CEPLAC</h3><span class="s">${nfmt(base.length)} ativos</span></div><div class="big">${nfmt(cV.length)} <span>vencidos ainda ativos</span></div>
-      <div class="vm-bar"><i style="width:${base.length ? ((base.length - cV.length - c30.length) / base.length * 100).toFixed(1) : 0}%;background:#1e7a43"></i><i style="width:${base.length ? (c30.length / base.length * 100).toFixed(1) : 0}%;background:#f0c36a"></i><i style="width:${base.length ? (cV.length / base.length * 100).toFixed(1) : 0}%;background:#b3261e"></i></div>
-      <div class="vm-q"><span style="--c:#1e7a43">em dia</span><span style="--c:#f0c36a">${nfmt(c30.length)} vencem em 30 dias</span><span style="--c:#b3261e">${nfmt(cV.length)} vencidos</span></div><button type="button" class="vm-ir" data-vgir="ctrsdr">Abrir Contratos ›</button></div>
+    <div class="c vm-m"><div class="top"><h3>Convênios e termos</h3><span class="s">${nfmt(execu.length)} em execução</span></div><div class="big"><b${vmTT(aDes)}>${fmtC(aDes)}</b> <span>a desembolsar em execução</span></div>
+      ${aDesP > 0.004 ? `<p class="vm-sub"${vmTT(aDesP)}>+ ${fmtC(aDesP)} de propostas aprovadas ainda sem instrumento (${nfmt(aprovP.length)})</p>` : ''}
+      <div class="vm-bar"><i style="width:${pc_(desT, repT)}%;background:#1e7a43"></i></div>
+      <div class="vm-q"><span style="--c:#1e7a43"${vmTT(desT)}>${vmPct(desT, repT)} desembolsado</span>${pcAtr ? `<span style="--c:#b3261e">${nfmt(pcAtr)} prestações de contas atrasadas</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="parc">Abrir Parcerias ›</button></div>
+    <div class="c vm-m"><div class="top"><h3>TED</h3><span class="s">${tOk ? nfmt(tEx.length) + ' em execução' : VG.tedErr ? 'API indisponível' : 'lendo…'}</span></div><div class="big"><b${tOk ? vmTT(aCompT) : ''}>${tOk ? fmtC(aCompT) : '…'}</b> <span>a comprovar na Secretaria</span></div>
+      <p class="vm-sub">${tOk ? `${nfmt(tEq)} no controle da equipe (130010 e 420013)` : VG.tedErr ? 'não foi possível ler o TED GERAL SDR: ' + esc(VG.tedErr) : 'lendo o TED GERAL SDR (API do Transferegov)…'}</p>
+      <div class="vm-bar"><i style="width:${pc_(aCompE, aCompT)}%;background:#2b7bbd"></i><i style="width:${pc_(aCompP, aCompT)}%;background:#f0c36a"></i></div>
+      <div class="vm-q"><span style="--c:#2b7bbd"${vmTT(aCompE)}>${tOk ? fmtC(aCompE) : '…'} em execução</span><span style="--c:#f0c36a"${vmTT(aCompP)}>${tOk ? fmtC(aCompP) : '…'} em prestação de contas</span><span style="--c:#7d8b83"${vmTT(aRepT)}>${tOk ? fmtC(aRepT) : '…'} a repassar</span>${semNE ? `<span style="--c:#b3261e">${nfmt(semNE)} com crédito sem empenho</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="tedapi">Abrir TED ›</button></div>
+    <div class="c vm-m"><div class="top"><h3>Contratos</h3><span class="s">${cOk ? nfmt(CS.length) + ' ativos' : VG.ctrErr ? 'base indisponível' : 'lendo…'}</span></div><div class="big"><b>${cOk ? nfmt(nVen) : '…'}</b> <span>vencidos ainda ativos</span></div>
+      <p class="vm-sub">${cOk ? cUG.map(([u, n]) => VM_UGC[u] + ' ' + nfmt(n)).join(' · ') : VG.ctrErr ? 'não foi possível ler os Contratos SDR' : 'lendo os Contratos SDR (Contratos.gov.br)…'}</p>
+      <div class="vm-bar"><i style="width:${pc_(Math.max(0, CS.length - nVen - nRen), CS.length)}%;background:#1e7a43"></i><i style="width:${pc_(nRen, CS.length)}%;background:#f0c36a"></i><i style="width:${pc_(nVen, CS.length)}%;background:#b3261e"></i></div>
+      <div class="vm-q"><span style="--c:#1e7a43">${cOk ? nfmt(Math.max(0, CS.length - nVen - nRen)) : '…'} em dia</span><span style="--c:#f0c36a">${cOk ? nfmt(nRen) : '…'} a renovar em 120 dias</span><span style="--c:#b3261e">${cOk ? nfmt(nVen) : '…'} vencidos</span>${nFat ? `<span style="--c:#8a5a00">${nfmt(nFat)} com fatura vencida</span>` : ''}</div><button type="button" class="vm-ir" data-vgir="ctrsdr">Abrir Contratos SDR ›</button></div>
   </div>`;
   // por UG
   const fm = v => fmtC(v);
-  const lnU = (t, v, du, cor, mk) => `<div class="vm-ln"><span>${t}</span><div class="b"><i style="width:${du > 0 ? Math.min(100, Math.max(0, v / du * 100)).toFixed(1) : 0}%;background:${cor}"></i>${mk ? `<u style="left:${(frac * 100).toFixed(1)}%"></u>` : ''}</div><b>${fm(v)}</b><em>${du > 0 ? Math.round(v / du * 100) + '%' : ''}</em></div>`;
+  const lnU = (t, v, du, cor, mk) => `<div class="vm-ln"><span>${t}</span><div class="b"><i style="width:${du > 0 ? Math.min(100, Math.max(0, v / du * 100)).toFixed(1) : 0}%;background:${cor}"></i>${mk ? `<u style="left:${(frac * 100).toFixed(1)}%"></u>` : ''}</div><b${vmTT(v)}>${fm(v)}</b><em>${du > 0 ? Math.round(v / du * 100) + '%' : ''}</em></div>`;
   h += `<div class="c vm-sec"><h3>Por UG</h3><p class="s">Cada linha em relação à dotação da UG. Clique para abrir o Financeiro da UG.</p><div class="vm-ugl">${ugsS.map(o => {
-      return `<div class="vm-u" data-vgug="${o.u}"><div class="uh"><b>${o.u}</b><small>${esc((UG_NOMES_CURTOS[o.u] || '').split(' · ')[0])}</small><span class="st" style="color:#1e7a43">${o.du > 0 ? vmPct(o.eu.emp, o.du) + ' empenhado' : ''}</span></div><small class="dt">Dotação ${fm(o.du)}</small>
+      return `<div class="vm-u" data-vgug="${o.u}"><div class="uh"><b>${o.u}</b><small>${esc((UG_NOMES_CURTOS[o.u] || '').split(' · ')[0])}</small><span class="st" style="color:#1e7a43">${o.du > 0 ? vmPct(o.eu.emp, o.du) + ' empenhado' : ''}</span></div><small class="dt"${vmTT(o.du)}>Dotação ${fm(o.du)}</small>
         ${lnU('Empenhado', o.eu.emp, o.du, '#1e7a43')}${lnU('A empenhar', Math.max(0, o.du - o.eu.emp), o.du, '#f2b640')}${lnU('Liquidado', o.eu.liq, o.du, '#2b7bbd')}${lnU('Pago', o.eu.pago, o.du, '#e08a1e')}</div>`; }).join('')}</div></div>`;
   h += saudeCard(false);
   h += `<div class="vm-ac">Acesso rápido ${[['exe','Financeiro EXE'],['rap','Financeiro RAP'],['parc','Parcerias'],['tedapi','TED'],['ctrsdr','Contratos'],['viag','Viagens']].map(([k, t]) => `<button type="button" data-vgir="${k}">${t}</button>`).join('')}</div>`;
@@ -15263,11 +15311,12 @@ function vmCurva(ser, ano, dot, frac, LIN){
   const S = {emp:['#1e7a43', 4, 'Empenhado'], liq:['#2b7bbd', 3, 'Liquidado'], pago:['#e08a1e', 3, 'Pago']}, fim = [];
   ['pago','liq','emp'].forEach(k => { if(!LIN[k]) return; const pts = meses.map(m => [m % 100 - 1, ser.get(m)[k]]); if(!pts.length) return;
     g.push(`<polyline points="${pts.map(([i, v]) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${S[k][0]}" stroke-width="${S[k][1]}" stroke-linejoin="round" stroke-linecap="round"/>`);
+    pts.slice(0, -1).forEach(([i, v]) => g.push(`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="7" fill="transparent"><title>${S[k][2]} · ${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][i]}: ${fmtBRL(v)}</title></circle>`));
     const [i, v] = pts[pts.length - 1]; g.push(`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="5" fill="${S[k][0]}"><title>${S[k][2]}: ${fmtBRL(v)}</title></circle>`); fim.push([v, S[k][0], S[k][2]]); });
   // rótulos no fim (sem sobrepor) + a meta do mês atual
   if(dot > 0.004) fim.push([dot, '#7d8b83', 'Dotação atual']);
   fim.sort((a, b) => b[0] - a[0]); let yAnt = -99;
-  fim.forEach(([v, c, t]) => { let y = Y(v) + 4; if(y - yAnt < 17) y = yAnt + 17; yAnt = y; g.push(`<text x="${(X(11) + 12).toFixed(1)}" y="${y.toFixed(1)}" font-size="12.5" fill="${c}"><tspan font-weight="700">${fmtC(v)}</tspan> ${t}</text>`); });
+  fim.forEach(([v, c, t]) => { let y = Y(v) + 4; if(y - yAnt < 17) y = yAnt + 17; yAnt = y; g.push(`<text x="${(X(11) + 12).toFixed(1)}" y="${y.toFixed(1)}" font-size="12.5" fill="${c}"><title>${t}: ${fmtBRL(v)}</title><tspan font-weight="700">${fmtC(v)}</tspan> ${t}</text>`); });
   if(!meses.length) g.push(`<text x="${W / 2}" y="${H / 2}" text-anchor="middle" font-size="13" fill="#7d8b83">lendo os meses do Tesouro…</text>`);
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Execução acumulada do ano">${g.join('')}</svg>`;
 }
@@ -15277,7 +15326,7 @@ function vgSala(x){
   const {e, F, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saudeCard} = x;
   const novos = nov('r') + nov('y') + nov('b'), resolv = MUD.filter(m => m.tipo === 'resolvido').length;
   const semana = F.filter(o => o.d !== null && o.d >= 0 && o.d <= 7).length;
-  let h = `<div class="vm"><div class="vm-pulso"><span class="t">${ref ? 'Desde ' + esc(ref.split('-').reverse().join('/')) : 'Hoje'}</span>
+  let h = `<div class="vm">${vmFaixaUG()}<div class="vm-pulso"><span class="t">${ref ? 'Desde ' + esc(ref.split('-').reverse().join('/')) : 'Hoje'}</span>
     ${ref ? `<span><b class="up">+${nfmt(novos)}</b>alertas novos</span><span><b class="ok">${nfmt(resolv)}</b>resolvidos</span>` : ''}
     <span><b>${nfmt(semana)}</b>vencem nos próximos 7 dias</span><span><b>${fimAno}</b>dias para fechar o exercício</span>
     <span style="margin-left:auto"><b>${nfmt(cnt('r'))}</b>críticos · <b style="font-size:16px">${nfmt(cnt('y'))}</b>atenção</span></div>`;
@@ -15287,7 +15336,7 @@ function vgSala(x){
     .sort((p, q) => p.d - q.d || (+q.it.vprior || 0) - (+p.it.vprior || 0));
   VG.vmFila = fila; const N = VG.vmN || 15;
   const linF = (o, i) => { const [c, t] = vmPz(o.d), num = alNum(o.it);
-    return `<tr><td><span class="vm-pz ${c}">${t}</span></td><td><b>${esc(o.a.titulo)}</b><small>${num ? `<a href="#" data-vmfi="${i}">${esc(num)}</a> · ` : ''}${esc(vmQuem(o.it))}</small></td><td class="v">${+o.it.vprior ? fmtC(+o.it.vprior) : '—'}</td><td>${esc(o.it.dep || 'SDR')}</td><td class="mut">${vmSit(o.d)}</td></tr>`; };
+    return `<tr><td><span class="vm-pz ${c}">${t}</span></td><td><b>${esc(o.a.titulo)}</b><small>${num ? `<a href="#" data-vmfi="${i}">${esc(num)}</a> · ` : ''}${esc(vmQuem(o.it))}</small></td><td class="v"${+o.it.vprior ? vmTT(o.it.vprior) : ''}>${+o.it.vprior ? fmtC(+o.it.vprior) : '—'}</td><td>${esc(o.it.dep || 'SDR')}</td><td class="mut">${vmSit(o.d)}</td></tr>`; };
   const deps = [...new Set(TODOS.flatMap(a => a.itens.map(it => it.dep)).concat(['CEPLAC']).filter(Boolean))].sort();
   let corpo = '';
   if(tab === 'fila') corpo = `<div class="vm-fl"><span>Departamento</span>${msxHTML('vg|aldep', {rot:'Departamento', todos:'Todos · SDR', opts:() => deps.map(d => [d, d, null]), get:() => AL.dep, set:z => { AL.dep = z; vgRedesenhar(); }})}
@@ -15307,9 +15356,9 @@ function vgSala(x){
   const tedNE = TODOS.filter(a => /^(ted|tedapi)$/.test(a.menu) && a.id === 'ncsemne'), tedN = tedNE.reduce((t, a) => t + a.itens.length, 0), tedV = tedNE.reduce((t, a) => t + a.itens.reduce((u, it) => u + (+it.vprior || 0), 0), 0);
   h += `<div class="vm-side">${saudeCard(true)}
     <div class="c vm-din"><h3>Dinheiro parado</h3><p class="s">Pede decisão antes do fim do exercício.</p>
-      <div class="it"><b>${x.lendo ? '…' : fmtC(e.disp)}</b><small>crédito disponível sem empenho · ${fimAno} dias para empenhar</small><button type="button" class="vm-ir" data-vgir="exe">Ver por ação ›</button></div>
-      <div class="it"><b>${rapT ? fmtC(rapT.v) : '…'}</b><small>RAP liquidado e não pago${rapT ? ' · ' + nfmt(rapT.n) + ' notas' : ''}</small><button type="button" class="vm-ir" data-vgir="rap">Ver notas ›</button></div>
-      <div class="it"><b>${tedN ? fmtC(tedV) : '—'}</b><small>TED com crédito sem empenho · ${nfmt(tedN)} TED(s)</small><button type="button" class="vm-ir" data-vgir="tedapi">Ver TEDs ›</button></div></div></div></div>`;
+      <div class="it"><b${x.lendo ? '' : vmTT(e.disp)}>${x.lendo ? '…' : fmtC(e.disp)}</b><small>crédito disponível sem empenho · ${fimAno} dias para empenhar</small><button type="button" class="vm-ir" data-vgir="exe">Ver por ação ›</button></div>
+      <div class="it"><b${rapT ? vmTT(rapT.v) : ''}>${rapT ? fmtC(rapT.v) : '…'}</b><small>RAP liquidado e não pago${rapT ? ' · ' + nfmt(rapT.n) + ' notas' : ''}</small><button type="button" class="vm-ir" data-vgir="rap">Ver notas ›</button></div>
+      <div class="it"><b${tedN ? vmTT(tedV) : ''}>${tedN ? fmtC(tedV) : '—'}</b><small>TED com crédito sem empenho · ${nfmt(tedN)} TED(s)</small><button type="button" class="vm-ir" data-vgir="tedapi">Ver TEDs ›</button></div></div></div></div>`;
   // quem tem o quê
   const porDep = new Map(); F.forEach(o => { const k = o.it.dep || 'SDR', y = porDep.get(k) || porDep.set(k, {k, a:0, h:0, w:0, itens:[]}).get(k); y.itens.push(o); if(o.d !== null && o.d < 0) y.a++; else if(o.d === 0) y.h++; else if(o.d !== null && o.d <= 7) y.w++; });
   const D = [...porDep.values()].filter(y => y.a + y.h + y.w).sort((p, q) => q.a - p.a || q.h - p.h); VG.vmDep = D;
@@ -15321,7 +15370,7 @@ function vgSala(x){
         const T = [...t.entries()].filter(([, z]) => z.a + z.h + z.w).sort((p, q) => q[1].a - p[1].a), mx = Math.max(1, ...T.map(([, z]) => z.a));
         const L = y.itens.filter(o => o.d !== null && o.d <= 7).sort((p, q) => p.d - q.d); VG.vmDetL = VG.vmDetL || {}; VG.vmDetL[y.k] = L;
         det = `<div class="vm-det">${T.map(([n, z]) => `<div class="vm-tp"><span>${esc(n)}</span><div class="rb"><i style="width:${(z.a / mx * 100).toFixed(0)}%"></i></div><b>${nfmt(z.a)}</b><span class="r">${nfmt(z.h)}</span><span class="r">${nfmt(z.w)}</span></div>`).join('')}
-          <table class="vm-t"><thead><tr><th>Instrumento</th><th>Convenente / favorecido</th><th>Alerta</th><th style="text-align:right">Valor</th><th>Situação</th></tr></thead><tbody>${L.slice(0, 40).map((o, j) => `<tr><td>${alNum(o.it) ? `<a href="#" data-vmdi="${esc(y.k)}|${j}">${esc(alNum(o.it))}</a>` : '—'}</td><td>${esc(vmQuem(o.it))}</td><td>${esc(o.a.titulo)}</td><td class="v">${+o.it.vprior ? fmtC(+o.it.vprior) : '—'}</td><td class="mut">${vmSit(o.d)}</td></tr>`).join('')}</tbody></table>
+          <table class="vm-t"><thead><tr><th>Instrumento</th><th>Convenente / favorecido</th><th>Alerta</th><th style="text-align:right">Valor</th><th>Situação</th></tr></thead><tbody>${L.slice(0, 40).map((o, j) => `<tr><td>${alNum(o.it) ? `<a href="#" data-vmdi="${esc(y.k)}|${j}">${esc(alNum(o.it))}</a>` : '—'}</td><td>${esc(vmQuem(o.it))}</td><td>${esc(o.a.titulo)}</td><td class="v"${+o.it.vprior ? vmTT(o.it.vprior) : ''}>${+o.it.vprior ? fmtC(+o.it.vprior) : '—'}</td><td class="mut">${vmSit(o.d)}</td></tr>`).join('')}</tbody></table>
           ${L.length > 40 ? `<p class="s" style="margin-top:8px">mostrando 40 de ${nfmt(L.length)} · a lista completa sai no Excel ou no PDF</p>` : ''}</div>`; }
       return `<div class="vm-qr"><button type="button" class="nm" data-vmdep="${esc(y.k)}">${ab ? '▾' : '▸'} ${esc(y.k)}</button><div class="rb"><i style="width:${(y.a / mxA * 100).toFixed(0)}%"></i></div><span class="a">${nfmt(y.a)}</span><span class="h">${nfmt(y.h)}</span><span class="w">${nfmt(y.w)}</span>
         <span class="vm-xb"><button type="button" data-vmx="xls|${i}">Excel</button><button type="button" data-vmx="pdf|${i}">PDF</button></span></div>${det}`; }).join('') || '<p class="s">Nenhum caso vencido ou vencendo em 7 dias.</p>'}</div>`;
@@ -15349,7 +15398,8 @@ document.addEventListener('click', ev => {
   const t = ev.target; if(!t.closest || !t.closest('#v-visao')) return;
   const md = t.closest('[data-vgmodo]'); if(md){ VG.modo = md.dataset.vgmodo; try{ localStorage.setItem('sdrVgModo', VG.modo); }catch(e){} vgModoBarra(); desenharVisaoGeral(); window.scrollTo({top:0}); return; }
   const ln = t.closest('[data-vglin]'); if(ln){ const L = VG.linhas || (VG.linhas = {emp:1, liq:1, pago:1}); L[ln.dataset.vglin] = L[ln.dataset.vglin] ? 0 : 1; desenharVisaoGeral(); return; }
-  const al = t.closest('[data-vmal]'); if(al){ const a = (VG.vmA || [])[+al.dataset.vmal]; if(a){ AL.sel = a.tela + '|' + a.menu + '|' + a.id + '|' + a.titulo; AL.filtroSev = ''; ir(a.tela); } return; }
+  const al = t.closest('[data-vmal]'); if(al){ vgIrAlerta((VG.vmA || [])[+al.dataset.vmal]); return; }
+  if(t.closest('[data-vgugx]')){ VG.ug = []; desenharVisaoGeral(); return; }
   const tb = t.closest('[data-vmtab]'); if(tb){ VG.vmTab = tb.dataset.vmtab; desenharVisaoGeral(); return; }
   const pz = t.closest('[data-vmpz]'); if(pz){ VG.vmPzF = pz.dataset.vmpz; VG.vmN = 15; desenharVisaoGeral(); return; }
   const mm = t.closest('[data-vmmais]'); if(mm){ VG.vmN = (VG.vmN || 15) + 50; desenharVisaoGeral(); return; }
