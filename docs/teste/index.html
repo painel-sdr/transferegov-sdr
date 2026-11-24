@@ -11370,6 +11370,12 @@ document.addEventListener('click', e => {
 .vga-t small{font-size:11.5px;color:#5f6f66}.vga-t span{font-size:11.5px;font-weight:700;text-align:right}.vga-nota{font-size:11.5px;color:#5f6f66;margin:8px 0 0}
 @media(max-width:1000px){.vga-2{grid-template-columns:1fr}.vga-tp{grid-template-columns:1fr 1fr}}@media(max-width:620px){.vga-tp{grid-template-columns:1fr}}
 @media(max-width:900px){.al-mud{grid-template-columns:1fr}.al-h2{grid-template-columns:60px minmax(0,1fr)}.al-h2 .al-tr,.al-h2 .al-nv{display:none}.al-fx{padding-left:14px}}`; document.head.appendChild(st); })();
+// 24/11/2026 · Ajuda › Manual e Apresentação do painel, no mesmo formato de livro do material de apoio de viagens
+const LIVROS = {manualp:['Manual do Painel SDR 2026','o que é cada menu, o que você encontra em cada tela e como navegar','manual.html','manual/Manual_Painel_SDR_2026.pdf'],
+  apresp:['Apresentação do Painel SDR 2026','o que o painel mostra, o que responde, o que já foi feito e o que falta','apresentacao.html','apresentacao/Apresentacao_Painel_SDR_2026.pdf']};
+function desenharLivro(tela){ const [t, s, pg, pdf] = LIVROS[tela], base = /\/teste\//.test(location.pathname) ? '../livros/' : 'livros/';
+  document.getElementById('v-extra').innerHTML = `<div class="vx-top"><div><h1>${esc(t)}</h1><small>${esc(s)}</small></div><div><a class="vx-btn" style="text-decoration:none;display:inline-block;background:#fff;color:#155a30" href="${base}${pdf}" download>⬇ Baixar PDF</a> <a class="vx-btn" style="text-decoration:none;display:inline-block;background:#fff;color:#155a30" href="${base}${pg}" target="_blank" rel="noopener">Abrir em tela cheia ↗</a></div></div>
+    <div class="vx-card" style="margin-top:14px;padding:0;overflow:hidden;border-radius:14px"><iframe src="${base}${pg}" title="${esc(t)}" style="display:block;width:100%;height:calc(100vh - 170px);min-height:560px;border:0"></iframe></div>`; }
 function desenharViagMat(){
   document.getElementById('v-extra').innerHTML = `<div class="vx-top"><div><h1>Material de apoio · Viagens</h1><small>Passaporte do Usuário SCDP · regras de diárias, passagens e prestação de contas</small></div><div><a class="vx-btn" style="text-decoration:none;display:inline-block;background:#fff;color:#155a30" href="cartilhas/passaporte-usuario-scdp.pdf" download="Passaporte_do_Usuario_SCDP.pdf">⬇ Baixar PDF</a> <a class="vx-btn" style="text-decoration:none;display:inline-block;background:#fff;color:#155a30" href="cartilha-scdp.html" target="_blank" rel="noopener">Abrir em tela cheia ↗</a></div></div>
     <div class="vx-card" style="margin-top:14px;padding:0;overflow:hidden;border-radius:14px"><iframe src="../cartilha-scdp.html" title="Passaporte do Usuário SCDP" style="display:block;width:100%;height:calc(100vh - 170px);min-height:560px;border:0"></iframe></div>`; }
@@ -11719,7 +11725,7 @@ function telaExtra(tela){
   ['v-antigo','v-visao','v-menu','v-painel'].forEach(id => { const x = document.getElementById(id); if(x) x.hidden = true; });
   document.body.style.overflow = ''; document.body.dataset.tema = '';
   el.hidden = false; el.dataset.tela = tela; window.scrollTo(0,0); marcarHash(tela); setTimeout(pintarChips, 0);
-  if(tela === 'invceplac') desenharInvCep(); else if(tela === 'relgest') rgPagina(); else if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'cronparc') calParAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(tela === 'viagmat') desenharViagMat(); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
+  if(tela === 'invceplac') desenharInvCep(); else if(tela === 'relgest') rgPagina(); else if(/^alerta/.test(tela)) alAbrir(tela); else if(tela === 'captacao') emiAbrir(); else if(tela === 'cronorc') calAbrir(); else if(tela === 'cronparc') calParAbrir(); else if(tela === 'portmapa' || tela === 'acoessdr') desenharPortfolio(tela); else if(tela === 'viagmat') desenharViagMat(); else if(LIVROS[tela]) desenharLivro(tela); else if(TELAS_CONSTR[tela]) desenharConstr(tela); else if(tela === 'indic') desenharIndic(); else if(tela === 'assist') desenharAssist(); else if(tela === 'relinst') desenharRelInst(); else if(tela === 'relctr') desenharRelCtr(); else desenharMetodo();
 }
 (function(){ const st = document.createElement('style'); st.textContent = `
 .vx{box-sizing:border-box;max-width:100%;overflow-x:hidden;padding:18px 24px 40px;background:#e9efe9;min-height:100vh;font-family:Barlow,'Segoe UI',Arial,sans-serif;color:#1d2b24}
@@ -14827,7 +14833,7 @@ const AREA_TELA = {
   viag:'DIARIAS', viagmat:'DIARIAS', viagalerta:'DIARIAS',
   parc:'PARCERIAS', prop:'PARCERIAS', conv:'PARCERIAS', repasse:'PARCERIAS', relinst:'PARCERIAS', captacao:'PARCERIAS', indic:'PARCERIAS', cronparc:'PARCERIAS', alertaparc:'PARCERIAS',
   tedapi:'TED', ted:'TED', alertated:'TED'};
-const TELA_LIVRE = new Set(['portmapa', 'acoessdr', 'assist', 'metodo']);
+const TELA_LIVRE = new Set(['portmapa', 'acoessdr', 'assist', 'metodo', 'manualp', 'apresp']);
 const RG_AREA = {orc:'ORCAMENTO', ctr:'CONTRATOS', ted:'TED', viag:'DIARIAS'};
 const AREA_INICIO = {CONTRATOS:'contratos', ORCAMENTO:'orcacao', DIARIAS:'viag', PARCERIAS:'parc', TED:'ted'};
 function perfilAtual(){
@@ -14870,7 +14876,7 @@ async function ir(tela, sel){
   if(!podeTela(tela)){ if(IR_N > 0 || tela !== 'visao') avisoBloqueio(); const alvo = primeiraLiberada(); if(alvo === tela) return; tela = alvo; }
   IR_N++;
   { const vx = document.getElementById('v-extra'); if(vx) vx.hidden = true; }
-  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='relgest' || tela==='invceplac' || tela==='portmapa' || tela==='acoessdr' || tela==='viagmat' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); if(tela==='invceplac'){ if(sel && sel.aba) CEP.aba = sel.aba; desenharInvCep(); } return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
+  if(tela==='indic' || tela==='metodo' || tela==='assist' || tela==='relinst' || tela==='relctr' || tela==='relgest' || tela==='invceplac' || tela==='portmapa' || tela==='acoessdr' || tela==='viagmat' || tela==='manualp' || tela==='apresp' || tela==='captacao' || tela==='cronorc' || tela==='cronparc' || /^alerta/.test(tela) || TELAS_CONSTR[tela]){ fecharMS(); VISAO = 'menu'; telaExtra(tela); if(tela==='relinst' && sel && sel.nr) riAbrir(sel.nr); if(tela==='relctr' && sel && sel.id) rcAbrir(sel.id); if(tela==='invceplac'){ if(sel && sel.aba) CEP.aba = sel.aba; desenharInvCep(); } return; }   // a barra lateral substitui a página de MENU: o painel abre na Visão geral
   if(TELAS_ANTIGAS.includes(tela)){
     marcarHash(tela);
     fecharMS(); VISAO = 'menu'; abrirAntiga(tela, sel); return;
@@ -15588,7 +15594,7 @@ function preCarregar(){
                    ['prop','📝','Propostas SDR'],['conv','📋','Execução Convênio/TF 420013'],['repasse','🏠','Contrato de Repasse'],['relinst','📄','Relatório do instrumento'],['captacao','💡','Captação de Emendas',[['ind','Emenda Individual']]],['indic','🎯','Indicadores'],['_rel','📊','Relatório de gestão de parcerias'],['cronparc','📅','Calendário de parcerias'],['alertaparc','🔔','Alerta Parcerias']]],
     ['TED', [['tedapi','✉','TED GERAL SDR'],['ted','👥','TED EQUIPE SDR'],['_relted','📊','Relatório de gestão de TED'],['alertated','🔔','Alerta TED']]],
     ['PORTFÓLIO E CARTILHAS SDR', [['portmapa','📘','Portfólio MAPA 2026'],['acoessdr','🌱','Ações SDR 2026']]],
-    ['AJUDA', [['assist','🤖','Assistente virtual'],['metodo','📚','Metodologia e fontes']]],
+    ['AJUDA', [['manualp','📗','Manual do painel'],['apresp','🎞','Apresentação do painel'],['assist','🤖','Assistente virtual'],['metodo','📚','Metodologia e fontes']]],
   ];
   const st = document.createElement('style');
   st.textContent = `
