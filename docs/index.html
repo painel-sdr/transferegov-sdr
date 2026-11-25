@@ -9427,7 +9427,7 @@ function blocoBullets(id, titulo, dica, grupos, chaveFiltro, limite){
 const COLS_T = {
   exe: [
     {k:'ne', t:'Nota de empenho'}, {k:'favN', t:'Favorecido'}, {k:'acao', t:'Ação', opc:1}, {k:'pi', t:'PI', opc:1, extra:1}, {k:'nd', t:'ND', opc:1, extra:1}, {k:'proc', t:'Processo', opc:1}, {k:'desc', t:'Descrição', cls:'txt', opc:1},
-    {k:'emp', t:'Empenhado', n:1}, {k:'dispPI', t:'Disponível no PI (UG)', n:1, sem:1}, {k:'aliq', t:'A liquidar', n:1}, {k:'liq', t:'Liquidado', n:1}, {k:'apagar', t:'Liq. a pagar', n:1}, {k:'pago', t:'Pago', n:1}
+    {k:'emp', t:'Empenhado', n:1}, {k:'dispPI', t:'Disponível no PI · ND (UG)', n:1, sem:1}, {k:'aliq', t:'A liquidar', n:1}, {k:'liq', t:'Liquidado', n:1}, {k:'apagar', t:'Liq. a pagar', n:1}, {k:'pago', t:'Pago', n:1}
   ],
   rap: [
     {k:'ne', t:'Nota de empenho'}, {k:'favN', t:'Favorecido'}, {k:'acao', t:'Ação', opc:1}, {k:'proc', t:'Processo', opc:1}, {k:'desc', t:'Descrição', cls:'txt', opc:1},
@@ -9442,20 +9442,24 @@ const ORDEM_TAB = {exe:{k:'emp', dir:-1}, rap:{k:'apagar', dir:-1}, exerap:{k:'p
 let BUSCA = '';
 const neCurta = ne => { const m = (ne||'').match(/(\d{4}NE\d+)$/); return m ? m[1] : ne; };
 // ---------- disponível no PI da UG (Financeiro EXE): crédito disponível da UG naquele PI, ao lado do empenho ----------
-let PX_DPI = null, PX_DPI_N = null;
+let PX_DPI = null, PX_DPI_N = null, PX_DPI_PI = null;
+// chave UG|PI|ND: a nota só usa crédito da mesma natureza de despesa; o total do PI (todas as NDs) vai no mouse
 function pxDispPI(){
-  PX_DPI = new Map(); PX_DPI_N = new Map();
+  PX_DPI = new Map(); PX_DPI_N = new Map(); PX_DPI_PI = new Map();
   if(VISAO !== 'exe') return e => e;
-  (DADOS.exe.det[SEL.mes] || []).forEach(d => { if(!d.pi) return; const k = d.ug+'|'+d.pi, o = PX_DPI.get(k) || PX_DPI.set(k, {disp:0, emp:0}).get(k); o.disp += +d.disp||0; o.emp += +d.emp||0; });
-  return e => { const ks = (e.piL||[]).map(p => e.ug+'|'+p); ks.forEach(k => PX_DPI_N.set(k, (PX_DPI_N.get(k)||0) + 1));
+  (DADOS.exe.det[SEL.mes] || []).forEach(d => { if(!d.pi) return;
+    const k = d.ug+'|'+d.pi+'|'+(d.nd||''), o = PX_DPI.get(k) || PX_DPI.set(k, {disp:0, emp:0}).get(k); o.disp += +d.disp||0; o.emp += +d.emp||0;
+    const kp = d.ug+'|'+d.pi, q = PX_DPI_PI.get(kp) || PX_DPI_PI.set(kp, {disp:0, emp:0}).get(kp); q.disp += +d.disp||0; q.emp += +d.emp||0; });
+  return e => { const ks = (e.pnL||[]).map(pn => e.ug+'|'+pn); ks.forEach(k => PX_DPI_N.set(k, (PX_DPI_N.get(k)||0) + 1));
     e.dispPI = ks.length ? ks.reduce((a,k) => a + ((PX_DPI.get(k)||{}).disp||0), 0) : null; e.dpiK = ks; return e; };
 }
 function pxDispTd(e){
   if(e.dispPI == null) return '<td class="num px-dpi" data-l="Disponível no PI (UG)"><small>sem PI</small></td>';
   const o = e.dpiK.reduce((a,k) => { const x = PX_DPI.get(k)||{}; a.disp += x.disp||0; a.emp += x.emp||0; a.n = Math.max(a.n, PX_DPI_N.get(k)||0); return a; }, {disp:0, emp:0, n:0});
+  const tPI = (e.piL||[]).reduce((a,p) => a + ((PX_DPI_PI.get(e.ug+'|'+p)||{}).disp||0), 0);
   const livre = (o.disp + o.emp) > 0 ? o.disp / (o.disp + o.emp) : 0;
-  const tip = 'PI '+(e.piL||[]).join(', ')+' · UG '+e.ug+'\nCrédito disponível: '+fmtBRL(o.disp)+'\nEmpenhado no PI: '+fmtBRL(o.emp)+'\nNotas da lista neste PI: '+o.n;
-  return `<td class="num px-dpi" data-l="Disponível no PI (UG)" title="${esc(tip)}"><b>${fmt2(o.disp)}</b><small>${o.disp > 0.004 ? pct(o.disp, o.disp + o.emp)+' livre' : 'PI sem saldo'}</small><i class="px-dpb"><u style="width:${(livre*100).toFixed(1)}%"></u></i></td>`;
+  const tip = 'PI '+(e.piL||[]).join(', ')+' · ND '+(e.nd||'—')+' · UG '+e.ug+'\nDisponível nesta ND: '+fmtBRL(o.disp)+'\nEmpenhado no PI nesta ND: '+fmtBRL(o.emp)+'\nDisponível no PI (todas as NDs): '+fmtBRL(tPI)+'\nNotas da lista neste PI e ND: '+o.n;
+  return `<td class="num px-dpi" data-l="Disponível no PI (UG)" title="${esc(tip)}"><b>${fmt2(o.disp)}</b><small>${o.disp > 0.004 ? pct(o.disp, o.disp + o.emp)+' livre na ND' : 'sem saldo na ND'}${tPI - o.disp > 0.004 ? ' · '+fmtC(tPI - o.disp)+' em outras NDs' : ''}</small><i class="px-dpb"><u style="width:${(livre*100).toFixed(1)}%"></u></i></td>`;
 }
 (function(){ const st = document.createElement('style'); st.textContent = `
 td.px-dpi{background:#fdf6e8;color:#7a4a00;min-width:118px}td.px-dpi small{display:block;font-size:10.5px;color:#8a6a2a;font-weight:500}
@@ -9466,10 +9470,10 @@ function linhasEmpenho(lista){
   const m = new Map(), nums = COLS_T[VISAO].filter(c => c.n && !c.sem).map(c => c.k);
   lista.filter(d => d.ne).forEach(d => {
     const ch = d.origem+'|'+d.ne;
-    if(!m.has(ch)) m.set(ch, {origem:d.origem, ne:d.ne, ug:d.ug, ugN:d.ugN, acao:d.acao, fav:d.fav, favN:d.favN, proc:d.proc, desc:d.desc, mod:d.modN, nds:new Set(), pis:new Set(), itens:[]});
-    const e = m.get(ch); e.nds.add(d.nd); if(d.pi) e.pis.add(d.pi); e.itens.push(d);
+    if(!m.has(ch)) m.set(ch, {origem:d.origem, ne:d.ne, ug:d.ug, ugN:d.ugN, acao:d.acao, fav:d.fav, favN:d.favN, proc:d.proc, desc:d.desc, mod:d.modN, nds:new Set(), pis:new Set(), pns:new Set(), itens:[]});
+    const e = m.get(ch); e.nds.add(d.nd); if(d.pi){ e.pis.add(d.pi); e.pns.add(d.pi+'|'+(d.nd||'')); } e.itens.push(d);
   });
-  return [...m.values()].map(e => { const t = somar(e.itens, VISAO); nums.forEach(k => e[k] = t[k]); e.nd = [...e.nds].filter(Boolean).join(', '); e.pi = [...e.pis].join(', '); e.piL = [...e.pis]; delete e.itens; delete e.pis; return e; })
+  return [...m.values()].map(e => { const t = somar(e.itens, VISAO); nums.forEach(k => e[k] = t[k]); e.nd = [...e.nds].filter(Boolean).join(', '); e.pi = [...e.pis].join(', '); e.piL = [...e.pis]; e.pnL = [...e.pns]; delete e.itens; delete e.pis; delete e.pns; return e; })
     .filter(e => nums.some(k => Math.abs(e[k])>0.004)).map(pxDispPI());
 }
 let LINHAS_TAB = [];
@@ -10184,7 +10188,7 @@ function ppfAbrirTab(i){
 function ppfFaixasLista(l){
   const S = k => l.reduce((a,e) => a+(+e[k]||0), 0), n = l.length.toLocaleString('pt-BR')+' notas', f = (r,c,v,s) => `<div style="--c:${c}"><small>${r}</small><b title="${fmtBRL(v)}">R$ ${fmtC(v)}</b><span>${s}</span></div>`;
   if(VISAO==='exe'){ const e = S('emp'), ks = new Set(); l.forEach(x => (x.dpiK||[]).forEach(k => ks.add(k))); const dp = [...ks].reduce((a,k) => a + (((PX_DPI && PX_DPI.get(k))||{}).disp||0), 0);
-    return f('Empenhado','#1f6b3a',e,n)+f('Liquidado','#5f9a35',S('liq'),pct(S('liq'),e))+f('Pago','#1f6b14',S('pago'),pct(S('pago'),e))+f('A pagar','#b8650a',e-S('pago'),pct(e-S('pago'),e))+f('Disponível nos PIs','#c7861a',dp,ks.size.toLocaleString('pt-BR')+' PI·UG · somado uma vez'); }
+    return f('Empenhado','#1f6b3a',e,n)+f('Liquidado','#5f9a35',S('liq'),pct(S('liq'),e))+f('Pago','#1f6b14',S('pago'),pct(S('pago'),e))+f('A pagar','#b8650a',e-S('pago'),pct(e-S('pago'),e))+f('Disponível nos PIs','#c7861a',dp,ks.size.toLocaleString('pt-BR')+' PI·ND·UG · somado uma vez'); }
   if(VISAO==='rap'){ const i = S('insP')+S('insN'); return f('Inscrito','#1f6b3a',i,n)+f('Pago','#1f6b14',S('pago'),pct(S('pago'),i))+f('Cancelado','#b9786b',S('canc'),pct(S('canc'),i))+f('Saldo a pagar','#b8650a',S('apagar'),'NP liquidado '+fmtC(S('npLiq'))); }
   const pe = l.filter(e => e.origem==='EXE').reduce((a,e) => a+e.pago, 0), pr = l.filter(e => e.origem==='RAP').reduce((a,e) => a+e.pago, 0);
   return f('Total pago','#1f6b3a',pe+pr,n)+f('EXE pago','#1f6b14',pe,'exercício')+f('RAP pago','#e07b12',pr,'restos a pagar')+f('Saldo a pagar','#b8650a',S('saldo'),'EXE + RAP');
