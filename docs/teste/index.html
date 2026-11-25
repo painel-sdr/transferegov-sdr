@@ -9489,8 +9489,8 @@ function blocoBullets(id, titulo, dica, grupos, chaveFiltro, limite){
 // ---------- tabela de notas de empenho ----------
 const COLS_T = {
   exe: [
-    {k:'ne', t:'Nota de empenho'}, {k:'favN', t:'Favorecido'}, {k:'acao', t:'Ação', opc:1}, {k:'proc', t:'Processo', opc:1}, {k:'desc', t:'Descrição', cls:'txt', opc:1},
-    {k:'emp', t:'Empenhado', n:1}, {k:'aliq', t:'A liquidar', n:1}, {k:'liq', t:'Liquidado', n:1}, {k:'apagar', t:'Liq. a pagar', n:1}, {k:'pago', t:'Pago', n:1}
+    {k:'ne', t:'Nota de empenho'}, {k:'favN', t:'Favorecido'}, {k:'acao', t:'Ação', opc:1}, {k:'pi', t:'PI', opc:1, extra:1}, {k:'nd', t:'ND', opc:1, extra:1}, {k:'proc', t:'Processo', opc:1}, {k:'desc', t:'Descrição', cls:'txt', opc:1},
+    {k:'emp', t:'Empenhado', n:1}, {k:'dispPI', t:'Disponível no PI (UG)', n:1, sem:1}, {k:'aliq', t:'A liquidar', n:1}, {k:'liq', t:'Liquidado', n:1}, {k:'apagar', t:'Liq. a pagar', n:1}, {k:'pago', t:'Pago', n:1}
   ],
   rap: [
     {k:'ne', t:'Nota de empenho'}, {k:'favN', t:'Favorecido'}, {k:'acao', t:'Ação', opc:1}, {k:'proc', t:'Processo', opc:1}, {k:'desc', t:'Descrição', cls:'txt', opc:1},
@@ -9504,15 +9504,36 @@ const COLS_T = {
 const ORDEM_TAB = {exe:{k:'emp', dir:-1}, rap:{k:'apagar', dir:-1}, exerap:{k:'pago', dir:-1}};
 let BUSCA = '';
 const neCurta = ne => { const m = (ne||'').match(/(\d{4}NE\d+)$/); return m ? m[1] : ne; };
+// ---------- disponível no PI da UG (Financeiro EXE): crédito disponível da UG naquele PI, ao lado do empenho ----------
+let PX_DPI = null, PX_DPI_N = null;
+function pxDispPI(){
+  PX_DPI = new Map(); PX_DPI_N = new Map();
+  if(VISAO !== 'exe') return e => e;
+  (DADOS.exe.det[SEL.mes] || []).forEach(d => { if(!d.pi) return; const k = d.ug+'|'+d.pi, o = PX_DPI.get(k) || PX_DPI.set(k, {disp:0, emp:0}).get(k); o.disp += +d.disp||0; o.emp += +d.emp||0; });
+  return e => { const ks = (e.piL||[]).map(p => e.ug+'|'+p); ks.forEach(k => PX_DPI_N.set(k, (PX_DPI_N.get(k)||0) + 1));
+    e.dispPI = ks.length ? ks.reduce((a,k) => a + ((PX_DPI.get(k)||{}).disp||0), 0) : null; e.dpiK = ks; return e; };
+}
+function pxDispTd(e){
+  if(e.dispPI == null) return '<td class="num px-dpi" data-l="Disponível no PI (UG)"><small>sem PI</small></td>';
+  const o = e.dpiK.reduce((a,k) => { const x = PX_DPI.get(k)||{}; a.disp += x.disp||0; a.emp += x.emp||0; a.n = Math.max(a.n, PX_DPI_N.get(k)||0); return a; }, {disp:0, emp:0, n:0});
+  const livre = (o.disp + o.emp) > 0 ? o.disp / (o.disp + o.emp) : 0;
+  const tip = 'PI '+(e.piL||[]).join(', ')+' · UG '+e.ug+'\nCrédito disponível: '+fmtBRL(o.disp)+'\nEmpenhado no PI: '+fmtBRL(o.emp)+'\nNotas da lista neste PI: '+o.n;
+  return `<td class="num px-dpi" data-l="Disponível no PI (UG)" title="${esc(tip)}"><b>${fmt2(o.disp)}</b><small>${o.disp > 0.004 ? pct(o.disp, o.disp + o.emp)+' livre' : 'PI sem saldo'}</small><i class="px-dpb"><u style="width:${(livre*100).toFixed(1)}%"></u></i></td>`;
+}
+(function(){ const st = document.createElement('style'); st.textContent = `
+td.px-dpi{background:#fdf6e8;color:#7a4a00;min-width:118px}td.px-dpi small{display:block;font-size:10.5px;color:#8a6a2a;font-weight:500}
+.px-dpb{display:block;height:5px;background:#f1e3c4;border-radius:3px;margin-top:3px;overflow:hidden}.px-dpb u{display:block;height:100%;background:#c7861a;text-decoration:none}
+tfoot td.px-dpi{background:#a86a10;color:#fff}
+`; document.head.appendChild(st); })();
 function linhasEmpenho(lista){
-  const m = new Map(), nums = COLS_T[VISAO].filter(c => c.n).map(c => c.k);
+  const m = new Map(), nums = COLS_T[VISAO].filter(c => c.n && !c.sem).map(c => c.k);
   lista.filter(d => d.ne).forEach(d => {
     const ch = d.origem+'|'+d.ne;
     if(!m.has(ch)) m.set(ch, {origem:d.origem, ne:d.ne, ug:d.ug, ugN:d.ugN, acao:d.acao, fav:d.fav, favN:d.favN, proc:d.proc, desc:d.desc, mod:d.modN, nds:new Set(), pis:new Set(), itens:[]});
     const e = m.get(ch); e.nds.add(d.nd); if(d.pi) e.pis.add(d.pi); e.itens.push(d);
   });
-  return [...m.values()].map(e => { const t = somar(e.itens, VISAO); nums.forEach(k => e[k] = t[k]); e.nd = [...e.nds].filter(Boolean).join(', '); e.pi = [...e.pis].join(', '); delete e.itens; delete e.pis; return e; })
-    .filter(e => nums.some(k => Math.abs(e[k])>0.004));
+  return [...m.values()].map(e => { const t = somar(e.itens, VISAO); nums.forEach(k => e[k] = t[k]); e.nd = [...e.nds].filter(Boolean).join(', '); e.pi = [...e.pis].join(', '); e.piL = [...e.pis]; delete e.itens; delete e.pis; return e; })
+    .filter(e => nums.some(k => Math.abs(e[k])>0.004)).map(pxDispPI());
 }
 let LINHAS_TAB = [];
 // ---------- filtro "Situação contábil": valor de cada situação marcada + a lista dos empenhos (ou do crédito sem empenho) ----------
@@ -9562,15 +9583,15 @@ function tabelaHTML(){
   let l = filtraBusca(LINHAS_TAB);
   const {k,dir} = ORDEM_TAB[VISAO];
   l.sort((x,y) => typeof x[k]==='number' ? (x[k]-y[k])*dir : String(x[k]).localeCompare(String(y[k]),'pt-BR')*dir);
-  const tot = {}; nums.forEach(c => tot[c.k] = l.reduce((a,e) => a+e[c.k], 0));
+  const tot = {}; nums.forEach(c => tot[c.k] = c.sem ? 0 : l.reduce((a,e) => a+(+e[c.k]||0), 0));
   const lim = TAB_LIM || (document.getElementById('conteudo').clientWidth <= 760 ? 25 : 400), vis = l.slice(0, lim);
   TAB_TOTAL = l.length; TAB_VIS = vis.length;
   return `<table class="t"><thead><tr>${COLS.map(c => `<th class="${c.n?'num':''}${c.opc?' opc':''}" data-ord="${c.k}" aria-sort="${k===c.k?(dir>0?'ascending':'descending'):'none'}">${c.t}</th>`).join('')}</tr></thead>
     <tbody>${vis.map(e => `<tr>
-      <td class="ne" data-l="Nota de empenho" title="${esc(e.ne)}">${VISAO==='exerap' ? `<span class="tag ${e.origem==='RAP'?'rap':''}">${e.origem}</span> ` : ''}<b>${esc(neCurta(e.ne))}</b><small title="${esc(e.ugN)}">UG ${esc(e.ug)}</small>${BM.tag('ne', e)}</td><td class="fav" data-l="Favorecido">${esc(e.favN)}<br><small>${esc(e.fav)}</small>${e.desc?`<span class="desc-mini">${esc(e.desc)}</span>`:''}</td><td class="opc" data-l="Ação">${esc(e.acao)}</td>
+      <td class="ne" data-l="Nota de empenho" title="${esc(e.ne)}">${VISAO==='exerap' ? `<span class="tag ${e.origem==='RAP'?'rap':''}">${e.origem}</span> ` : ''}<b>${esc(neCurta(e.ne))}</b><small title="${esc(e.ugN)}">UG ${esc(e.ug)}</small>${BM.tag('ne', e)}</td><td class="fav" data-l="Favorecido">${esc(e.favN)}<br><small>${esc(e.fav)}</small>${e.desc?`<span class="desc-mini">${esc(e.desc)}</span>`:''}</td><td class="opc" data-l="Ação">${esc(e.acao)}</td>${VISAO==='exe' ? `<td class="opc" data-l="PI" style="white-space:nowrap">${esc(e.pi)||'—'}</td><td class="opc" data-l="ND">${esc(e.nd)||'—'}</td>` : ''}
       <td class="opc" data-l="Processo">${esc(e.proc)||'—'}</td><td class="txt opc" data-l="Descrição">${esc(e.desc)||'—'}</td>
-      ${nums.map(c => `<td class="num" data-l="${c.t}">${fmt2(e[c.k])}</td>`).join('')}</tr>`).join('')}</tbody>
-    <tfoot><tr><td>${BM.ativo('ne') ? `Total da seleção · ${l.length.toLocaleString('pt-BR')} de ${LINHAS_TAB.length.toLocaleString('pt-BR')}` : 'Total · '+l.length.toLocaleString('pt-BR')} empenhos</td><td></td><td class="opc"></td><td class="opc"></td><td class="opc"></td>${nums.map(c => `<td class="num" data-l="${c.t}">${fmt2(tot[c.k])}</td>`).join('')}</tr></tfoot></table>`;
+      ${nums.map(c => c.sem ? pxDispTd(e) : `<td class="num" data-l="${c.t}">${fmt2(e[c.k])}</td>`).join('')}</tr>`).join('')}</tbody>
+    <tfoot><tr><td>${BM.ativo('ne') ? `Total da seleção · ${l.length.toLocaleString('pt-BR')} de ${LINHAS_TAB.length.toLocaleString('pt-BR')}` : 'Total · '+l.length.toLocaleString('pt-BR')} empenhos</td><td></td><td class="opc"></td>${VISAO==='exe' ? '<td class="opc"></td><td class="opc"></td>' : ''}<td class="opc"></td><td class="opc"></td>${nums.map(c => c.sem ? '<td class="num px-dpi" title="o mesmo saldo aparece em várias notas: não se soma">—</td>' : `<td class="num" data-l="${c.t}">${fmt2(tot[c.k])}</td>`).join('')}</tr></tfoot></table>`;
 }
 function desenharTabela(){
   const w = document.getElementById('tabWrap'); if(!w) return;
@@ -9815,8 +9836,8 @@ function baixarPDF(){
   const {k,dir} = ORDEM_TAB[VISAO];
   l.sort((x,y) => typeof x[k]==='number' ? (x[k]-y[k])*dir : String(x[k]).localeCompare(String(y[k]),'pt-BR')*dir);
   const cab = [{t:'Nota de empenho', nw:1},{t:'UG', nw:1},{t:'Ação', nw:1},{t:'PI', nw:1},{t:'ND', nw:1},{t:'Favorecido'},{t:'Processo'},{t:'Descrição'}].concat(nums.map(c => ({t:c.t, n:1})));
-  const linhas = l.map(e => [(VISAO==='exerap' ? e.origem+' ' : '')+neCurta(e.ne), e.ug, e.acao, e.pi||'', e.nd||'', (e.favN||'')+(e.fav?' ('+e.fav+')':''), e.proc||'', e.desc||''].concat(nums.map(c => fmt2(e[c.k]))));
-  const tot = ['Total','','','','','','',''].concat(nums.map(c => fmt2(l.reduce((a,e) => a+e[c.k], 0))));
+  const linhas = l.map(e => [(VISAO==='exerap' ? e.origem+' ' : '')+neCurta(e.ne), e.ug, e.acao, e.pi||'', e.nd||'', (e.favN||'')+(e.fav?' ('+e.fav+')':''), e.proc||'', e.desc||''].concat(nums.map(c => fmt2(+e[c.k]||0))));
+  const tot = ['Total','','','','','','',''].concat(nums.map(c => c.sem ? '—' : fmt2(l.reduce((a,e) => a+(+e[c.k]||0), 0))));
   const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
   if(BUSCA) filtros.push(BM.rotulo('ne', BUSCA));
   const arq = ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_empenhos_'+rotMes(+SEL.mes).replace('/','-');
@@ -9826,7 +9847,7 @@ function baixarCSV(){
   // extração em Excel (.xlsx) com o cabeçalho da SDR
   const COLS = COLS_T[VISAO], nums = COLS.filter(c => c.n);
   const l = filtraBusca(LINHAS_TAB);
-  const cab = ['Origem','Nota de empenho','Ação','PI','ND','UG','UG nome','Favorecido','Favorecido nome','Processo','Modalidade','Descrição'].map(t => ({t})).concat(nums.map(c => ({t:c.t, n:true})));
+  const cab = ['Origem','Nota de empenho','Ação','PI','ND','UG','UG nome','Favorecido','Favorecido nome','Processo','Modalidade','Descrição'].map(t => ({t})).concat(nums.map(c => ({t:c.t, n:true, semSoma:!!c.sem})));
   const linhas = l.map(e => [e.origem,e.ne,e.acao,e.pi,e.nd,e.ug,e.ugN,e.fav,e.favN,e.proc,e.mod,e.desc].map(v => v ?? '').concat(nums.map(c => +e[c.k]||0)));
   const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
   if(BUSCA) filtros.push(BM.rotulo('ne', BUSCA));
@@ -10224,8 +10245,9 @@ function ppfAbrirTab(i){
 }
 // faixas de total da lista de notas de empenho (acompanham a busca)
 function ppfFaixasLista(l){
-  const S = k => l.reduce((a,e) => a+(+e[k]||0), 0), n = l.length.toLocaleString('pt-BR')+' notas', f = (r,c,v,s) => `<div style="--c:${c}"><small>${r}</small><b>R$ ${fmtC(v)}</b><span>${s}</span></div>`;
-  if(VISAO==='exe'){ const e = S('emp'); return f('Empenhado','#1f6b3a',e,n)+f('Liquidado','#5f9a35',S('liq'),pct(S('liq'),e))+f('Pago','#1f6b14',S('pago'),pct(S('pago'),e))+f('A pagar','#b8650a',e-S('pago'),pct(e-S('pago'),e)); }
+  const S = k => l.reduce((a,e) => a+(+e[k]||0), 0), n = l.length.toLocaleString('pt-BR')+' notas', f = (r,c,v,s) => `<div style="--c:${c}"><small>${r}</small><b title="${fmtBRL(v)}">R$ ${fmtC(v)}</b><span>${s}</span></div>`;
+  if(VISAO==='exe'){ const e = S('emp'), ks = new Set(); l.forEach(x => (x.dpiK||[]).forEach(k => ks.add(k))); const dp = [...ks].reduce((a,k) => a + (((PX_DPI && PX_DPI.get(k))||{}).disp||0), 0);
+    return f('Empenhado','#1f6b3a',e,n)+f('Liquidado','#5f9a35',S('liq'),pct(S('liq'),e))+f('Pago','#1f6b14',S('pago'),pct(S('pago'),e))+f('A pagar','#b8650a',e-S('pago'),pct(e-S('pago'),e))+f('Disponível nos PIs','#c7861a',dp,ks.size.toLocaleString('pt-BR')+' PI·UG · somado uma vez'); }
   if(VISAO==='rap'){ const i = S('insP')+S('insN'); return f('Inscrito','#1f6b3a',i,n)+f('Pago','#1f6b14',S('pago'),pct(S('pago'),i))+f('Cancelado','#b9786b',S('canc'),pct(S('canc'),i))+f('Saldo a pagar','#b8650a',S('apagar'),'NP liquidado '+fmtC(S('npLiq'))); }
   const pe = l.filter(e => e.origem==='EXE').reduce((a,e) => a+e.pago, 0), pr = l.filter(e => e.origem==='RAP').reduce((a,e) => a+e.pago, 0);
   return f('Total pago','#1f6b3a',pe+pr,n)+f('EXE pago','#1f6b14',pe,'exercício')+f('RAP pago','#e07b12',pr,'restos a pagar')+f('Saldo a pagar','#b8650a',S('saldo'),'EXE + RAP');
