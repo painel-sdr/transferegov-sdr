@@ -967,14 +967,22 @@ def ted(pasta):
     # ---- departamento (25/11/2026): pela UG da SDR; na 420013, o do controle da equipe e, sem ele, pela ação
     DEP_UG_TED = {'130141': 'CGPI', '130010': 'CEPLAC', '130255': 'PROMAQ', '135098': 'CAIXA ECONÔMICA'}
     DEP_ACAO_TED = {'8593': 'DEPROS', '214Z': 'DIAGRO', '00PN': 'DIAGRO', '215A': 'DECAP', '8622': 'DECAP', '21B6': 'DECAP', '8606': 'DECAP', '20ZY': 'CEPLAC', '2000': 'SDR'}
+    DEP_ACAO_PO_TED = {('215A', '0005'): 'DEFLO'}   # 215A · PO 0005 (Apoio ao Desenvolvimento Territorial Rural) = DEFLO, antes da regra por ação
     for o in linhas:
         ug = str(o.get('ugr') if o.get('er') == 'Recebido' else o.get('ugd') or '').strip()[:6]
         dep = (o.get('dep') or '').strip()
         if ug in DEP_UG_TED:
             o['dep'] = DEP_UG_TED[ug]
         elif not dep or dep.upper() == '(SEM DEPARTAMENTO)':
+            # ação + PO das NCs/eventos do TED (215A · PO 0005 = DEFLO); vale o departamento com mais valor
+            pv = collections.Counter()
+            for x in o.get('acs') or []:
+                a_, po_ = str(x[0] or '').strip().upper(), str(x[2] or '').strip()
+                d_ = DEP_ACAO_PO_TED.get((a_, po_)) or DEP_ACAO_TED.get(a_)
+                if d_:
+                    pv[d_] += abs(x[7] or 0)
             acs = [a_.strip() for a_ in re.split(r'[|;,/]', o.get('acao') or '') if a_.strip()]
-            o['dep'] = next((DEP_ACAO_TED[a_] for a_ in acs if a_ in DEP_ACAO_TED), '') or ('SDR' if ug == '420013' else '(sem departamento)')
+            o['dep'] = (pv.most_common(1)[0][0] if pv else '') or next((DEP_ACAO_TED[a_] for a_ in acs if a_ in DEP_ACAO_TED), '') or ('SDR' if ug == '420013' else '(sem departamento)')
         else:
             o['dep'] = dep.upper()
     print('departamentos dos TEDs:', dict(collections.Counter(o['dep'] for o in linhas)), flush=True)
