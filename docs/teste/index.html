@@ -15297,6 +15297,12 @@ function vgModoBarra(){
 .vm-t a{color:#1e6b45;font-weight:700}
 .vm-mais{text-align:center;padding-top:10px}
 .vm-side{display:flex;flex-direction:column;gap:14px}
+.vm-fila{margin-top:14px}.vm-din2{margin-top:14px}.vm-dpb{display:flex;height:20px;border-radius:10px;overflow:hidden;margin:10px 0 12px;background:#eef2ef}.vm-dpb i{display:block;height:100%}
+.vm-dpc{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.vm-dpc>div{background:#f6f8f6;border-radius:14px;border-top:5px solid var(--c);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.vm-dpc b{font-size:24px;font-weight:800;color:var(--c)}.vm-dpc strong{font-size:13.5px}.vm-dpc small{font-size:12px;color:#5f6f66}.vm-dpc .vm-ir{text-align:left;margin-top:6px}
+.vm-vel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid #eef2ef}
+.vm-gg{display:flex;flex-direction:column;align-items:center;text-align:center}.vm-gg svg{width:100%;max-width:190px}.vm-gg b{font-size:14.5px;margin-top:-4px}.vm-gg span{font-size:13px;color:#1e7a43;font-weight:700}.vm-gg small{font-size:11.5px;color:#6b7a72}
+@media (max-width:900px){.vm-dpc{grid-template-columns:1fr 1fr}.vm-vel{grid-template-columns:1fr}}
 .vm-din .it{padding:9px 0;border-top:1px solid #f0f3f1}.vm-din .it b{font-size:21px;display:block}.vm-din .it small{color:#6b7a72;font-size:12.5px}.vm-din .vm-ir{float:right;margin-top:4px}
 .vm-qh,.vm-qr{display:grid;grid-template-columns:150px minmax(0,1fr) 72px 56px 64px 140px;gap:10px;align-items:center}
 .vm-qh{font-size:11.5px;color:#6b7a72;font-weight:600}.vm-qh span:nth-child(n+3){text-align:right}
@@ -15377,7 +15383,8 @@ function vgModoHTML(x){
   h += `<div class="vm-g2"><div class="c vm-graf"><h3>Execução acumulada do ano</h3>
     <p class="s">Valores acumulados mês a mês, em reais (Tesouro Gerencial). A linha tracejada é a dotação atual de ${lendo ? '…' : fmtC(dot)}, o teto do ano.</p>
     <div class="vm-chips">${[['emp','Empenhado'],['liq','Liquidado'],['pago','Pago']].map(([k, t]) => `<button type="button" data-vglin="${k}" class="${LIN[k] ? 'on' : ''}">${t}</button>`).join('')}</div>
-    ${vmCurva(ser, ano, dot, frac, LIN)}</div>`;
+    ${vmCurva(ser, ano, dot, frac, LIN)}
+    ${lendo ? '' : `<div class="vm-vel">${vmGauge(dot ? e.emp / dot : 0, '#1e7a43', 'Empenho', fmtC(e.emp) + ' de ' + fmtC(dot), 'empenhado ÷ dotação', e.emp)}${vmGauge(e.emp ? e.liq / e.emp : 0, '#2b7bbd', 'Liquidação', fmtC(e.liq) + ' de ' + fmtC(e.emp), 'liquidado ÷ empenhado', e.liq)}${vmGauge(e.liq ? e.pago / e.liq : 0, '#e08a1e', 'Pagamento', fmtC(e.pago) + ' de ' + fmtC(e.liq), 'pago ÷ liquidado', e.pago)}</div>`}</div>`;
   // para agir: hoje · próximos 7 dias · acumulado em atraso (agrupado por tipo de alerta)
   const grupo = (lista, pz) => { const g = new Map(); lista.forEach(o => { const k = o.a.titulo, y = g.get(k) || g.set(k, {a:o.a, n:0, v:0, deps:new Map(), d:o.d, as:new Map(), pz}).get(k); y.n++; y.v += +o.it.vprior || 0; y.as.set(o.a, (y.as.get(o.a) || 0) + 1); const dp = o.it.dep || 'SDR'; y.deps.set(dp, (y.deps.get(dp) || 0) + 1); if(o.d !== null && o.d < y.d) y.d = o.d; });
     return [...g.values()].map(y => Object.assign(y, {a: [...y.as.entries()].sort((p, q) => q[1] - p[1])[0][0]})).sort((p, q) => q.n - p.n); };
@@ -15459,6 +15466,9 @@ function vmCurva(ser, ano, dot, frac, LIN){
 }
 
 // ---------------- SALA DE CONTROLE ----------------
+// velocímetro (25/11/2026): proporção do que já aconteceu, sem meta
+function vmGauge(p, cor, rot, val, sub, v){ p = Math.max(0, Math.min(1, p || 0)); const a = Math.PI * (1 - p), X = 100 + 80 * Math.cos(a), Y = 100 - 80 * Math.sin(a);
+  return `<div class="vm-gg"${vmTT(v)}><svg viewBox="0 0 200 118" role="img" aria-label="${esc(rot)} ${pct(p, 1)}"><path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#e5ece7" stroke-width="18" stroke-linecap="round"/>${p > 0.001 ? `<path d="M20 100 A80 80 0 0 1 ${X.toFixed(1)} ${Y.toFixed(1)}" fill="none" stroke="${cor}" stroke-width="18" stroke-linecap="round"/>` : ''}<text x="100" y="92" text-anchor="middle" font-size="27" font-weight="800" fill="#14231b">${pct(p, 1)}</text></svg><b>${esc(rot)}</b><span>${esc(val)}</span><small>${esc(sub)}</small></div>`; }
 function vgSala(x){
   const {e, F, TODOS, MUD, ref, cnt, nov, rapT, fimAno, hoje0, saudeCard} = x;
   const novos = nov('r') + nov('y') + nov('b'), resolv = MUD.filter(m => m.tipo === 'resolvido').length;
@@ -15487,16 +15497,19 @@ function vgSala(x){
       return `<div class="${d === 0 ? 'hoje' : ''}"><b>${dt.getDate()}</b><small>${SEM[dt.getDay()]} · ${MES3[dt.getMonth()]}${d === 0 ? ' · hoje' : ''}</small><ul>${[...g.entries()].map(([t, n]) => `<li><b style="display:inline;font-size:12.5px;color:#b3261e">${n}</b> ${esc(t)}</li>`).join('')}</ul></div>`; }).join('')}</div>`; }
   else { const R = MUD.filter(m => m.tipo === 'resolvido');
     corpo = !ref ? '<p class="s">A comparação com o dia anterior começa na próxima rodada do robô em outro dia.</p>' : R.length ? `<table class="vm-t"><thead><tr><th>Caso</th><th>Saiu de</th><th>Como saiu</th><th>Departamento</th></tr></thead><tbody>${R.slice(0, 60).map(m => `<tr><td><b>${esc(m.num)}</b></td><td>${esc(m.titulo)}</td><td class="mut">${esc(m.como || 'saiu da lista')}</td><td>${esc(m.dep || '')}</td></tr>`).join('')}</tbody></table>` : '<p class="s">Nenhum caso resolvido desde ' + esc(ref.split('-').reverse().join('/')) + '.</p>'; }
-  h += `<div class="vm-gs"><div class="c"><h3>Fila do dia</h3><p class="s">Tudo que pede ação, do mais atrasado ao que vence na semana. O número abre a ficha.</p>
+  h += `<div class="c vm-fila"><h3>Fila do dia</h3><p class="s">Tudo que pede ação, do mais atrasado ao que vence na semana. O número abre a ficha.</p>
     <div class="vm-tabs">${[['fila','Fila · ' + nfmt(F.filter(o => o.d !== null && o.d <= 7).length)],['cal','Calendário 15 dias'],['res','Resolvidos' + (ref ? ' · ' + nfmt(resolv) : '')]].map(([k, t]) => `<button type="button" data-vmtab="${k}" class="${tab === k ? 'on' : ''}">${t}</button>`).join('')}</div>${corpo}</div>`;
   // lateral: saúde dos dados · dinheiro parado
   const tedNE = TODOS.filter(a => /^(ted|tedapi)$/.test(a.menu) && a.id === 'ncsemne'), tedN = tedNE.reduce((t, a) => t + a.itens.length, 0), tedV = tedNE.reduce((t, a) => t + a.itens.reduce((u, it) => u + (+it.vprior || 0), 0), 0);
-  h += `<div class="vm-side">${saudeCard(true)}
-    <div class="c vm-din"><h3>Dinheiro parado</h3><p class="s">Pede decisão antes do fim do exercício.</p>
-      <div class="it"><b${x.lendo ? '' : vmTT(e.disp)}>${x.lendo ? '…' : fmtC(e.disp)}</b><small>crédito disponível sem empenho · ${fimAno} dias para empenhar</small><button type="button" class="vm-ir" data-vgir="exe">Ver por ação ›</button></div>
-      <div class="it"><b${x.lendo ? '' : vmTT(Math.max(0, e.liq - e.pago))}>${x.lendo ? '…' : fmtC(Math.max(0, e.liq - e.pago))}</b><small>liquidado no ano e ainda não pago · aguardando financeiro</small><button type="button" class="vm-ir" data-vgir="exe">Ver por UG ›</button></div>
-      <div class="it"><b${rapT ? vmTT(rapT.v) : ''}>${rapT ? fmtC(rapT.v) : '…'}</b><small>RAP liquidado e não pago${rapT ? ' · ' + nfmt(rapT.n) + ' notas' : ''}</small><button type="button" class="vm-ir" data-vgir="rap">Ver notas ›</button></div>
-      <div class="it"><b${tedN ? vmTT(tedV) : ''}>${tedN ? fmtC(tedV) : '—'}</b><small>TED com crédito sem empenho · ${nfmt(tedN)} TED(s)</small><button type="button" class="vm-ir" data-vgir="tedapi">Ver TEDs ›</button></div></div></div></div>`;
+  // 25/11/2026: sem a coluna da Saúde dos dados (fica no Executivo e no "Dados atualizados em" do topo); Dinheiro parado embaixo da fila
+  const DP = [['Crédito disponível sem empenho', x.lendo ? null : e.disp, fimAno + ' dias para empenhar', '#c98a10', 'exe', 'Ver por ação'],
+    ['Liquidado e não pago', x.lendo ? null : Math.max(0, e.liq - e.pago), 'aguardando financeiro', '#b3261e', 'exe', 'Ver por UG'],
+    ['RAP liquidado e não pago', rapT ? rapT.v : null, rapT ? nfmt(rapT.n) + ' notas' : 'lendo…', '#7a1f17', 'rap', 'Ver notas'],
+    ['TED com crédito sem empenho', tedN ? tedV : 0, nfmt(tedN) + ' TED(s)', '#6b3fa0', 'tedapi', 'Ver TEDs']];
+  const dpT = DP.reduce((t, d) => t + (+d[1] || 0), 0);
+  h += `<div class="c vm-din2"><div class="vm-sdh"><h3>Dinheiro parado</h3><span class="s"${dpT ? vmTT(dpT) : ''}>pede decisão antes do fim do exercício${dpT ? ' · total ' + fmtC(dpT) : ''}</span></div>
+    <div class="vm-dpb">${DP.map(d => +d[1] > 0 ? `<i style="width:${(d[1] / dpT * 100).toFixed(2)}%;background:${d[3]}" title="${esc(d[0])}: ${esc(fmtBRL(d[1]))}"></i>` : '').join('')}</div>
+    <div class="vm-dpc">${DP.map(d => `<div style="--c:${d[3]}"><b${d[1] !== null ? vmTT(d[1]) : ''}>${d[1] === null ? '…' : fmtC(d[1])}</b><strong>${esc(d[0])}</strong><small>${esc(d[2])}</small><button type="button" class="vm-ir" data-vgir="${d[4]}">${d[5]} ›</button></div>`).join('')}</div></div>`;
   // quem tem o quê
   const porDep = new Map(); F.forEach(o => { const k = o.it.dep || 'SDR', y = porDep.get(k) || porDep.set(k, {k, a:0, h:0, w:0, itens:[]}).get(k); y.itens.push(o); if(o.d !== null && o.d < 0) y.a++; else if(o.d === 0) y.h++; else if(o.d !== null && o.d <= 7) y.w++; });
   const D = [...porDep.values()].filter(y => y.a + y.h + y.w).sort((p, q) => q.a - p.a || q.h - p.h); VG.vmDep = D;
