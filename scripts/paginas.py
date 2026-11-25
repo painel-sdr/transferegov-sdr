@@ -964,6 +964,20 @@ def ted(pasta):
                     if re.fullmatch(r'\d{2}/\d{2}/\d{4}', d or '')]
             if anos:
                 o['ano'], o['anoInf'] = anos[0], True
+    # ---- departamento (25/11/2026): pela UG da SDR; na 420013, o do controle da equipe e, sem ele, pela ação
+    DEP_UG_TED = {'130141': 'CGPI', '130010': 'CEPLAC', '130255': 'PROMAQ', '135098': 'CAIXA ECONÔMICA'}
+    DEP_ACAO_TED = {'8593': 'DEPROS', '214Z': 'DIAGRO', '00PN': 'DIAGRO', '215A': 'DECAP', '8622': 'DECAP', '21B6': 'DECAP', '8606': 'DECAP', '20ZY': 'CEPLAC', '2000': 'SDR'}
+    for o in linhas:
+        ug = str(o.get('ugr') if o.get('er') == 'Recebido' else o.get('ugd') or '').strip()[:6]
+        dep = (o.get('dep') or '').strip()
+        if ug in DEP_UG_TED:
+            o['dep'] = DEP_UG_TED[ug]
+        elif not dep or dep.upper() == '(SEM DEPARTAMENTO)':
+            acs = [a_.strip() for a_ in re.split(r'[|;,/]', o.get('acao') or '') if a_.strip()]
+            o['dep'] = next((DEP_ACAO_TED[a_] for a_ in acs if a_ in DEP_ACAO_TED), '') or ('SDR' if ug == '420013' else '(sem departamento)')
+        else:
+            o['dep'] = dep.upper()
+    print('departamentos dos TEDs:', dict(collections.Counter(o['dep'] for o in linhas)), flush=True)
     print(f'controle interno: {n_eq} TEDs completados, {n_so} só no controle', flush=True)
     tesInfo = {'carregado': bool(tes), 'gerado_em': tes_meta.get('gerado_em', ''), 'teds': len(tes), 'soTesouro': len(tes) - len(usados),
                'erros': [x.get('erro') for x in tes_meta.get('fontes', []) if not x.get('ok')]}
