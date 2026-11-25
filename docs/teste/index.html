@@ -10311,25 +10311,26 @@ function pxOrig(rows, t){
 let PX_OG_ABA = 'ext', PX_OG_XL = null;
 function pxCaixaOrig(lista, t){
   const val = d => t.temDot ? (+d.dotAt||0) : (+d.emp||0)+(+d.disp||0)+(+d.indisp||0)+(+d.pre||0);
-  const G = new Map();
+  const G = new Map(), nUG = {}; lista.forEach(d => { if(d.ug && d.ugN) nUG[d.ug] = d.ugN; });
+  const rUG = u => u ? u+(nUG[u] || (typeof UG_NOMES_CURTOS !== 'undefined' && UG_NOMES_CURTOS[u]) ? ' – '+String(nUG[u] || UG_NOMES_CURTOS[u]).split(' · ')[0] : '') : '—';
   lista.forEach(d => { const sdr = pxEhSDR(d), lim = PX_ESC[d.acao], porPO = !!lim;
     const de = sdr ? 'Orçamento SDR' : d.orig === 'TED RECEBIDO' ? 'TED recebido · '+(UO_NOME[d.uo] || d.uoN || ('UO '+(d.uo||'—'))) : Object.prototype.hasOwnProperty.call(PX_ESC, d.acao) ? 'Outro PO de ação acompanhada' : 'Outra ação do MAPA';
-    const k = (sdr?'S':'E')+'|'+d.acao+'|'+(porPO ? d.po : '')+'|'+de;
-    const o = G.get(k) || G.set(k, {sdr, acao:d.acao, rot: d.acao+' · '+(d.acaoN||'')+(porPO ? ' · PO '+(d.po||'—')+(d.poN ? ' – '+d.poN : '') : ''), de, cred:0, emp:0, pago:0}).get(k);
+    const k = (sdr?'S':'E')+'|'+d.acao+'|'+(porPO ? d.po : '')+'|'+de+'|'+(d.ugr||'')+'|'+(d.ug||'');
+    const o = G.get(k) || G.set(k, {sdr, acao:d.acao, ugr:d.ugr||'', ug:d.ug||'', rot: d.acao+' · '+(d.acaoN||'')+(porPO ? ' · PO '+(d.po||'—')+(d.poN ? ' – '+d.poN : '') : ''), de, cred:0, emp:0, pago:0}).get(k);
     o.cred += val(d); o.emp += +d.emp||0; o.pago += +d.pago||0; });
   const todos = [...G.values()].filter(o => Math.abs(o.cred) > 0.004 || Math.abs(o.emp) > 0.004);
   const S = todos.filter(o => o.sdr).sort((a,b) => b.cred-a.cred), E = todos.filter(o => !o.sdr).sort((a,b) => b.cred-a.cred);
   const sm = (L, k) => L.reduce((a,o) => a + o[k], 0), og = pxOrig(lista, t);
-  PX_OG_XL = () => ({cab:[{t:'Parte'},{t:'Ação / PO'},{t:'De onde veio'},{t:'Crédito',n:true},{t:'Empenhado',n:true},{t:'Pago',n:true}],
-    linhas: S.map(o => ['Orçamento SDR', o.rot, o.de, o.cred, o.emp, o.pago]).concat(E.map(o => ['Orçamento externo', o.rot, o.de, o.cred, o.emp, o.pago]))});
+  PX_OG_XL = () => ({cab:[{t:'Parte'},{t:'Ação / PO'},{t:'UG responsável'},{t:'UG executora'},{t:'De onde veio'},{t:'Crédito',n:true},{t:'Empenhado',n:true},{t:'Pago',n:true}],
+    linhas: S.map(o => ['Orçamento SDR', o.rot, rUG(o.ugr), rUG(o.ug), o.de, o.cred, o.emp, o.pago]).concat(E.map(o => ['Orçamento externo', o.rot, rUG(o.ugr), rUG(o.ug), o.de, o.cred, o.emp, o.pago]))});
   const L = PX_OG_ABA === 'sdr' ? S : E, lim = ABERTO['pxOg'] ? L : L.slice(0, 10), pS = og.tot > 0 ? og.sdr/og.tot*100 : 0;
   const R = v => `<td class="n" title="${fmtBRL(v)}">${fmtC(v)}</td>`;
   return `<div class="px-c" id="pxOg" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0;font-size:16px">De onde vem o crédito</h3><p class="d" style="margin:2px 0 0;font-size:12px;color:#6b7a72">Orçamento SDR (mesma regra da tela Orçamento por ações) + Orçamento externo = crédito de ${fmtC(og.tot)} · clique numa linha para filtrar a tela</p></div>
     <div style="display:flex;gap:8px;align-items:center"><div class="ppf-seg" style="margin:0"><button type="button" data-pxog="ext" class="${PX_OG_ABA!=='sdr'?'on':''}" title="${fmtBRL(og.ext)}">Orçamento externo · ${fmtC(og.ext)}</button><button type="button" data-pxog="sdr" class="${PX_OG_ABA==='sdr'?'on':''}" title="${fmtBRL(og.sdr)}">Orçamento SDR · ${fmtC(og.sdr)}</button></div><button type="button" class="btn" data-pxogxl>Extração em Excel</button></div></div>
     <div class="px-og" style="height:12px;margin:12px 0 4px"><i style="width:${pS.toFixed(2)}%;background:#1b6b3e" title="Orçamento SDR · ${fmtBRL(og.sdr)}"></i><i style="width:${(100-pS).toFixed(2)}%;background:#6b4aa0" title="Orçamento externo · ${fmtBRL(og.ext)}"></i></div>
-    <table class="px-t"><thead><tr><th>Ação / PO</th><th>De onde veio</th><th style="text-align:right">Crédito</th><th style="text-align:right">Empenhado</th><th style="text-align:right">Pago</th><th style="text-align:right">% pago</th></tr></thead><tbody>
-    ${lim.length ? lim.map(o => { const on = estaSel('acao', o.acao); return `<tr class="${on?'on':''}" data-ppfin="acao|${esc(o.acao)}" tabindex="0" title="${on?'Clique para tirar o filtro':'Clique para filtrar a tela por esta ação'}"><td><b>${esc(o.rot)}</b></td><td class="m">${o.de.startsWith('TED') ? `<span class="px-p" style="color:#6b4aa0;background:#6b4aa012">${esc(o.de)}</span>` : esc(o.de)}</td>${R(o.cred)}${R(o.emp)}${R(o.pago)}<td class="n">${pct(o.pago, o.emp)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="m">Nada nesta parte com os filtros atuais.</td></tr>'}
-    </tbody><tfoot><tr><td><b>Total · ${PX_OG_ABA==='sdr' ? 'Orçamento SDR' : 'Orçamento externo'}</b></td><td></td>${R(sm(L,'cred'))}${R(sm(L,'emp'))}${R(sm(L,'pago'))}<td class="n">${pct(sm(L,'pago'), sm(L,'emp'))}</td></tr></tfoot></table>
+    <table class="px-t"><thead><tr><th>Ação / PO</th><th>UG responsável</th><th>UG executora</th><th>De onde veio</th><th style="text-align:right">Crédito</th><th style="text-align:right">Empenhado</th><th style="text-align:right">Pago</th><th style="text-align:right">% pago</th></tr></thead><tbody>
+    ${lim.length ? lim.map(o => { const on = estaSel('acao', o.acao); return `<tr class="${on?'on':''}" data-ppfin="acao|${esc(o.acao)}" tabindex="0" title="${on?'Clique para tirar o filtro':'Clique para filtrar a tela por esta ação'}"><td><b>${esc(o.rot)}</b></td><td class="m" title="${esc(rUG(o.ugr))}" style="white-space:nowrap">${esc(o.ugr||'—')}</td><td class="m" title="${esc(rUG(o.ug))}" style="white-space:nowrap">${esc(o.ug||'—')}</td><td class="m">${o.de.startsWith('TED') ? `<span class="px-p" style="color:#6b4aa0;background:#6b4aa012">${esc(o.de)}</span>` : esc(o.de)}</td>${R(o.cred)}${R(o.emp)}${R(o.pago)}<td class="n">${pct(o.pago, o.emp)}</td></tr>`; }).join('') : '<tr><td colspan="8" class="m">Nada nesta parte com os filtros atuais.</td></tr>'}
+    </tbody><tfoot><tr><td><b>Total · ${PX_OG_ABA==='sdr' ? 'Orçamento SDR' : 'Orçamento externo'}</b></td><td></td><td></td><td></td>${R(sm(L,'cred'))}${R(sm(L,'emp'))}${R(sm(L,'pago'))}<td class="n">${pct(sm(L,'pago'), sm(L,'emp'))}</td></tr></tfoot></table>
     ${L.length > 10 ? `<button type="button" class="mais" data-abre="pxOg">${ABERTO['pxOg'] ? 'Mostrar menos' : 'Ver todas ('+L.length+')'}</button>` : ''}</div>`;
 }
 document.addEventListener('click', e => {
