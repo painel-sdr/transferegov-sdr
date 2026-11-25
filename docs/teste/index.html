@@ -10343,9 +10343,9 @@ function pxTopo(V, t, lista, g, sem, cards, OPS, at, vis){
     const top = [...m.entries()].sort((a,b) => b[1].v - a[1].v).slice(0, 4).map(([k,o]) => [k+' · '+(o.n||''), o.v, '', 'acao|'+k]);
     pa = blocoPA(st.apagar, 'já liquidados esperam financeiro', TXT_FIN, linhasPA(top, VM), st.apagar > 0.004 ? `<div class="px-ft">Botão: <button type="button" data-ppfin="sit|apagar">${estaSel('sit','apagar') ? 'tirar filtro' : 'ver só as notas a pagar'}</button></div>` : '');
     const ga = g('acao', d => d.acao+' – '+d.acaoN).sort((a,b) => b.total - a.total), totA = ga.reduce((a,x) => a + x.total, 0), mxA = ga[0] ? ga[0].total : 0;
-    c1 = `<div class="px-c"><h3>Crédito por ação</h3><p class="d">participação no crédito · clique para filtrar</p>${ga.slice(0, 7).map(x => { const on = estaSel('acao', x.k);
+    c1 = `<div class="px-c"><h3>Crédito por ação</h3><p class="d">participação no crédito · clique para filtrar</p>${(ABERTO['pxCred'] ? ga : ga.slice(0, 7)).map(x => { const on = estaSel('acao', x.k);
       return `<div class="px-hb ${on?'on':''}" data-ppfin="acao|${esc(x.k)}" role="button" tabindex="0" title="${esc(x.rot)} · ${fmtBRL(x.total)}" style="grid-template-columns:52px minmax(0,1fr) 54px"><span><b>${esc(x.k)}</b></span><div class="b"><i style="width:${(mxA ? Math.max(1.5, x.total/mxA*100) : 0).toFixed(1)}%;background:${VD}"></i></div><b>${pct(x.total, totA)}</b></div>`; }).join('')}
-      ${ga.length > 7 ? `<p class="px-ft">+ ${ga.length-7} ações · veja todas em "Ação", no gráfico ao lado</p>` : ''}</div>`;
+      ${ga.length > 7 ? `<button type="button" class="mais" data-abre="pxCred">${ABERTO['pxCred'] ? 'Mostrar menos' : 'Ver todas ('+ga.length+')'}</button>` : ''}</div>`;
     c2 = `<div class="px-c"><h3>Para onde foi o crédito</h3><p class="d">cada fatia é uma parte ${t.temDot ? 'da dotação atualizada' : 'do crédito da seleção'}</p>${pxDonut([['Pago',t.pago,COR.pago],['Liquidado a pagar',t.apagar,COR.apagar],['Empenhado a liquidar',t.aliq,COR.aliq],['Pré-empenhado',t.pre,COR.pre],['Crédito disponível',t.disp,COR.disp],['Crédito indisponível',t.indisp,COR.indisp],['Sem saldo identificado',t.outros > 0.005*t.total ? t.outros : 0,COR.outros]], 'crédito', fmtC(t.total))}</div>`;
     dest = {k:'emp', rot:'empenhados'};
   } else if(V==='rap'){
