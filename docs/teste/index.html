@@ -9508,10 +9508,10 @@ function linhasEmpenho(lista){
   const m = new Map(), nums = COLS_T[VISAO].filter(c => c.n).map(c => c.k);
   lista.filter(d => d.ne).forEach(d => {
     const ch = d.origem+'|'+d.ne;
-    if(!m.has(ch)) m.set(ch, {origem:d.origem, ne:d.ne, ug:d.ug, ugN:d.ugN, acao:d.acao, fav:d.fav, favN:d.favN, proc:d.proc, desc:d.desc, mod:d.modN, nds:new Set(), itens:[]});
-    const e = m.get(ch); e.nds.add(d.nd); e.itens.push(d);
+    if(!m.has(ch)) m.set(ch, {origem:d.origem, ne:d.ne, ug:d.ug, ugN:d.ugN, acao:d.acao, fav:d.fav, favN:d.favN, proc:d.proc, desc:d.desc, mod:d.modN, nds:new Set(), pis:new Set(), itens:[]});
+    const e = m.get(ch); e.nds.add(d.nd); if(d.pi) e.pis.add(d.pi); e.itens.push(d);
   });
-  return [...m.values()].map(e => { const t = somar(e.itens, VISAO); nums.forEach(k => e[k] = t[k]); e.nd = [...e.nds].filter(Boolean).join(', '); delete e.itens; return e; })
+  return [...m.values()].map(e => { const t = somar(e.itens, VISAO); nums.forEach(k => e[k] = t[k]); e.nd = [...e.nds].filter(Boolean).join(', '); e.pi = [...e.pis].join(', '); delete e.itens; delete e.pis; return e; })
     .filter(e => nums.some(k => Math.abs(e[k])>0.004));
 }
 let LINHAS_TAB = [];
@@ -9814,9 +9814,9 @@ function baixarPDF(){
   const l = filtraBusca(LINHAS_TAB).slice();
   const {k,dir} = ORDEM_TAB[VISAO];
   l.sort((x,y) => typeof x[k]==='number' ? (x[k]-y[k])*dir : String(x[k]).localeCompare(String(y[k]),'pt-BR')*dir);
-  const cab = [{t:'Nota de empenho', nw:1},{t:'UG', nw:1},{t:'Ação', nw:1},{t:'Favorecido'},{t:'Processo'},{t:'Descrição'}].concat(nums.map(c => ({t:c.t, n:1})));
-  const linhas = l.map(e => [(VISAO==='exerap' ? e.origem+' ' : '')+neCurta(e.ne), e.ug, e.acao, (e.favN||'')+(e.fav?' ('+e.fav+')':''), e.proc||'', e.desc||''].concat(nums.map(c => fmt2(e[c.k]))));
-  const tot = ['Total','','','','',''].concat(nums.map(c => fmt2(l.reduce((a,e) => a+e[c.k], 0))));
+  const cab = [{t:'Nota de empenho', nw:1},{t:'UG', nw:1},{t:'Ação', nw:1},{t:'PI', nw:1},{t:'ND', nw:1},{t:'Favorecido'},{t:'Processo'},{t:'Descrição'}].concat(nums.map(c => ({t:c.t, n:1})));
+  const linhas = l.map(e => [(VISAO==='exerap' ? e.origem+' ' : '')+neCurta(e.ne), e.ug, e.acao, e.pi||'', e.nd||'', (e.favN||'')+(e.fav?' ('+e.fav+')':''), e.proc||'', e.desc||''].concat(nums.map(c => fmt2(e[c.k]))));
+  const tot = ['Total','','','','','','',''].concat(nums.map(c => fmt2(l.reduce((a,e) => a+e[c.k], 0))));
   const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
   if(BUSCA) filtros.push(BM.rotulo('ne', BUSCA));
   const arq = ({exe:'EXE',rap:'RAP',exerap:'EXE-RAP'}[VISAO])+'_empenhos_'+rotMes(+SEL.mes).replace('/','-');
@@ -9826,8 +9826,8 @@ function baixarCSV(){
   // extração em Excel (.xlsx) com o cabeçalho da SDR
   const COLS = COLS_T[VISAO], nums = COLS.filter(c => c.n);
   const l = filtraBusca(LINHAS_TAB);
-  const cab = ['Origem','Nota de empenho','Ação','UG','UG nome','Favorecido','Favorecido nome','ND','Processo','Modalidade','Descrição'].map(t => ({t})).concat(nums.map(c => ({t:c.t, n:true})));
-  const linhas = l.map(e => [e.origem,e.ne,e.acao,e.ug,e.ugN,e.fav,e.favN,e.nd,e.proc,e.mod,e.desc].map(v => v ?? '').concat(nums.map(c => +e[c.k]||0)));
+  const cab = ['Origem','Nota de empenho','Ação','PI','ND','UG','UG nome','Favorecido','Favorecido nome','Processo','Modalidade','Descrição'].map(t => ({t})).concat(nums.map(c => ({t:c.t, n:true})));
+  const linhas = l.map(e => [e.origem,e.ne,e.acao,e.pi,e.nd,e.ug,e.ugN,e.fav,e.favN,e.proc,e.mod,e.desc].map(v => v ?? '').concat(nums.map(c => +e[c.k]||0)));
   const filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
   if(BUSCA) filtros.push(BM.rotulo('ne', BUSCA));
   baixarXlsx({titulo: CFG[VISAO].nome+' · notas de empenho', sub: 'Posição de '+rotMes(+SEL.mes), filtros, cab, linhas, fonte: 'Tesouro Gerencial',
