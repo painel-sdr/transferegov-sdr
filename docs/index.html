@@ -10197,6 +10197,8 @@ document.addEventListener('keydown', e => { if((e.key==='Enter'||e.key===' ') &&
 .px-k h4 i{flex:0 0 26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:13px}
 .px-k .v{margin-top:8px}.px-k .v b{font-size:22px;font-weight:800;color:#14231b;white-space:nowrap;line-height:1.1}
 .px-k .v svg{display:block;width:100%;height:26px;margin-top:6px}.px-k small{display:block;font-size:11.5px;color:#1e7a43;margin-top:5px;line-height:1.35}.px-k .al b{color:#b3261e}.px-k .al small{color:#8b1e16}
+.px-og{display:flex;height:9px;border-radius:5px;overflow:hidden;margin-top:9px;background:#eef2ef}.px-og i{display:block;height:100%}
+.px-ogl{margin-top:6px;font-size:11.5px;line-height:1.6;color:#33453b}.px-ogl span{display:flex;justify-content:space-between;gap:6px;cursor:help}.px-ogl span b:first-child{font-weight:600;display:flex;align-items:center;gap:5px}.px-ogl i{display:inline-block;width:8px;height:8px;border-radius:2px}
 .px-r2{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:start}
 .px-r3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr);gap:14px;margin-top:14px;align-items:stretch}
 .px-c{background:#fff;border:1px solid #dfe8e2;border-radius:16px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.04);min-width:0}
@@ -10224,7 +10226,7 @@ document.addEventListener('keydown', e => { if((e.key==='Enter'||e.key===' ') &&
 .px-dn .lg b{white-space:nowrap}.px-note{font-size:12px;background:#fbf4ea;border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.45}
 .px-t{width:100%;border-collapse:collapse;font-size:12.5px}.px-t th{text-align:left;color:#6b7a72;font-weight:600;padding:6px 4px;border-bottom:1px solid #e7eee9}
 .px-t td{padding:8px 4px;border-bottom:1px solid #f0f4f1;vertical-align:middle}.px-t td.n{text-align:right;font-weight:700;white-space:nowrap}.px-t td.m{color:#6b7a72}
-.px-t tr[data-ppfin]{cursor:pointer}.px-t tr[data-ppfin]:hover td{background:#f2f7f3}.px-t tr.on td{background:#e4f1e8}.px-t tr.zero{opacity:.5}
+.px-t tr[data-ppfin]{cursor:pointer}.px-t tr[data-ppfin]:hover td{background:#f2f7f3}.px-t tr.on td{background:#e4f1e8}.px-t tr.zero{opacity:.5}.px-t tfoot td{font-weight:700;background:#eef6f0;border-top:2px solid #cfe3d5}
 .px-p{display:inline-block;border:1px solid;border-radius:20px;padding:2px 10px;font-size:11.5px;font-weight:700;white-space:nowrap}
 .px-p.a{color:#b3261e;background:#b3261e12}.px-p.m{color:#c7861a;background:#c7861a12}.px-p.b{color:#1d4f7a;background:#1d4f7a12}
 .px-ft{font-size:11.5px;color:#6b7a72;margin:8px 0 0;line-height:1.45}.px-ft button{border:1px solid #cfe3d5;background:#f4f8f5;color:#155a30;font:inherit;font-weight:700;font-size:12px;border-radius:8px;padding:4px 10px;cursor:pointer;margin-left:4px}
@@ -10233,6 +10235,46 @@ document.addEventListener('keydown', e => { if((e.key==='Enter'||e.key===' ') &&
 @media (max-width:560px){.px-k{grid-template-columns:1fr 1fr}.px-dn{flex-direction:column}}
 `; document.head.appendChild(st); })();
 // saldos acumulados mês a mês (até a posição escolhida), com os filtros da tela
+// origem da dotação: Orçamento SDR (mesma regra da tela Orçamento por ações) + Orçamento externo (outras ações do MAPA e TED recebido)
+const PX_ESC = {'20ZV':null,'20ZY':null,'2000':['000H','000K'],'215A':null,'8593':null,'214Z':null,'00PN':['0003'],'8622':null,'21B6':null,'8606':['0001']};
+const pxEhSDR = d => d.orig !== 'TED RECEBIDO' && Object.prototype.hasOwnProperty.call(PX_ESC, d.acao) && (!PX_ESC[d.acao] || PX_ESC[d.acao].includes(String(d.po||'')));
+function pxOrig(rows, t){
+  const val = d => t.temDot ? (+d.dotAt||0) : (+d.emp||0)+(+d.disp||0)+(+d.indisp||0)+(+d.pre||0);
+  const tot = t.temDot ? t.dotAt : t.exec, sdr = rows.reduce((a,d) => a + (pxEhSDR(d) ? val(d) : 0), 0);
+  return {tot, sdr, ext: Math.max(0, tot - sdr)};
+}
+
+// caixa "Orçamento SDR × Orçamento externo" (Financeiro EXE)
+let PX_OG_ABA = 'ext', PX_OG_XL = null;
+function pxCaixaOrig(lista, t){
+  const val = d => t.temDot ? (+d.dotAt||0) : (+d.emp||0)+(+d.disp||0)+(+d.indisp||0)+(+d.pre||0);
+  const G = new Map();
+  lista.forEach(d => { const sdr = pxEhSDR(d), lim = PX_ESC[d.acao], porPO = !!lim;
+    const de = sdr ? 'Orçamento SDR' : d.orig === 'TED RECEBIDO' ? 'TED recebido · '+(UO_NOME[d.uo] || d.uoN || ('UO '+(d.uo||'—'))) : Object.prototype.hasOwnProperty.call(PX_ESC, d.acao) ? 'Outro PO de ação acompanhada' : 'Outra ação do MAPA';
+    const k = (sdr?'S':'E')+'|'+d.acao+'|'+(porPO ? d.po : '')+'|'+de;
+    const o = G.get(k) || G.set(k, {sdr, acao:d.acao, rot: d.acao+' · '+(d.acaoN||'')+(porPO ? ' · PO '+(d.po||'—')+(d.poN ? ' – '+d.poN : '') : ''), de, cred:0, emp:0, pago:0}).get(k);
+    o.cred += val(d); o.emp += +d.emp||0; o.pago += +d.pago||0; });
+  const todos = [...G.values()].filter(o => Math.abs(o.cred) > 0.004 || Math.abs(o.emp) > 0.004);
+  const S = todos.filter(o => o.sdr).sort((a,b) => b.cred-a.cred), E = todos.filter(o => !o.sdr).sort((a,b) => b.cred-a.cred);
+  const sm = (L, k) => L.reduce((a,o) => a + o[k], 0), og = pxOrig(lista, t);
+  PX_OG_XL = () => ({cab:[{t:'Parte'},{t:'Ação / PO'},{t:'De onde veio'},{t:'Crédito',n:true},{t:'Empenhado',n:true},{t:'Pago',n:true}],
+    linhas: S.map(o => ['Orçamento SDR', o.rot, o.de, o.cred, o.emp, o.pago]).concat(E.map(o => ['Orçamento externo', o.rot, o.de, o.cred, o.emp, o.pago]))});
+  const L = PX_OG_ABA === 'sdr' ? S : E, lim = ABERTO['pxOg'] ? L : L.slice(0, 10), pS = og.tot > 0 ? og.sdr/og.tot*100 : 0;
+  const R = v => `<td class="n" title="${fmtBRL(v)}">${fmtC(v)}</td>`;
+  return `<div class="px-c" id="pxOg" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0;font-size:16px">De onde vem o crédito</h3><p class="d" style="margin:2px 0 0;font-size:12px;color:#6b7a72">Orçamento SDR (mesma regra da tela Orçamento por ações) + Orçamento externo = crédito de ${fmtC(og.tot)} · clique numa linha para filtrar a tela</p></div>
+    <div style="display:flex;gap:8px;align-items:center"><div class="ppf-seg" style="margin:0"><button type="button" data-pxog="ext" class="${PX_OG_ABA!=='sdr'?'on':''}" title="${fmtBRL(og.ext)}">Orçamento externo · ${fmtC(og.ext)}</button><button type="button" data-pxog="sdr" class="${PX_OG_ABA==='sdr'?'on':''}" title="${fmtBRL(og.sdr)}">Orçamento SDR · ${fmtC(og.sdr)}</button></div><button type="button" class="btn" data-pxogxl>Extração em Excel</button></div></div>
+    <div class="px-og" style="height:12px;margin:12px 0 4px"><i style="width:${pS.toFixed(2)}%;background:#1b6b3e" title="Orçamento SDR · ${fmtBRL(og.sdr)}"></i><i style="width:${(100-pS).toFixed(2)}%;background:#6b4aa0" title="Orçamento externo · ${fmtBRL(og.ext)}"></i></div>
+    <table class="px-t"><thead><tr><th>Ação / PO</th><th>De onde veio</th><th style="text-align:right">Crédito</th><th style="text-align:right">Empenhado</th><th style="text-align:right">Pago</th><th style="text-align:right">% pago</th></tr></thead><tbody>
+    ${lim.length ? lim.map(o => { const on = estaSel('acao', o.acao); return `<tr class="${on?'on':''}" data-ppfin="acao|${esc(o.acao)}" tabindex="0" title="${on?'Clique para tirar o filtro':'Clique para filtrar a tela por esta ação'}"><td><b>${esc(o.rot)}</b></td><td class="m">${o.de.startsWith('TED') ? `<span class="px-p" style="color:#6b4aa0;background:#6b4aa012">${esc(o.de)}</span>` : esc(o.de)}</td>${R(o.cred)}${R(o.emp)}${R(o.pago)}<td class="n">${pct(o.pago, o.emp)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="m">Nada nesta parte com os filtros atuais.</td></tr>'}
+    </tbody><tfoot><tr><td><b>Total · ${PX_OG_ABA==='sdr' ? 'Orçamento SDR' : 'Orçamento externo'}</b></td><td></td>${R(sm(L,'cred'))}${R(sm(L,'emp'))}${R(sm(L,'pago'))}<td class="n">${pct(sm(L,'pago'), sm(L,'emp'))}</td></tr></tfoot></table>
+    ${L.length > 10 ? `<button type="button" class="mais" data-abre="pxOg">${ABERTO['pxOg'] ? 'Mostrar menos' : 'Ver todas ('+L.length+')'}</button>` : ''}</div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-pxog]'); if(b){ PX_OG_ABA = b.dataset.pxog; atualizar(); setTimeout(() => document.getElementById('pxOg')?.scrollIntoView({block:'nearest'}), 50); return; }
+  if(e.target.closest('[data-pxogxl]') && PX_OG_XL){ const X = PX_OG_XL(), filtros = FILTROS.filter(f => f.k!=='mes' && selDe(f.k).length).map(f => f.rot+': '+selDe(f.k).map(v => rotuloValor(f, v)).join(', '));
+    baixarXlsx({titulo: CFG[VISAO].nome+' · De onde vem o crédito (Orçamento SDR × externo)', sub: 'Posição de '+rotMes(+SEL.mes), filtros, fonte: 'Tesouro Gerencial', arquivo: 'EXE_Orcamento_SDR_externo', cab: X.cab, linhas: X.linhas}); }
+  if(e.target.closest('[data-pxogir]')){ document.getElementById('pxOg')?.scrollIntoView({behavior:'smooth', block:'center'}); }
+});
 function pxSerie(){
   const todos = BASES_DA_TELA[VISAO].flatMap(v => DADOS[v].agg), agg = todos.filter(passaMensal);
   const meses = [...new Set(todos.map(d => d.mes))].filter(Boolean).sort((a,b) => a-b).filter(m => !SEL.mes || +m <= +SEL.mes);
@@ -10252,6 +10294,7 @@ function pxDonut(seg, rot, val){
     <div class="lg">${seg.filter(s => Math.abs(s[1]) > 0.004).map(([n,v,c]) => `<div><span><i style="background:${c}"></i>${esc(n)}</span><b title="${fmtBRL(v)} · ${pct(v, tot)}">${fmtC(v)}</b></div>`).join('')}</div></div>`;
 }
 function pxTopo(V, t, lista, g, sem, cards, OPS, at, vis){
+  if(window.__pxFocoOg && V==='exe'){ window.__pxFocoOg = 0; PX_OG_ABA = 'ext'; setTimeout(() => document.getElementById('pxOg')?.scrollIntoView({behavior:'smooth', block:'center'}), 400); }
   const ser = pxSerie(), n = ser.length, ult = ser[n-1], ant = ser[n-2];
   const mesTxt = SEL.mes ? MESES[(+SEL.mes%100)-1] : '';
   const delta = k => (ult && ant) ? (ult[k]||0) - (ant[k]||0) : 0;
@@ -10269,7 +10312,10 @@ function pxTopo(V, t, lista, g, sem, cards, OPS, at, vis){
   const TXT_FIN = 'A entrega foi atestada e falta só o pagamento. Sem financeiro, a UG pode receber cobrança do fornecedor.';
   if(V==='exe'){
     const cred = t.temDot ? t.dotAt : t.exec;
-    kp = K(t.temDot ? 'Crédito' : 'Crédito na seleção', '▣', ES, cred, 'provisão '+fmtC(t.prov)+' · destaque '+fmtC(t.dr), x => x.temDot ? x.dotAt : x.exec)
+    const og = pxOrig(lista, t), pS = og.tot > 0 ? og.sdr/og.tot*100 : 0;
+    kp = `<div title="${esc('Crédito '+fmtBRL(cred)+'\nOrçamento SDR '+fmtBRL(og.sdr)+'\nOrçamento externo '+fmtBRL(og.ext))}"><h4><i style="background:${ES}1f;color:${ES}">▣</i>${t.temDot ? 'Crédito' : 'Crédito na seleção'}</h4><div class="v"><b title="${fmtBRL(cred)}">${fmtC(cred)}</b></div>
+      <div class="px-og"><i style="width:${pS.toFixed(1)}%;background:${VD}" title="Orçamento SDR · ${fmtBRL(og.sdr)}"></i><i style="width:${(100-pS).toFixed(1)}%;background:${RX}" title="Orçamento externo · ${fmtBRL(og.ext)}"></i></div>
+      <div class="px-ogl" data-pxogir style="cursor:pointer"><span title="Orçamento SDR · ${fmtBRL(og.sdr)} · mesma regra da tela Orçamento por ações"><b><i style="background:${VD}"></i>Orçamento SDR</b><b>${fmtC(og.sdr)}</b></span><span title="Orçamento externo · ${fmtBRL(og.ext)} · outras ações do MAPA e TED recebido de outros órgãos"><b><i style="background:${RX}"></i>Orçamento externo</b><b>${fmtC(og.ext)}</b></span></div></div>`
        + K('Empenhado', '✎', VD, t.emp, pct(t.emp, t.total)+' do crédito'+mais('emp'), x => x.emp)
        + K('Liquidado', '✓', AZ, t.liq, pct(t.liq, t.emp)+' do empenhado'+mais('liq'), x => x.liq)
        + K('Pago', '$', TE, t.pago, pct(t.pago, t.liq)+' do liquidado'+mais('pago'), x => x.pago)
@@ -10338,7 +10384,7 @@ function pxTopo(V, t, lista, g, sem, cards, OPS, at, vis){
     ${blocoAssociacao(lista)}
     <div class="px-r2"><div class="px-c px-main"><div class="ppf-seg" role="tablist"><span style="font-size:12.5px;color:#6b7a72;align-self:center">ver por:</span>${OPS.map(([k,r]) => `<button type="button" role="tab" data-ppfexp="${k}" class="${k===at[0]?'on':''}" aria-selected="${k===at[0]}">${r}</button>`).join('')}</div>
       <div>${vis.html}</div>${at[0]==='mensal' && dTxt ? `<div class="px-dest">${dTxt}</div>` : leit}</div>${pa}</div>
-    <div class="px-r3">${c1}${c2}${c3}</div>`;
+    <div class="px-r3">${c1}${c2}${c3}</div>${V==='exe' ? pxCaixaOrig(lista, t) : ''}`;
 }
 function ppfPagina(lista, t, rotAcao, g, sem){
   const rotAc = d => d.acao+' – '+d.acaoN, rotUG = d => d.ug+' – '+d.ugN, rotEl = d => d.el+' – '+d.elN+' (GND '+d.gnd+')', rotPI = d => d.pi ? d.pi+' – '+d.piN : '(sem PI)', rotPO = d => d.po+' – '+d.poN, rotFav = d => d.favN+' · '+d.fav;
@@ -15338,6 +15384,9 @@ function vgModoBarra(){
 .vm-anel{display:flex;align-items:center;gap:14px}.vm-anel span{color:#cfe6d7;font-weight:600;font-size:14px;line-height:1.3}
 .vm-kp{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}.vm-kp>div.lp b{color:#ffb4a8}.vm-kp>div{border-left:1px solid #3b7a5c;padding:2px 16px;cursor:pointer}
 .vm-kp small{color:#bfdccb;font-size:12.5px}.vm-kp b{display:block;font-size:25px;letter-spacing:-.5px;margin:2px 0;white-space:nowrap}.vm-kp em{font-style:normal;font-size:12px;color:#cfe6d7}
+.vm-og{grid-column:1/3;background:rgba(255,255,255,.1);border-radius:10px;padding:11px 14px;color:#eaf5ee}.vm-og .t{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;margin-bottom:8px}.vm-og .t span{opacity:.8;font-size:12px}
+.vm-og .bar{display:flex;height:22px;border-radius:7px;overflow:hidden}.vm-og .bar i{display:flex;align-items:center;justify-content:center;font-style:normal;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;overflow:hidden}
+.vm-og .lg{display:flex;gap:6px 22px;font-size:12.5px;margin-top:8px;flex-wrap:wrap}.vm-og .lg span{cursor:help}.vm-og .lg span[style]:before{content:"■ ";color:var(--c)}
 .vm-ins{grid-column:1/3;background:rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;font-size:15px;color:#eaf5ee}
 .vm-g2{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:14px;margin-top:14px}
 .vm-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
@@ -15456,6 +15505,9 @@ function vgModoHTML(x){
       <div data-vgir="exe" class="lp" title="Liquidado e ainda não pago: espera o financeiro (liquidado − pago)"><small>Liquidado a pagar</small><b${lendo ? '' : vmTT(Math.max(0, e.liq - e.pago))}>${V(Math.max(0, e.liq - e.pago))}</b><em>${lendo ? 'lendo…' : 'aguardando financeiro'}</em></div>
       <div data-vgir="rap"><small>RAP a pagar</small><b${vmTT(r.apagar)}>${VG.rapStatus === 'ok' || r.apagar > 0.004 ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
     </div>
+    ${lendo ? '' : (() => { const og = pxOrig(exeL || [], e), pS = og.tot > 0 ? og.sdr/og.tot*100 : 0; return og.tot > 0.004 ? `<div class="vm-og" title="${esc('Dotação atual '+fmtBRL(og.tot)+'\nOrçamento SDR '+fmtBRL(og.sdr)+'\nOrçamento externo '+fmtBRL(og.ext))}"><div class="t"><b>De onde vem a dotação de ${fmtC(og.tot)}</b><span>o Orçamento SDR é o mesmo valor da tela Orçamento por ações</span></div>
+      <div class="bar"><i data-vgir="orcacao" style="width:${pS.toFixed(2)}%;background:#8fd3a6;color:#0f3a22" title="Orçamento SDR · ${fmtBRL(og.sdr)} · clique para abrir o Orçamento por ações">${pS > 18 ? 'Orçamento SDR · '+fmtC(og.sdr) : ''}</i><i data-vgir="exe" onclick="window.__pxFocoOg=1" style="width:${(100-pS).toFixed(2)}%;background:#b9a3e3;color:#2d1b55" title="Orçamento externo · ${fmtBRL(og.ext)} · clique para ver de onde veio">${100-pS > 9 ? 'Externo · '+fmtC(og.ext) : ''}</i></div>
+      <div class="lg"><span style="--c:#8fd3a6" title="${fmtBRL(og.sdr)}">Orçamento SDR <b>${fmtC(og.sdr)}</b></span><span data-vgir="exe" onclick="window.__pxFocoOg=1" style="--c:#b9a3e3;cursor:pointer;text-decoration:underline dotted" title="${fmtBRL(og.ext)} · clique para ver de onde veio">Orçamento externo <b>${fmtC(og.ext)}</b> · outras ações do MAPA e TED recebido de outros órgãos, executados pelas UGs da SDR</span><span title="${fmtBRL(og.tot)}">= <b>${fmtC(og.tot)}</b></span></div></div>` : ''; })()}
     <div class="vm-ins">💡 ${esc(ins)}</div></div>`;
   // curva mês a mês (acumulado do Tesouro: saldo de cada mês)
   const ser = new Map(); (DADOS.exe.agg || []).forEach(d => { if(!vgPassa(d) || Math.floor(d.mes / 100) !== ano) return; const o = ser.get(d.mes) || ser.set(d.mes, {emp:0, liq:0, pago:0}).get(d.mes); o.emp += d.emp || 0; o.liq += d.liq || 0; o.pago += d.pago || 0; });
