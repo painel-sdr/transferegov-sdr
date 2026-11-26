@@ -276,9 +276,10 @@ function fichaTes(o){
    ${contas ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:#1f4e79">Contas contábeis do SIAFI (para conferência)</summary><p style="font-size:12px;color:#5f6f7a;margin:4px 0">São as contas de onde saem os números acima.</p><table class="mini"><tr><th>Conta / coluna do relatório</th><th class="n">Valor</th></tr>${contas}</table></details>` : ''}`;
 }
 function tabela(id, L, cols, porPag){
+  tbxReg(id, L, cols);
   const p = PAG[id]||0, ini = p*porPag, pg = L.slice(ini, ini+porPag), nc = cols.length;
   if(!L.length) return '<p class="d">nenhum TED neste recorte</p>';
-  return `<table><tr>${cols.map(c => `<th class="${c[2]||''}">${c[0]}</th>`).join('')}</tr>${pg.map(o => `<tr class="lin" data-ab="${esc(o.id)}" title="Clique para abrir a ficha">${cols.map((c,ci) => `<td class="${c[2]||''}">${c[1](o)}${ci===0 && (window.BM_TABS||{})[id] ? BM.tag(BM_TABS[id], o) : ''}</td>`).join('')}</tr>`).join('')}</table>
+  return tbxBar(id, L) + `<table><tr>${cols.map(c => `<th class="${c[2]||''}">${c[0]}</th>`).join('')}</tr>${pg.map(o => `<tr class="lin" data-ab="${esc(o.id)}" title="Clique para abrir a ficha">${cols.map((c,ci) => `<td class="${c[2]||''}">${c[1](o)}${ci===0 && (window.BM_TABS||{})[id] ? BM.tag(BM_TABS[id], o) : ''}</td>`).join('')}</tr>`).join('')}</table>
   ${L.length>porPag?`<div class="pag">${ini+1}–${Math.min(L.length,ini+porPag)} de ${n(L.length)} <button data-pg="${id}" data-d="-1" ${p?'':'disabled'}>‹</button><button data-pg="${id}" data-d="1" ${ini+porPag<L.length?'':'disabled'}>›</button></div>`:''}`;
 }
 
@@ -345,7 +346,15 @@ function render(){
   const cols = [['TED',tedId],['Unidade descentralizada',unid],['Fase',o=>faseTag(o)+`<small>${esc(o.stN)}</small>`],['Firmado',o=>fm(o.fir),'n'],
     ['Descentralizado',o=>fm(o.nc)+(o.op>1?`<small style="color:#b7860b">pendente ${fm(o.op)}</small>`:''),'n'],['Repassado',o=>fm(o.pf)+(o.ar>1?`<small style="color:#b7860b">a repassar ${fm(o.ar)}</small>`:''),'n'],
     ['Fim vigência',o=>(esc(o.fim)||'—')+`<small>${o.dias===null?'':o.dias<0?'vencida':'faltam '+o.dias+' d'}</small>`,'n']];
-  document.getElementById('lista').innerHTML = tabela('l', lista, cols, 15);
+  // filtros e resumo da lista no padrão da Lista de TEDs do TED Equipe (25/11/2026 · teste)
+  let lista2 = lista, topo = '';
+  if(tbxTeste()){
+    lista2 = lfFiltrar('l', [['fase','Situação'],['ugdN','UG descentralizadora'],['unr','Entidade'],['fx','Vigência'],['ano','Ano']], lista);
+    const fi = soma(lista2,'fir'), pc = (a,b) => b ? (100*a/b).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%' : '—';
+    const c = (rot, cor, v, sub) => `<div style="--c:${cor}" title="${esc(rot)}: ${esc(R$(v))}"><small>${rot}</small><b>${fm(v)}</b><span>${sub}</span></div>`;
+    topo = lfHTML('l', lista) + `<div class="lf-res">${c('Firmado','#1f4e79',fi,n(lista2.length)+' TED(s)')}${c('Descentralizado','#2c6fa8',soma(lista2,'nc'),pc(soma(lista2,'nc'),fi)+' do firmado')}${c('Repassado','#2e8a57',soma(lista2,'pf'),pc(soma(lista2,'pf'),fi)+' do firmado')}${c('A repassar','#b8650a',soma(lista2,'ar'),pc(soma(lista2,'ar'),fi)+' do firmado')}</div>`;
+  }
+  document.getElementById('lista').innerHTML = topo + tabela('l', lista2, cols, 15);
   BM.pintar('b'); BM.realcar(document.getElementById('lista'), 'b');
 }
 document.getElementById('nota').innerHTML = `<b>TED GERAL SDR</b> · Termos de Execução Descentralizada das UGs 130010, 130141, 130255, 135098 e 420013 · API de TED do Transferegov, dados de __DATA__ · ${TES.carregado ? 'Tesouro Gerencial: relatório de '+esc(TES.gerado_em)+' · ' : ''}planos rejeitados ficam fora (marque “incluir planos rejeitados”) · clique nos cartões para ver a lista, nos gráficos para filtrar e na linha para abrir a ficha.`;

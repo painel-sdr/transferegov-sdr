@@ -3352,6 +3352,8 @@ function baixarArquivo(blob, nome){ const a = document.createElement('a'); a.hre
 function csvDeO(o){ const q = s => '"'+String(s ?? '').replace(/"/g,'""')+'"';
   return '﻿'+[o.cab.map(c => q(c.t)).join(';')].concat(o.linhas.map(l => l.map((v,i) => o.cab[i].n && typeof v==='number' ? String(v).replace('.',',') : q(v)).join(';'))).join('\r\n'); }
 // o = {titulo, sub, filtros:[texto], cab:[{t, n:numérico, w:largura}], linhas:[[valores crus]], arquivo, fonte}
+// páginas do robô (listas): Extração em PDF no modelo padrão do painel (25/11/2026)
+window.__listaPDF = o => abrirPDF(documentoPDF(o), o.arquivo);
 async function baixarXlsx(o){
   const nome = String(o.arquivo || o.titulo || 'extracao').replace(/[^\wÀ-ú-]+/g,'_');
   let EJ;

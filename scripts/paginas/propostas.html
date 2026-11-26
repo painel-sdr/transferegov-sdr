@@ -122,9 +122,10 @@ function ficha(o){
    ${e ? ` <button type="button" class="btn" style="margin:0 0 0 8px;padding:5px 14px;background:#2e8a57" data-fichaprop="${esc(e.num)}">Ficha da equipe ›</button>` : ''}</div></div>`;
 }
 function tabela(id, L, cols, porPag){
+  tbxReg(id, L, cols);
   const p = PAG[id]||0, ini = p*porPag, pg = L.slice(ini, ini+porPag), nc = cols.length;
   if(!L.length) return '<p class="d">nenhuma proposta neste recorte</p>';
-  return `<table><tr>${cols.map(c => `<th class="${c[2]||''}">${c[0]}</th>`).join('')}</tr>${pg.map(o => `<tr class="lin ${ABERTO.has(id+o.id)?'aberto':''}" data-ab="${id+o.id}">${cols.map((c,ci) => `<td class="${c[2]||''}">${c[1](o)}${ci===0 && (window.BM_TABS||{})[id] ? BM.tag(BM_TABS[id], o) : ''}</td>`).join('')}</tr>${ABERTO.has(id+o.id)?`<tr><td colspan="${nc}" style="padding:0">${ficha(o)}</td></tr>`:''}`).join('')}</table>
+  return tbxBar(id, L) + `<table><tr>${cols.map(c => `<th class="${c[2]||''}">${c[0]}</th>`).join('')}</tr>${pg.map(o => `<tr class="lin ${ABERTO.has(id+o.id)?'aberto':''}" data-ab="${id+o.id}">${cols.map((c,ci) => `<td class="${c[2]||''}">${c[1](o)}${ci===0 && (window.BM_TABS||{})[id] ? BM.tag(BM_TABS[id], o) : ''}</td>`).join('')}</tr>${ABERTO.has(id+o.id)?`<tr><td colspan="${nc}" style="padding:0">${ficha(o)}</td></tr>`:''}`).join('')}</table>
   ${L.length>porPag?`<div class="pag">${ini+1}–${Math.min(L.length,ini+porPag)} de ${L.length.toLocaleString('pt-BR')} <button data-pg="${id}" data-d="-1" ${p?'':'disabled'}>‹</button><button data-pg="${id}" data-d="1" ${ini+porPag<L.length?'':'disabled'}>›</button></div>`:''}`;
 }
 function mapa(L){

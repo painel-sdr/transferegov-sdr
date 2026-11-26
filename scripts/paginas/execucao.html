@@ -130,9 +130,10 @@ function ficha(o){
   <div style="margin-top:8px"><a class="lk" href="${esc(o.link)}" target="_blank">Abrir no Transferegov ↗</a> <button type="button" class="btn" style="margin:0 0 0 8px;padding:5px 14px" data-fichacompleta="${esc(o.n)}">Ficha completa do instrumento ›</button></div></div>`;
 }
 function tabela(id, L, cols, porPag){
+  tbxReg(id, L, cols);
   const p = PAG[id]||0, ini = p*porPag, pg = L.slice(ini, ini+porPag), nc = cols.length;
   if(!L.length) return '<p class="d">nenhum instrumento neste recorte</p>';
-  return `<table><tr>${cols.map(c => `<th class="${c[2]||''}">${c[0]}</th>`).join('')}</tr>${pg.map(o => `<tr class="lin ${ABERTO.has(id+o.n)?'aberto':''}" data-ab="${id+o.n}">${cols.map((c,ci) => `<td class="${c[2]||''}">${c[1](o)}${ci===0 && (window.BM_TABS||{})[id] ? BM.tag(BM_TABS[id], o) : ''}</td>`).join('')}</tr>${ABERTO.has(id+o.n)?`<tr><td colspan="${nc}" style="padding:0">${ficha(o)}</td></tr>`:''}`).join('')}</table>
+  return tbxBar(id, L) + `<table><tr>${cols.map(c => `<th class="${c[2]||''}">${c[0]}</th>`).join('')}</tr>${pg.map(o => `<tr class="lin ${ABERTO.has(id+o.n)?'aberto':''}" data-ab="${id+o.n}">${cols.map((c,ci) => `<td class="${c[2]||''}">${c[1](o)}${ci===0 && (window.BM_TABS||{})[id] ? BM.tag(BM_TABS[id], o) : ''}</td>`).join('')}</tr>${ABERTO.has(id+o.n)?`<tr><td colspan="${nc}" style="padding:0">${ficha(o)}</td></tr>`:''}`).join('')}</table>
   ${L.length>porPag?`<div class="pag">${ini+1}–${Math.min(L.length,ini+porPag)} de ${n(L.length)} <button data-pg="${id}" data-d="-1" ${p?'':'disabled'}>‹</button><button data-pg="${id}" data-d="1" ${ini+porPag<L.length?'':'disabled'}>›</button></div>`:''}`;
 }
 const objLoc = o => `${esc(o.prop.length>48?o.prop.slice(0,48)+'…':o.prop)}<small>${esc(o.munN)}/${esc(o.uf)} · UG ${esc(o.ug)}</small>`;
