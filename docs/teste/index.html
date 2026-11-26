@@ -3968,6 +3968,7 @@ function anotarRespCtr(d, a){
 // cards → situação + atenção à vigência → despesa × contratado → explorar por → conferência → contratos
 // todo card, fatia, barra ou número abre logo abaixo a lista dos contratos que ele representa
 // =====================================================================
+const MESES_CTRB = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 const CTRB = {sel:null, reg:{}, ft:{}, exp:'', equipe:false, tes:null, tesK:''};
 const ctrbSit = d => { const c = normAccent(d.cat); if(c !== 'ATIVO') return 'Encerrado'; if(d.dias !== null && d.dias < 0) return 'Vencido'; if(d.dias !== null && d.dias <= 90) return 'A vencer'; return 'Vigente'; };
 const CTRB_COR = {'Vigente':'#2e7d32', 'A vencer':'#e0a100', 'Vencido':'#c62828', 'Encerrado':'#9aa59a'};
@@ -4074,17 +4075,86 @@ function ctrbRender(){
   const tab = tabela('contr', 'Contratos · '+lista.length+' de '+rows.length, COLS, lista, {ordem:{campo:'dias', dir:1}, arquivo:'contratos-ceplac'}).replace('<div data-bm="t-contr">', filtrosT+'<div data-bm="t-contr">');
   // lista da seleção, logo abaixo do bloco clicado
   const S = CTRB.sel && CTRB.reg[CTRB.sel], zona = CTRB.sel ? CTRB.sel.split('|')[0] : '';
-  const painel = z => { if(!S || !({kpi:['kpi'], vc:['vc'], sit:['sit','exp'], graf:['mes'], eq:['eq'], conf:['conf']})[z].includes(zona)) return '';
+  const painel = z => { if(!S || !({kpi:['kpi'], vc:['vc','rk'], sit:['sit','exp'], graf:['mes'], eq:['eq'], conf:['conf'], ac:['ac']})[z].includes(zona)) return '';
     const cols = [['num','Contrato','ficha'],['fav','Favorecido'],['unid','Unidade'],['resp','Responsável'],['tipo','Tipo'],['uf','UF'],['sitP','Situação'],['fim','Vig. fim'],['dias','Dias a vencer','i']]
       .concat(S.extra ? [[S.extra[0], S.extra[1], 'n']] : [['anual','Valor anual','n']].concat(temT ? [['_pago','Pago 2026','n']] : [])).concat(zona === 'conf' ? [['confTxt','Conferência','txt']] : []);
     S.lista.forEach(d => { d.sitP = d.sitP || (d.cat !== undefined ? ctrbSit(d) : ''); });
     return `<div class="cb-sel" id="cbSel"><button type="button" class="cb-fecha" data-ctrbfecha>Fechar ✕</button>${tabela('ctrsel', esc(S.tit)+' · '+S.lista.length+' contrato(s)', cols, S.lista, {ordem:{campo: S.extra ? S.extra[0] : 'dias', dir: S.extra ? -1 : 1}, arquivo:'contratos-selecao'})}</div>`; };
   setTimeout(() => { const el = document.getElementById('cbSel'); if(el && CTRB._rolar){ CTRB._rolar = false; el.scrollIntoView({behavior:'smooth', block:'nearest'}); } }, 60);
-  return chips() + CSS_CTRSDR + CSS_CTRB + kpis + painel('kpi') + equipe + painel('eq')
-    + aten + painel('vc') + despesa + painel('graf') + `<div class="cb-meio">${rosca}${explorar}</div>` + painel('sit') + `<div class="cb-conf">${conf}</div>` + painel('conf') + tab
+  // ===== painel executivo (25/11/2026 · modelo G ajustado): os valores só nos cartões; vencimentos + riscos; pago × previsto + tipo/unidade; mapa + ação =====
+  const venc120 = at.filter(d => d.dias !== null && d.dias >= 0 && d.dias <= 120).sort((a,b) => a.dias-b.dias), vg = soma(at,'global'), falta = temT ? Math.max(0, prev - pago) : null;
+  const pmAc = temT ? (() => { let s = 0; return T.meses.map((m, i) => { s += rows.reduce((a, d) => a + ((d._pm||[])[i]||0), 0); return s; }); })() : [];
+  const sp = (s, c) => { if(!s || s.length < 2) return ''; const w = 120, h = 24, mx = Math.max(...s), mn = Math.min(0, ...s), r = (mx-mn)||1, pts = s.map((v,i) => (i*w/(s.length-1)).toFixed(1)+','+(h-3-(v-mn)/r*(h-7)).toFixed(1)).join(' ');
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon points="0,${h} ${pts} ${w},${h}" style="fill:${c};opacity:.13"/><polyline points="${pts}" fill="none" style="stroke:${c}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`; };
+  const K = (k, ic, cor, tit, val, tip, nota, lista, serie, al) => `<div class="cx-k${al?' al':''}"${ctrbReg('kpi|'+k, tit, lista)}><h4><i style="background:${cor}1f;color:${cor}">${ic}</i>${tit}</h4><b title="${esc(tip)}">${val}</b>${serie ? sp(serie, cor) : '<div class="cx-sp0"></div>'}<small>${nota}</small></div>`;
+  const kpis6 = `<div class="cx-ks">
+    ${K('at','◼','#1a4d2e','Contratos ativos', at.length, at.length+' contratos', `de ${rows.length} firmados`, at)}
+    ${K('vg','R$','#1b6b3e','Valor global', fmtC(vg), fmtBRL(vg), 'soma dos ativos · '+fmtC(soma(at,'mensal'))+' por mês', at)}
+    ${K('pv','▦','#2c6fa8','Previsto 2026', fmtC(prev), fmtBRL(prev), rows.filter(d => (d.prev||0) > 0).length+' contrato(s) com previsão', rows.filter(d => (d.prev||0) > 0))}
+    ${K('pg','$','#3e8f86','Pago em 2026', temT ? fmtC(pago) : (T && T.erro ? '—' : '…'), temT ? fmtBRL(pago) : '', temT ? (pctEx === null ? '' : pctEx+'% do previsto · até '+esc(T.ult)) : (T && T.erro ? 'Tesouro indisponível' : 'lendo o Tesouro…'), rows.filter(d => d._pago > 0).sort((a,b) => b._pago-a._pago), pmAc)}
+    ${K('ft','⧗','#6b4aa0','Falta pagar no ano', falta === null ? (T && T.erro ? '—' : '…') : fmtC(falta), falta === null ? '' : fmtBRL(falta), 'previsto − pago', rows.filter(d => (d.prev||0) - (d._pago||0) > 0.005).sort((a,b) => ((b.prev||0)-(b._pago||0)) - ((a.prev||0)-(a._pago||0))), pmAc.length ? pmAc.map(v => Math.max(0, prev - v)) : null)}
+    ${K('v120','!','#b3261e','Vencem em 120 dias', venc120.length, venc120.length+' contrato(s)', venc120.length ? 'próximo em '+venc120[0].dias+' dia(s)' : (vencidos.length ? vencidos.length+' ativo(s) já vencido(s)' : 'nenhum'), venc120.concat(vencidos), null, 1)}
+  </div>`;
+  // vencimentos dos próximos 12 meses (um bloco por contrato, na cor do prazo)
+  const hj = new Date(), ms = [...Array(12)].map((_, i) => new Date(hj.getFullYear(), hj.getMonth()+i, 1));
+  const corD = d => d.dias < 0 || d.dias <= 30 ? '#b3261e' : d.dias <= 60 ? '#c7861a' : d.dias <= 120 ? '#2c6fa8' : '#1b6b3e';
+  const colM = ms.map(m => at.filter(d => { const f = ctrbDt(d.fim); return f && f.getFullYear() === m.getFullYear() && f.getMonth() === m.getMonth(); }).sort((a,b) => a.dias-b.dias));
+  const cal = `<section class="card cb-c" style="display:flex;flex-direction:column"><div class="cb-ct"><div><h3>Vencimentos dos próximos 12 meses</h3><p class="dica" style="margin:0">cada bloco é um contrato ativo · clique para ver o contrato</p></div>
+    <div class="cx-lg"><span><i style="background:#b3261e"></i>até 30 dias</span><span><i style="background:#c7861a"></i>31 a 60</span><span><i style="background:#2c6fa8"></i>61 a 120</span><span><i style="background:#1b6b3e"></i>mais de 120</span></div></div>
+    <div class="cx-cal">${ms.map((m, i) => { const L = colM[i], fundo = i < 1 ? '#fbe9e7' : i < 2 ? '#fdf3e3' : i < 4 ? '#eef4fb' : '#f3f7f4';
+      return `<div class="cx-m" style="background:${fundo}"><div class="cx-bl">${L.slice(0, 5).map(d => `<div style="background:${corD(d)}"${ctrbReg('vc|'+d.num, 'Contrato '+d.num, [d])} title="${esc(d.num+' · '+d.fav+' · fim '+d.fim+' · '+d.dias+' dia(s) · '+fmtBRL(d.anual||0)+'/ano')}"><b>${esc(String(d.num).split('/')[0])}</b><small>${String(d.num).includes('/') ? '/'+esc(String(d.num).split('/')[1]) : ''}</small></div>`).join('')}
+        ${L.length > 5 ? `<a${ctrbReg('vc|m'+i, 'Vencem em '+MESES_CTRB[m.getMonth()]+'/'+m.getFullYear(), L)}>+ ${L.length-5}</a>` : ''}</div><span>${MESES_CTRB[m.getMonth()]}${i === 0 || m.getMonth() === 0 ? '/'+String(m.getFullYear()).slice(2) : ''}</span></div>`; }).join('')}</div>
+    ${vencidos.length ? `<p class="cb-vcd"${ctrbReg('vc|vencidos', 'Ativos com vigência vencida', vencidos)}>⚠ ${vencidos.length} contrato(s) ativo(s) com a vigência já vencida · ver lista</p>` : ''}</section>`;
+  // riscos da carteira e o que precisa de ação (pela conferência com o Contratos.gov.br e pelo Tesouro)
+  const okApi = API_CTR && !API_CTR.erro, cf = okApi ? at.map(d => [d, confCtr(d)]) : [];
+  const rFat = cf.filter(([, c]) => c.a && c.a.fatVenc && c.a.fatVenc.length).map(([d]) => d);
+  const rFis = cf.filter(([, c]) => c.a && c.a.ativo && (!c.a.fiscal || !c.a.resAt.some(r => /^gestor$/i.test(r.f)))).map(([d]) => d);
+  const rCad = cf.filter(([, c]) => !c.a || /diferente|Inativo|vencida no Contratos/i.test(c.txt)).map(([d]) => d);
+  const rSemPg = temT ? at.filter(d => (d.prev||0) > 0 && !(d._pago > 0.005)) : [];
+  const v30 = at.filter(d => d.dias !== null && d.dias >= 0 && d.dias <= 30);
+  const RK = [['fin','Financeiro', rFat.length+' com fatura vencida pendente no Contratos.gov.br', '#b3261e', rFat],
+    ['prz','Prazo', venc120.length+' vencem em 120 dias'+(vencidos.length ? ' · '+vencidos.length+' já vencido(s)' : ''), '#c7861a', venc120.concat(vencidos)],
+    ['exe','Execução', temT ? rSemPg.length+' com previsão e sem pagamento em 2026' : (T && T.erro ? 'Tesouro indisponível' : 'lendo o Tesouro…'), '#c7861a', rSemPg],
+    ['cad','Cadastro', okApi ? rCad.length+' com divergência no Contratos.gov.br' : 'lendo o Contratos.gov.br…', '#2c6fa8', rCad],
+    ['fis','Fiscalização', okApi ? rFis.length+' sem fiscal ou gestor ativo' : 'lendo o Contratos.gov.br…', '#2c6fa8', rFis]];
+  const riscos = `<section class="card cb-c"><h3>Riscos da carteira</h3><p class="dica" style="margin:0 0 4px">contratos ativos · clique num risco para ver os contratos</p>
+    ${RK.map(([k, t, s, c, L]) => `<div class="cx-rk"${ctrbReg('rk|'+k, 'Risco · '+t, L)}><i style="background:${c}"></i><div><b>${t}</b><small>${s}</small></div><em style="color:${c}">${L.length}</em></div>`).join('')}</section>`;
+  const PR = {Alta:'#b3261e', 'Média':'#c7861a'};
+  const AC = [['Vence em até 30 dias', v30, 'Alta'], ['Ativo com vigência vencida', vencidos, 'Alta'], ['Fatura vencida pendente', rFat, 'Alta'], ['Sem fiscal ou gestor ativo', rFis, 'Média'], ['Divergência com o Contratos.gov.br', rCad, 'Média'], ['Previsto sem pagamento em 2026', rSemPg, 'Média']];
+  const acao = `<section class="card cb-c"><h3>Precisa de ação</h3><p class="dica" style="margin:0 0 4px">clique numa linha para ver os contratos</p><table class="cx-t"><tr><th>Item</th><th style="text-align:right">Qtde</th><th>Prioridade</th></tr>
+    ${AC.map(([t, L, p]) => `<tr${L.length ? ctrbReg('ac|'+t, t, L) : ''} class="${L.length ? '' : 'z'}"><td><b>${t}</b></td><td style="text-align:right;font-weight:800">${L.length}</td><td><span class="cx-p" style="color:${L.length ? PR[p] : '#7a8794'}">${L.length ? p : '—'}</span></td></tr>`).join('')}</table></section>`;
+  // por tipo de serviço e por unidade (valor anual dos ativos)
+  const barras = (campo, tit, sub, cor) => { const m = new Map(); at.forEach(d => { const k = d[campo] || '—'; const x = m.get(k) || {v:0, l:[]}; x.v += d.anual||0; x.l.push(d); m.set(k, x); });
+    const L = [...m.entries()].sort((a,b) => b[1].v - a[1].v), mx = Math.max(1, ...L.map(([,x]) => x.v)), lim = CTRB['todos_'+campo] ? L.length : 7;
+    return `<section class="card cb-c"><h3>${tit}</h3><p class="dica" style="margin:0 0 6px">${sub}</p>${L.slice(0, lim).map(([k, x]) => `<div class="cx-b"${ctrbReg('exp|'+campo+'|'+k, tit+': '+k, x.l)} title="${esc(k)} · ${fmtBRL(x.v)}/ano"><span>${esc(k)} <small>${x.l.length}</small></span><i><em style="width:${(100*x.v/mx).toFixed(1)}%;background:${cor}"></em></i><b>${fmtC(x.v)}</b></div>`).join('')}
+      ${L.length > 7 ? `<button type="button" class="cb-mais2" data-ctrbtodos="${campo}">${CTRB['todos_'+campo] ? 'mostrar menos' : 'mostrar todos ('+L.length+')'}</button>` : ''}</section>`; };
+  const mapa = `<section class="card cb-c"><h3>Onde estão os contratos</h3><p class="dica">contratos ativos por UF (local de atuação da Base Contratos) · clique no estado para filtrar</p>${mapaCtrSdr(at.map(d => ({uf: d.uf, vg: d.global||0, pago: d._pago||0})))}</section>`;
+  return chips() + CSS_CTRSDR + CSS_CTRB + kpis6 + painel('kpi') + equipe + painel('eq')
+    + `<div class="cx-g" style="grid-template-columns:minmax(0,2.1fr) minmax(0,1fr)">${cal}${riscos}</div>` + painel('vc')
+    + `<div class="cx-g" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">${despesa}<div>${barras('tipo','Por tipo de serviço','valor anual dos ativos · clique para ver os contratos','#1b6b3e')}${barras('unid','Por unidade','valor anual dos ativos · clique para ver os contratos','#2c6fa8')}</div></div>` + painel('graf') + painel('sit')
+    + `<div class="cx-g" style="grid-template-columns:minmax(0,1.45fr) minmax(0,1fr)">${mapa}${acao}</div>` + painel('ac')
+    + `<div class="cb-conf">${conf}</div>` + painel('conf') + tab
     + `<p class="rodape">Fonte: aba Base Contratos${temT ? ' · pagamentos e empenhos: Tesouro Gerencial (posição até '+esc(T.ult)+'), pelas notas de empenho da Base e as ligadas ao contrato no Contratos.gov.br' : ''}</p>`;
 }
 const CSS_CTRB = `<style>
+.cx-ks{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:0 0 14px}
+.cx-k{background:#fff;border:1px solid #dfe8e2;border-radius:14px;padding:12px 14px;cursor:pointer;min-width:0;box-shadow:0 1px 3px rgba(0,0,0,.04)}.cx-k:hover{border-color:#9cc7a8}
+.cx-k h4{margin:0;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#33453b}.cx-k h4 i{flex:0 0 26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:12px}
+.cx-k b{display:block;font-size:22px;font-weight:800;color:#14231b;margin-top:8px;white-space:nowrap}.cx-k svg,.cx-sp0{display:block;width:100%;height:24px;margin-top:5px}.cx-k small{display:block;font-size:11.5px;color:#1e7a43;margin-top:4px}
+.cx-k.al b{color:#b3261e}.cx-k.al small{color:#8b1e16}
+.cx-g{display:grid;gap:14px;align-items:stretch}.cx-g>*{min-width:0}.cx-g>div>section:last-child{margin-bottom:14px}
+.cx-lg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px}.cx-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.cx-cal{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;margin-top:10px;flex:1}.cx-bl small{text-align:center}.cx-m{border-radius:9px;padding:6px 4px;min-height:150px;display:flex;flex-direction:column;justify-content:space-between}
+.cx-bl{display:flex;flex-direction:column;gap:4px}.cx-bl>div{border-radius:6px;padding:4px 3px;color:#fff;overflow:hidden;text-align:center;cursor:pointer}.cx-bl b{display:block;font-size:10px;letter-spacing:-.2px;white-space:nowrap}.cx-bl small{display:block;font-size:9.5px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-bl a{font-size:11px;font-weight:700;color:#155a30;cursor:pointer;text-align:center}.cx-m>span{text-align:center;font-size:11.5px;font-weight:700;color:#4d5f55;margin-top:6px}
+.cx-rk{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 6px;border-top:1px solid #f0f4f1;border-radius:8px}.cx-rk:hover{background:#f6f9f7}
+.cx-rk>i{width:14px;height:14px;border-radius:4px}.cx-rk b{font-size:13px}.cx-rk small{display:block;font-size:11.5px;color:#6b7a72}.cx-rk em{font-style:normal;font-weight:800;font-size:20px}
+.cx-b{display:grid;grid-template-columns:minmax(0,140px) minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12.5px;padding:4px 4px;border-radius:6px}.cx-b:hover{background:#f6f9f7}
+.cx-b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cx-b small{color:#7a8794}.cx-b i{height:13px;background:#eef2ef;border-radius:4px;overflow:hidden}.cx-b i em{display:block;height:100%;border-radius:4px}.cx-b b{white-space:nowrap}
+.cx-t{width:100%;border-collapse:collapse;font-size:12.5px}.cx-t th{text-align:left;color:#6b7a72;font-weight:600;padding:6px 4px;border-bottom:1px solid #e7eee9}.cx-t td{padding:8px 4px;border-bottom:1px solid #f0f4f1}.cx-t tr[data-ctrb]:hover td{background:#f6f9f7}.cx-t tr.z{opacity:.55}
+.cx-p{border:1px solid currentColor;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
+@media(max-width:900px){.cx-ks{grid-template-columns:repeat(3,minmax(0,1fr))}.cx-g{grid-template-columns:1fr !important}.cx-cal{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media(max-width:600px){.cx-ks{grid-template-columns:1fr 1fr}.cx-cal{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .cb-hero{background:linear-gradient(135deg,var(--h1),var(--h2));border-radius:18px;padding:16px 18px 18px;color:#fff;margin-bottom:14px}
 .cb-ht small{display:block;font-size:12.5px;color:#d6efd8;margin:0 0 10px}
 .cb-hks{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
@@ -4122,6 +4192,7 @@ document.addEventListener('click', e => {
   if(e.target.closest('[data-ctrbfecha]')){ CTRB.sel = null; render(); return; }
   const x = e.target.closest('[data-ctrbexp]'); if(x){ CTRB.exp = x.dataset.ctrbexp; CTRB.expTodos = false; render(); return; }
   if(e.target.closest('[data-ctrbexptodos]')){ CTRB.expTodos = !CTRB.expTodos; render(); return; }
+  { const t = e.target.closest('[data-ctrbtodos]'); if(t){ const k = 'todos_'+t.dataset.ctrbtodos; CTRB[k] = !CTRB[k]; render(); return; } }
   if(e.target.closest('[data-ctrblimpa]')){ CTRB.ft = {}; render(); return; }
 });
 // ===== ALERTA · GESTÃO CONTRATUAL (usado pela página de Alerta do painel novo) =====
