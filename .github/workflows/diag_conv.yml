@@ -1,0 +1,19 @@
+name: Diag conv
+on:
+  push:
+    branches: [diag-conv]
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p d && cd d
+          curl -sL "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8khlUawIDFMPUSOMjki7m2RN3mIuL7E-n5h7-bneKZ2aitrRrxyr56LArOeSWQx2A261o2pOZ531z/pub?gid=666318920&single=true&output=csv" -o tesouro_ted.csv
+          wc -l tesouro_ted.csv
+          git init -q && git checkout -q -b diag-conv-saida
+          git config user.name robo-transferegov && git config user.email robo-transferegov@users.noreply.github.com
+          git add -A && git commit -q -m diag && git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" diag-conv-saida
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
