@@ -13094,23 +13094,25 @@ let _ctrPMCache = null;
 window.__ctrPagoMensal = async objs => {
   const chave = JSON.stringify(objs.map(o => (o.nes||[]).map(e => e.ug+e.ne).sort()));
   if(_ctrPMCache && _ctrPMCache.k === chave) return _ctrPMCache.r;
-  await Promise.all(['exe','rap'].map(v => carregarVisao(v).catch(() => {})));
+  // 26/11/2026: nunca deixa a tela presa em "lendo o Tesouro…": cada leitura tem prazo; o mês que não chegar fica "s/ dado"
+  const prazo = (p, ms) => Promise.race([p, new Promise(r => setTimeout(r, ms))]);
+  await prazo(Promise.all(['exe','rap'].map(v => carregarVisao(v).catch(() => {}))), 30000);
   const todos = Object.keys(MESES_TXT).map(Number).sort((a,b) => a-b), ult = todos[todos.length-1];
   if(!ult) throw new Error('o Tesouro do painel não carregou');
   const ano = Math.floor(ult/100), meses = todos.filter(m => Math.floor(m/100) === ano);
-  await Promise.all(meses.flatMap(m => ['exe','rap'].map(v => garantirDetalhe(v, String(m)).catch(() => {}))));
+  await prazo(Promise.all(meses.flatMap(m => ['exe','rap'].map(v => garantirDetalhe(v, String(m)).catch(() => {})))), 25000);
   const idx = {}, ix = (v, m) => { const k = v+m; if(idx[k]) return idx[k]; const M = new Map();
-    (DADOS[v].det[m]||[]).forEach(d => { const c = neChaveTes(d.ug, d.ne); if(!c) return; const x = M.get(c) || {emp:0, pago:0};
+    (((DADOS[v]||{}).det||{})[m]||[]).forEach(d => { const c = neChaveTes(d.ug, d.ne); if(!c) return; const x = M.get(c) || {emp:0, pago:0};
       if(v === 'exe'){ x.emp += +d.emp||0; x.pago += +d.pago||0; } else x.pago += (+d.ppPag||0) + (+d.npPag||0); M.set(c, x); }); return idx[k] = M; };
   const acum = (o, m, q) => { let s = 0; const vistos = new Set(); (o.nes||[]).forEach(e => { const c = neChaveTes(e.ug, e.ne); if(!c || vistos.has(c)) return; vistos.add(c);
     ['exe','rap'].forEach(v => { const x = ix(v, String(m)).get(c); if(x) s += x[q]||0; }); }); return s; };
   // mês sem posição do Tesouro (detalhe não carregou): fica sem barra e o acumulado segue do último mês lido (antes caía tudo no mês seguinte)
-  const temDet = m => ['exe','rap'].some(v => (DADOS[v].det[m]||[]).length);
+  const temDet = m => ['exe','rap'].some(v => (((DADOS[v]||{}).det||{})[m]||[]).length);
   const NM = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const r = {meses, rot: meses.map(m => NM[m % 100 - 1]), falta: meses.filter(m => !temDet(m)), v: [], emp: [], pago: [], ult: MESES_TXT[ult]||''};
   objs.forEach(o => { let ant = 0; const L = meses.map(m => { if(!temDet(m)) return null; const a = acum(o, m, 'pago'), d = a - ant; ant = a; return d; });
     r.v.push(L); r.pago.push(ant); r.emp.push(acum(o, ult, 'emp')); });
-  _ctrPMCache = {k: chave, r}; return r;
+  if(!r.falta.length) _ctrPMCache = {k: chave, r}; return r;
 };
 // ===== Tesouro do painel para os contratos (tela Contratos SDR e ficha do contrato do app antigo) =====
 const neChaveTes = (ug, ne) => { const m = String(ne||'').toUpperCase().match(/\d{4}NE\d{6}/), u = String(ug||'').match(/\d{6}/); return m && u ? u[0]+'|'+m[0] : ''; };
