@@ -261,6 +261,24 @@ def ler(pasta_saida):
             info.append({'link': u, 'erro': str(e)[:200], 'ok': False})
             print(f'Tesouro TED: erro em {u[-60:]}: {e}', flush=True)
     os.makedirs(os.path.join(pasta_saida, 'ted'), exist_ok=True)
+    # 26/11/2026: o relatório passou a trazer também as contas de CONVÊNIO / termo de fomento (8.1.1.2.1.01, 8.1.2.2.1.01, …).
+    # Transferência só com contas de convênio não é TED: sai daqui e vai para ted/conv_tesouro.csv (caixa "Contas contábeis do SIAFI").
+    cod = lambda r: (re.match(r'\s*(\d{9})', r) or [None, ''])[1]
+    eh_conv = lambda c: bool(re.match(r'(8112101|8122101|8122103|8122104|8523|8123113)', c))
+    eh_ted = lambda c: c in CONTA_NOME or bool(re.match(r'(1138|2189|7112102|7999|8999|81121020|81221020|8221|8222|8224)', c))
+    conv = OrderedDict()
+    for k in list(tudo):
+        cs = [cod(r) for r in tudo[k]['contas']]
+        if any(eh_conv(c) for c in cs) and not any(eh_ted(c) for c in cs):
+            conv[k] = tudo.pop(k)
+    if conv:
+        cc = list(OrderedDict.fromkeys(r for o in conv.values() for r in o['contas']))
+        with open(os.path.join(pasta_saida, 'ted', 'conv_tesouro.csv'), 'w', encoding='utf-8', newline='') as fh:
+            w = csv.writer(fh)
+            w.writerow(['instrumento', 'ug_emit', 'ug_fav', 'nome_fav', 'situacao', 'ini', 'fim'] + cc)
+            for o in conv.values():
+                w.writerow([o['ted'], o['ug_emit'], o['ug_fav'], o['nome_fav'], o['situacao'], o['ini'], o['fim']] + [o['contas'].get(c, '') for c in cc])
+        print(f'Tesouro TED: {len(conv)} convênio(s)/termo(s) separados em ted/conv_tesouro.csv', flush=True)
     contas = list(OrderedDict.fromkeys(r for o in tudo.values() for r in o['contas']))
     campos = ['ted', 'ted_txt', 'ug_emit', 'ug_fav', 'nome_fav', 'ano', 'processo', 'situacao', 'ini', 'fim', 'objeto',
               'fir', 'nc', 'rep', 'aRep', 'aComp', 'aApr', 'comp', 'apr', 'aRec', 'dev']
