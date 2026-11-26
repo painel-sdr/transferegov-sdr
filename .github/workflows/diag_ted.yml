@@ -1,0 +1,24 @@
+name: Diag TED planilha
+on:
+  push:
+    branches: [diag-ted]
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar abas publicadas
+        run: |
+          mkdir -p d && cd d
+          B="https://docs.google.com/spreadsheets/d/e/2PACX-1vRyLjeoCobYSRx7o3tiZ7fvj4-FhvKnGiSVxoA8l6yD2CqfJsUidxWN00jLuFpBMrFL6MesSdYuWnrb/pub"
+          for g in 195685963 2018973768 1576888866 1791002980; do curl -sL "$B?gid=$g&single=true&output=csv" -o pub_$g.csv; done
+          ls -la
+      - name: Publicar
+        run: |
+          cd d && git init -q && git checkout -q -b diag-ted-saida
+          git config user.name robo-transferegov && git config user.email robo-transferegov@users.noreply.github.com
+          git add -A && git commit -q -m diag
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" diag-ted-saida
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
