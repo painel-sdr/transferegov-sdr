@@ -10342,10 +10342,10 @@ function pxTopo(V, t, lista, g, sem, cards, OPS, at, vis){
       <div class="px-og"><i style="width:${pS.toFixed(1)}%;background:${VD}" title="Orçamento SDR · ${fmtBRL(og.sdr)}"></i><i style="width:${(100-pS).toFixed(1)}%;background:${RX}" title="Orçamento externo · ${fmtBRL(og.ext)}"></i></div>
       <div class="px-ogl" data-pxogir style="cursor:pointer"><span title="Orçamento SDR · ${fmtBRL(og.sdr)} · mesma regra da tela Orçamento por ações"><b><i style="background:${VD}"></i>Orçamento SDR</b><b>${fmtC(og.sdr)}</b></span><span title="Orçamento externo · ${fmtBRL(og.ext)} · outras ações do MAPA e TED recebido de outros órgãos"><b><i style="background:${RX}"></i>Orçamento externo</b><b>${fmtC(og.ext)}</b></span></div></div>`
        + K('Empenhado', '✎', VD, t.emp, pct(t.emp, t.total)+' do crédito'+mais('emp'), x => x.emp)
+       + K('A liquidar', '⧗', RX, t.aliq, 'empenhado, entrega por vir', x => x.aliq)
        + K('Liquidado', '✓', AZ, t.liq, pct(t.liq, t.emp)+' do empenhado'+mais('liq'), x => x.liq)
-       + K('Pago', '$', TE, t.pago, pct(t.pago, t.liq)+' do liquidado'+mais('pago'), x => x.pago)
        + K('Liquidado a pagar', '!', VM, t.apagar, 'espera financeiro', x => x.apagar, 1)
-       + K('A liquidar', '⧗', RX, t.aliq, 'empenhado, entrega por vir', x => x.aliq);
+       + K('Pago', '$', TE, t.pago, pct(t.pago, t.liq)+' do liquidado'+mais('pago'), x => x.pago);
     const st = somar(base, 'exe'), m = new Map();
     base.forEach(d => { const v = +d.apagar || 0; if(Math.abs(v) < 0.004) return; const o = m.get(d.acao) || {n:d.acaoN, v:0}; o.v += v; m.set(d.acao, o); });
     const top = [...m.entries()].sort((a,b) => b[1].v - a[1].v).slice(0, 4).map(([k,o]) => [k+' · '+(o.n||''), o.v, '', 'acao|'+k]);
@@ -10358,11 +10358,11 @@ function pxTopo(V, t, lista, g, sem, cards, OPS, at, vis){
     dest = {k:'emp', rot:'empenhados'};
   } else if(V==='rap'){
     kp = K('RAP inscrito', 'R', '#1d4f7a', t.ins, 'processados '+fmtC(t.insP)+' · não proc. '+fmtC(t.insN), x => x.ins)
-       + K('RAP pago', '$', LR, t.pago, pct(t.pago, t.base)+' do inscrito líquido'+mais('pago'), x => x.pago)
        + K('Cancelado', '×', MA, t.canc, pct(t.canc, t.ins)+' do inscrito', x => x.canc)
+       + K('Sem movimento', '■', VM, t.npSemMov, 'NE bloqueada (Dec. 93.872/86)', x => x.npSemMov, 1)
        + K('Saldo a pagar', '⧗', RX, t.apagar, 'processados '+fmtC(t.ppApg)+' · não proc. '+fmtC(t.npSaldo), x => x.apagar)
        + K('Processado a pagar', '!', VM, t.ppApg, 'liquidado, falta financeiro', x => x.ppApg, 1)
-       + K('Sem movimento', '■', VM, t.npSemMov, 'NE bloqueada (Dec. 93.872/86)', x => x.npSemMov, 1);
+       + K('RAP pago', '$', LR, t.pago, pct(t.pago, t.base)+' do inscrito líquido'+mais('pago'), x => x.pago);
     const st = somar(base, 'rap');
     pa = blocoPA(st.ppApg + st.npLiqApg, 'de RAP já liquidados esperam financeiro', TXT_FIN,
       linhasPA([['Processado a pagar', st.ppApg, 'liquidado em anos anteriores', 'sit|rPApg'], ['Não processado liquidado', st.npLiqApg, 'liquidado em '+Math.floor(+SEL.mes/100 || new Date().getFullYear()), 'sit|rNLiq']], VM),
@@ -10379,12 +10379,12 @@ function pxTopo(V, t, lista, g, sem, cards, OPS, at, vis){
     dest = {k:'pago', rot:'pagos'};
   } else {
     const r = t.r || {};
-    kp = K('Total pago no ano', '$', ES, t.pago, 'EXE '+fmtC(t.ePago)+' + RAP '+fmtC(t.rPago), x => x.pago)
-       + K('EXE pago', 'E', VD, t.ePago, pct(t.ePago, t.eEmp)+' do empenhado'+mais('ePago'), x => x.ePago)
-       + K('RAP pago', 'R', LR, t.rPago, pct(t.rPago, t.pago)+' de tudo que foi pago'+mais('rPago'), x => x.rPago)
+    kp = K('RAP sem movimento', '■', VM, r.npSemMov||0, 'NE bloqueada · provável cancelamento', x => (x.r||{}).npSemMov||0, 1)
        + K('A pagar (EXE + RAP)', '⧗', RX, t.saldo, 'EXE '+fmtC(t.eApg)+' · RAP '+fmtC(t.rSaldo), x => x.saldo)
        + K('RAP processado a pagar', '!', VM, r.ppApg||0, 'liquidado, falta financeiro', x => (x.r||{}).ppApg||0, 1)
-       + K('RAP sem movimento', '■', VM, r.npSemMov||0, 'NE bloqueada · provável cancelamento', x => (x.r||{}).npSemMov||0, 1);
+       + K('RAP pago', 'R', LR, t.rPago, pct(t.rPago, t.pago)+' de tudo que foi pago'+mais('rPago'), x => x.rPago)
+       + K('EXE pago', 'E', VD, t.ePago, pct(t.ePago, t.eEmp)+' do empenhado'+mais('ePago'), x => x.ePago)
+       + K('Total pago no ano', '$', ES, t.pago, 'EXE '+fmtC(t.ePago)+' + RAP '+fmtC(t.rPago), x => x.pago);
     const e = somar(base.filter(d => d.origem==='EXE'), 'exe'), rr = somar(base.filter(d => d.origem==='RAP'), 'rap');
     pa = blocoPA(rr.ppApg + e.apagar + rr.npLiqApg, 'já liquidados esperam financeiro', TXT_FIN,
       linhasPA([['RAP processado a pagar', rr.ppApg, 'liquidado em anos anteriores', 'sit|rPApg'], ['EXE liquidado a pagar', e.apagar, 'liquidado no ano', 'sit|apagar'], ['RAP não proc. liquidado', rr.npLiqApg, 'liquidado no ano', 'sit|rNLiq']], VM));
@@ -15407,7 +15407,7 @@ function vgModoBarra(){
 .vm a.vm-ir,.vm .vm-ir{color:#1e6b45;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none;background:none;border:0;font-family:inherit}
 .vm-faixa{background:linear-gradient(100deg,#164a33,#1e6b45);color:#fff;border-radius:16px;padding:18px 22px;display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;margin-top:12px}
 .vm-anel{display:flex;align-items:center;gap:14px}.vm-anel span{color:#cfe6d7;font-weight:600;font-size:14px;line-height:1.3}
-.vm-kp{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}.vm-kp>div.lp b{color:#ffb4a8}.vm-kp>div{border-left:1px solid #3b7a5c;padding:2px 16px;cursor:pointer}
+.vm-kp{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}.vm-kp>div{padding:2px 10px !important}.vm-kp small{white-space:nowrap}.vm-kp b{font-size:clamp(17px,1.55vw,24px) !important;white-space:nowrap}.vm-kp>div.lp b{color:#ffb4a8}.vm-kp>div{border-left:1px solid #3b7a5c;padding:2px 16px;cursor:pointer}
 .vm-kp small{color:#bfdccb;font-size:12.5px}.vm-kp b{display:block;font-size:25px;letter-spacing:-.5px;margin:2px 0;white-space:nowrap}.vm-kp em{font-style:normal;font-size:12px;color:#cfe6d7}
 .vm-og{grid-column:1/3;background:rgba(255,255,255,.1);border-radius:10px;padding:11px 14px;color:#eaf5ee}.vm-og .t{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;margin-bottom:8px}.vm-og .t span{opacity:.8;font-size:12px}
 .vm-og .bar{display:flex;height:22px;border-radius:7px;overflow:hidden}.vm-og .bar i{display:flex;align-items:center;justify-content:center;font-style:normal;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;overflow:hidden}
@@ -15526,9 +15526,10 @@ function vgModoHTML(x){
       <div data-vgir="exe"><small>${e.temDot ? 'Dotação atual' : 'Crédito na seleção'}</small><b${lendo ? '' : vmTT(dot)}>${V(dot)}</b><em>orçamento do ano</em></div>
       <div data-vgir="exe"><small>Empenhado</small><b${lendo ? '' : vmTT(e.emp)}>${V(e.emp)}</b><em${lendo ? '' : vmTT(Math.max(0, dot - e.emp))}>${lendo ? 'lendo…' : 'falta ' + fmtC(Math.max(0, dot - e.emp))}</em></div>
       <div data-vgir="exe"><small>Liquidado</small><b${lendo ? '' : vmTT(e.liq)}>${V(e.liq)}</b><em>${lendo ? 'lendo…' : vmPct(e.liq, dot) + ' da dotação'}</em></div>
-      <div data-vgir="exerap"><small>Pago no ano</small><b${lendo ? '' : vmTT(e.pago)}>${V(e.pago)}</b><em${vmTT(r.pago)}>${VG.rapStatus === 'ok' || r.pago > 0.004 ? '+ ' + fmtC(r.pago) + ' de RAP' : 'RAP: lendo…'}</em></div>
       <div data-vgir="exe" class="lp" title="Liquidado e ainda não pago: espera o financeiro (liquidado − pago)"><small>Liquidado a pagar</small><b${lendo ? '' : vmTT(Math.max(0, e.liq - e.pago))}>${V(Math.max(0, e.liq - e.pago))}</b><em>${lendo ? 'lendo…' : 'aguardando financeiro'}</em></div>
       <div data-vgir="rap"><small>RAP a pagar</small><b${vmTT(r.apagar)}>${VG.rapStatus === 'ok' || r.apagar > 0.004 ? fmtC(r.apagar) : '…'}</b><em>de anos anteriores</em></div>
+      <div data-vgir="rap"><small>Pago RAP</small><b${vmTT(r.pago)}>${VG.rapStatus === 'ok' || r.pago > 0.004 ? fmtC(r.pago) : '…'}</b><em>restos a pagar pagos no ano</em></div>
+      <div data-vgir="exe"><small>Pago EXE</small><b${lendo ? '' : vmTT(e.pago)}>${V(e.pago)}</b><em${lendo ? '' : vmTT(e.pago + (r.pago||0))}>${lendo ? 'lendo…' : 'no ano: ' + fmtC(e.pago + (r.pago||0)) + ' com RAP'}</em></div>
     </div>
     ${lendo ? '' : (() => { const og = pxOrig(exeL || [], e), pS = og.tot > 0 ? og.sdr/og.tot*100 : 0; return og.tot > 0.004 ? `<div class="vm-og" title="${esc('Dotação atual '+fmtBRL(og.tot)+'\nOrçamento SDR '+fmtBRL(og.sdr)+'\nOrçamento externo '+fmtBRL(og.ext))}"><div class="t"><b>De onde vem a dotação de ${fmtC(og.tot)}</b><span>o Orçamento SDR é o mesmo valor da tela Orçamento por ações</span></div>
       <div class="bar"><i data-vgir="orcacao" style="width:${pS.toFixed(2)}%;background:#8fd3a6;color:#0f3a22" title="Orçamento SDR · ${fmtBRL(og.sdr)} · clique para abrir o Orçamento por ações">${pS > 18 ? 'Orçamento SDR · '+fmtC(og.sdr) : ''}</i><i data-vgir="exe" onclick="window.__pxFocoOg=1" style="width:${(100-pS).toFixed(2)}%;background:#b9a3e3;color:#2d1b55" title="Orçamento externo · ${fmtBRL(og.ext)} · clique para ver de onde veio">${100-pS > 9 ? 'Externo · '+fmtC(og.ext) : ''}</i></div>
