@@ -817,10 +817,20 @@ def ler_controle(pasta_saida):
     for l in linhas:
         nome, url = l.split('|', 1)
         try:
-            L = list(csv.reader(io.StringIO(baixar(url))))
+            bruto = baixar(url)
+            L = list(csv.reader(io.StringIO(bruto)))
         except Exception as e:
             print(f'Controle TED ({nome}): erro {e}', flush=True)
             continue
+        # cópia inteira da aba (25/11/2026): o painel usa quando o link publicado do Google falha no navegador
+        try:
+            gid = re.search(r'gid=(\d+)', url)
+            if gid and any(re.search(r'\d{5}\.\d{6}/\d{4}', l) for l in bruto.splitlines()[:400]):
+                os.makedirs(os.path.join(pasta_saida, 'ted'), exist_ok=True)
+                with open(os.path.join(pasta_saida, 'ted', f'controle_{gid.group(1)}.csv'), 'w', encoding='utf-8', newline='') as fh:
+                    fh.write(bruto)
+        except Exception as e:
+            print(f'Controle TED ({nome}): cópia não gravada ({e})', flush=True)
         ih = next((i for i, r in enumerate(L[:10]) if any(na(c) in ('PROCESSO',) for c in r)), None)
         if ih is None:
             continue

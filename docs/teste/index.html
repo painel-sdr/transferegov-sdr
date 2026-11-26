@@ -2492,10 +2492,15 @@ const IDB2 = (() => { let dbp = null;
              if((k.startsWith('tg|') || /^v\d+\|/.test(k)) && !(atual && k.startsWith(atual))) c.delete(); c.continue(); }; return r; }).catch(() => null) }; })();
 async function baixar(chave){
   if(CACHE[chave]) return CACHE[chave];
-  const salvo = await IDB2.get('csv|v6|'+chave); if(salvo){ CACHE[chave] = salvo; return salvo; }
+  const salvo = await IDB2.get('csv|v6|'+chave); if(salvo && !(/^ted/.test(chave) && ASSINATURA[chave] && !ASSINATURA[chave].test(salvo.slice(0,200000)))){ CACHE[chave] = salvo; return salvo; }
   const txt = await baixarRede(chave); IDB2.set('csv|v6|'+chave, txt); return txt;
 }
-async function baixarRede(chave){ const t0 = performance.now(); try{ return await baixarRede0(chave); } finally { TEMPOS[chave] = Math.round((performance.now() - t0)/100)/10; } }
+async function baixarRede(chave){ const t0 = performance.now(); try{ return await baixarRede0(chave); }
+  catch(e){   // TED (25/11/2026): se o link publicado falhar no navegador, usa a cópia da aba que o robô baixa (6h, 9h, 12h e 16h)
+    if(/^ted/.test(chave) && GIDS[chave]){ try{ const r = await fetch('https://raw.githubusercontent.com/painel-sdr/transferegov-sdr/dados/ted/controle_'+GIDS[chave]+'.csv', {cache:'no-store'});
+      if(r.ok){ const t = await r.text(); if(!ASSINATURA[chave] || ASSINATURA[chave].test(t.slice(0,200000))){ FONTE_USADA[chave] = 'robô'; CACHE[chave] = t; return t; } } }catch(e2){} }
+    throw e; }
+  finally { TEMPOS[chave] = Math.round((performance.now() - t0)/100)/10; } }
 async function baixarRede0(chave){
   const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 90000);
   try{
