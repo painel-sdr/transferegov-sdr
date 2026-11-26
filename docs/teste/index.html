@@ -2331,7 +2331,9 @@ async function baixarNova(chave, signal){
   return null;
 }
 // assinatura de cada aba: se o gid estiver errado, o Google devolve a 1ª aba e o painel avisa em vez de mostrar dado trocado
-const ASSINATURA = {exe:/DESPESAS EMPENHADAS/i, rap:/RESTOS A PAGAR/i, siop:/DOTA[CÇ][AÃ]O ATUAL/i, confc:/ALERTA/i};
+const ASSINATURA = {exe:/DESPESAS EMPENHADAS/i, rap:/RESTOS A PAGAR/i, siop:/DOTA[CÇ][AÃ]O ATUAL/i, confc:/ALERTA/i,
+  // TED (25/11/2026): a aba precisa vir com o cabeçalho e com linhas; se o Google devolver a aba pela metade (equipe editando), tenta de novo em vez de mostrar zero
+  tedVig:/PROCESSO[\s\S]*\n[^\n]*\d{5}\.\d{6}\/\d{4}/i, tedDisp:/PROCESSO[\s\S]*\n[^\n]*\d{5}\.\d{6}\/\d{4}/i, tedPC:/A COMPROVAR[\s\S]*\n[^\n]*\d{5}\.\d{6}\/\d{4}/i, tedOk:/COMPROVADO[\s\S]*\n[^\n]*\d{5}\.\d{6}\/\d{4}/i};
 const ACAO_PADRAO = '20ZY';
 const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 const MES_NUM = {JANEIRO:1,FEVEREIRO:2,MARCO:3,ABRIL:4,MAIO:5,JUNHO:6,JULHO:7,AGOSTO:8,SETEMBRO:9,OUTUBRO:10,NOVEMBRO:11,DEZEMBRO:12,
@@ -2505,12 +2507,14 @@ async function baixarRede0(chave){
       if(!res.ok && GIDS[chave] && NOME_ABA[chave]){ const r2 = await fetch(urlGvizNova(chave), {signal:ctrl.signal, cache:'no-store'}).catch(() => null); if(r2 && r2.ok) res = r2; }
       if(!res.ok) throw new Error('a planilha respondeu com erro HTTP '+res.status+' na aba "'+(NOME_ABA[chave]||chave)+'" (gid '+(GIDS[chave]||'—')+'). Confira se essa aba está incluída em Arquivo › Compartilhar › Publicar na web e se o gid está certo.');
       txt = await res.text();
-      if(!carregandoImport(txt)) break;
+      if(!carregandoImport(txt) && !(ASSINATURA[chave] && /^ted/.test(chave) && !ASSINATURA[chave].test(txt.slice(0,200000)))) break;
       if(tent < 3) await new Promise(r => setTimeout(r, 4000));
     }
     if(carregandoImport(txt)) throw new Error('a aba "'+NOME_ABA[chave]+'" ainda aparece como "Carregando…" na versão publicada. Isso acontece quando a aba é preenchida por IMPORTRANGE e o Google publicou antes de terminar a importação. Abra a planilha, espere a aba carregar e, em Arquivo › Compartilhar › Publicar na web, clique em "Parar publicação" e publique de novo (ou aguarde alguns minutos e use ☰ › Atualizar dados).');
     if(/^\s*</.test(txt)) throw new Error('o Google devolveu uma página em vez dos dados da aba "'+NOME_ABA[chave]+'". Confira se a planilha continua publicada na web (Arquivo > Compartilhar > Publicar na web).');
-    if(ASSINATURA[chave] && !ASSINATURA[chave].test(txt.slice(0,20000)))
+    if(/^ted/.test(chave) && ASSINATURA[chave] && !ASSINATURA[chave].test(txt.slice(0,200000)))
+      throw new Error('a aba "'+NOME_ABA[chave]+'" veio do Google sem os TEDs (só o cabeçalho ou incompleta). Normalmente é a planilha sendo editada naquele momento: use Opções › Atualizar dados da planilha daqui a alguns minutos.');
+    if(!/^ted/.test(chave) && ASSINATURA[chave] && !ASSINATURA[chave].test(txt.slice(0,20000)))
       throw new Error('o link publicado não trouxe a aba "'+NOME_ABA[chave]+'" (gid '+(GIDS[chave]||'vazio')+'). Confira o gid dessa aba em GIDS, no início do código.');
     CACHE[chave] = txt;
     return CACHE[chave];
