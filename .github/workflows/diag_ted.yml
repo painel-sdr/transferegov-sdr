@@ -1,7 +1,7 @@
 name: Diag TED planilha
 on:
   push:
-    branches: [diag-ted]
+    branches: [diag-ted2]
 permissions:
   contents: write
 jobs:
