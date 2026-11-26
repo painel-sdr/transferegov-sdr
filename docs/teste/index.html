@@ -4550,6 +4550,12 @@ const CSS_CTRSDR = `<style>
 .cs-f{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:3px 10px;align-items:center;padding:7px 4px;border-bottom:1px solid #e1e8e3;font-size:12.5px;cursor:pointer}.cs-f:hover{background:#eef6f0}.cs-f.sel{background:#fff6dc}
 .cs-f .r{color:#8a978f;font-weight:700}.cs-f .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.cs-f .v small{display:block;font-weight:400;color:#5f6f66;font-size:11px}.cs-f .bb{grid-column:2/4;height:6px;background:#e3ece5;border-radius:4px;overflow:hidden}.cs-f .bb i{display:block;height:100%;background:#2e8a4f}
 .cs-cat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.cs-cat div{background:#f4f8f5;border-radius:10px;padding:10px 12px;cursor:pointer;border:2px solid transparent}.cs-cat div:hover{border-color:#b9d8c2}.cs-cat div.sel{border-color:#d4a017}.cs-cat b{font-size:19px;display:block;color:#155a30}.cs-cat small{font-size:12px;color:#5f6f66}
+.cs-kx{cursor:default}.cs-kx b{font-variant-numeric:tabular-nums}
+.cs-vc .cx-m{cursor:pointer;justify-content:flex-end;align-items:center;gap:4px;min-height:190px;border:2px solid transparent}.cs-vc .cx-m:hover{border-color:#b9d8c2}.cs-vc .cx-m.sel{border-color:#d4a017}
+.cs-vc .cx-m em{font-style:normal;font-weight:800;font-size:17px;color:#14231b}.cs-vc .st{width:62%;display:flex;flex-direction:column-reverse;gap:2px}.cs-vc .st i{display:block;border-radius:4px}
+.cx-t small{display:block;font-size:11.5px;color:#6b7a72;font-weight:400}.cx-t tr[data-ctracao],.cx-t tr[data-campo]{cursor:pointer}.cx-t tr[data-ctracao]:hover td,.cx-t tr[data-campo]:hover td{background:#f6f9f7}.cx-t tr.on td,.cx-t tr.sel td{background:#fff6dc}.cx-t .n{text-align:right;white-space:nowrap}
+.cx-b{cursor:pointer}.cx-b.sel{background:#fff6dc}.cs-ug th,.cs-ug td{white-space:nowrap;padding:8px 3px}.cb-gr line[stroke-dasharray]{pointer-events:stroke}
+
 .cs-filtro{display:flex;align-items:center;gap:10px;background:#fff6dc;border:1px solid #f0d58a;border-radius:10px;padding:8px 12px;margin-top:10px;font-size:13px}
 @media (max-width:900px){.cs-k4{grid-template-columns:repeat(2,minmax(0,1fr))}.cs-a5{grid-template-columns:repeat(2,minmax(0,1fr))}.cs-g2,.cs-mapa{grid-template-columns:1fr}}
 </style>`;
@@ -4641,49 +4647,86 @@ const VIEW_CTRSDR = {
     const pct = (a,b) => b ? Math.round(100*a/b) : 0;
     const porUGn = UGS_CTRSDR.map(u => [u, at.filter(d => d.ugc===u).length]).filter(x => x[1]);
     const atual = new Date(), carregando = temTesPai() ? !TES_CTR : !(DADOS.exe && DADOS.rap);
-    // cartões
-    const k4 = `<div class="cs-k4">
-      <div class="cs-k dest"><span>Contratos ativos</span><b>${nI2(at.length)}</b><small>contratado <b style="font-size:15px;display:inline">${fmtC(s(at,'vg'))}</b> · ${rows.length - at.length} inativo(s)</small><div class="cs-ugs">${porUGn.map(([u,n]) => `<em>${CURTO_UG_CTRSDR[u]} ${n}</em>`).join('')}</div></div>
-      <div class="cs-k"><span>Previsto para 2026</span><b data-tip="${esc(fmtBRL(prev))}">${fmtC(prev)}</b><small>serviços: valor mensal × meses de 2026 · compras: o empenhado</small></div>
-      <div class="cs-k"><span>Empenhado 2026</span><b data-tip="${esc(fmtBRL(emp))}">${fmtC(emp)}</b><div class="cs-bar"><i style="width:${Math.min(100,pct(emp+rapA,prev||1))}%;background:#1f4e79"></i></div><small>${carregando ? 'carregando o EXE/RAP…' : `+ RAP em aberto ${fmtC(rapA)} · cobre ${pct(emp+rapA, prev)}% do previsto`}</small></div>
-      <div class="cs-k"><span>Pago 2026 (EXE + RAP)</span><b data-tip="${esc(fmtBRL(pago))}">${fmtC(pago)}</b><div class="cs-bar"><i style="width:${Math.min(100,pct(pago,prev||1))}%;background:#2e8a4f"></i></div><small>${carregando ? 'carregando o EXE/RAP…' : `${pct(pago,prev)}% do previsto 2026 · falta ${fmtC(Math.max(0,prev-pago))}`}</small></div>
+    // ===== painel executivo (25/11/2026 · mesmo padrão da Base Contratos): valores só nos cartões; vencimentos + ação; pago × previsto + UG/categoria; mapa + fornecedores =====
+    const vg = s(at,'vg'), falta = Math.max(0, prev - pago), v120 = atBase.filter(d => d.acoes.includes('renovar')), venc120 = at.filter(d => d.acoes.includes('renovar'));
+    // pago mês a mês (Tesouro do painel, pelas notas ligadas a cada contrato) · lido uma vez para todos os contratos SDR
+    const TODOS = linhasCtrSdr(), chPM = TODOS.length+'|'+TODOS.reduce((a, d) => a + d._o.nes.length, 0);
+    if(window.parent !== window && typeof parent.__ctrPagoMensal === 'function' && VIEW_CTRSDR._pmK !== chPM){ VIEW_CTRSDR._pmK = chPM; VIEW_CTRSDR._pm = 'carregando';
+      parent.__ctrPagoMensal(TODOS.map(d => ({nes: d._o.nes}))).then(r => { const M = new Map(); TODOS.forEach((d, i) => M.set(d.id, r.v[i])); VIEW_CTRSDR._pm = {r, M}; if(VIEW && VIEW.id==='ctrsdr') render(); })
+        .catch(e => { VIEW_CTRSDR._pm = {erro: e.message}; if(VIEW && VIEW.id==='ctrsdr') render(); }); }
+    const PM = VIEW_CTRSDR._pm && VIEW_CTRSDR._pm.r ? VIEW_CTRSDR._pm : null;
+    const pmMes = PM ? PM.r.meses.map((m, i) => PM.r.falta.includes(m) ? null : rows.reduce((a, d) => a + (((PM.M.get(d.id)||[])[i])||0), 0)) : [];
+    const pmAc = (() => { let t = 0; return pmMes.map(v => t += v||0); })();
+    const sp = (sr, c) => { if(!sr || sr.length < 2) return '<div class="cx-sp0"></div>'; const w = 120, h = 24, mx = Math.max(...sr), mn = Math.min(0, ...sr), r = (mx-mn)||1, pts = sr.map((v,i) => (i*w/(sr.length-1)).toFixed(1)+','+(h-3-(v-mn)/r*(h-7)).toFixed(1)).join(' ');
+      return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon points="0,${h} ${pts} ${w},${h}" style="fill:${c};opacity:.13"/><polyline points="${pts}" fill="none" style="stroke:${c}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`; };
+    const K = (ic, cor, tit, val, tip, nota, serie, extra) => `<div class="cx-k cs-kx${extra && /alerta/.test(extra) ? ' al' : ''}"${extra && /data-/.test(extra) ? ' '+extra.replace('alerta','') : ''}><h4><i style="background:${cor}1f;color:${cor}">${ic}</i>${tit}</h4><b title="${esc(tip)}">${val}</b>${sp(serie, cor)}<small>${nota}</small></div>`;
+    const kpis6 = `<div class="cx-ks">
+      ${K('◼','#1a4d2e','Contratos ativos', nI2(at.length), at.length+' contratos ativos', porUGn.map(([u,n]) => CURTO_UG_CTRSDR[u]+' '+n).join(' · ') || '—')}
+      ${K('R$','#1b6b3e','Valor contratado', fmtC(vg), fmtBRL(vg), 'soma dos ativos · '+(rows.length - at.length)+' inativo(s)')}
+      ${K('▦','#2c6fa8','Previsto 2026', fmtC(prev), fmtBRL(prev), 'serviços: mensal × meses · compras: empenho')}
+      ${K('✎','#3e8f86','Empenhado 2026', carregando ? '…' : fmtC(emp), fmtBRL(emp), carregando ? 'carregando o EXE/RAP…' : '+ RAP em aberto '+fmtC(rapA)+' · cobre '+pct(emp+rapA, prev)+'%')}
+      ${K('$','#1b6b3e','Pago 2026 (EXE + RAP)', carregando ? '…' : fmtC(pago), fmtBRL(pago), carregando ? 'carregando o EXE/RAP…' : pct(pago,prev)+'% do previsto · falta '+fmtC(falta), pmAc)}
+      ${K('!','#b3261e','Vencem em 120 dias', venc120.length, fmtBRL(s(venc120,'vg'))+' contratados', venc120.length ? fmtC(s(venc120,'vg'))+' contratados · clique para ver' : 'nenhum', null, `alerta data-ctracao="renovar" role="button" tabindex="0" style="cursor:pointer"`)}
     </div>`;
-    // alertas (contam sobre o recorte dos filtros, sem o filtro de alerta)
-    const a5 = `<div class="cs-a5">${ACOES_CTRSDR.map(([k,tit,sub,cor,fundo]) => { const L = atBase.filter(d => d.acoes.includes(k)), n = L.length;
-      const v = k==='empenho' ? 'falta '+fmtC(s(L,'falta')) : k==='renovar' || k==='vencido' ? fmtC(s(L,'vg'))+' contratado' : k==='fatura' ? s(L,'fatVenc')+' fatura(s)' : '';
-      return `<div class="cs-al ${acaoSel===k?'on':''} ${n?'':'zero'}" style="color:${cor};background:${fundo}" data-ctracao="${k}" role="button" tabindex="0" title="Clique para ver só estes contratos"><p>${tit}</p><b>${n}</b><small>${sub}</small>${v && n ? `<div class="v">${v}</div>` : ''}</div>`; }).join('')}</div>
-      ${acaoSel ? `<div class="cs-filtro">Mostrando só: <b>${esc(ACOES_CTRSDR.find(a => a[0]===acaoSel)[1])}</b> (${at.length} contrato(s)) <button type="button" class="kpi-bt" data-ctracao="${acaoSel}">✕ ver todos</button></div>` : ''}`;
+    // vencimentos dos próximos 12 meses: colunas empilhadas por UG, fundo pela proximidade
+    const hj = new Date(), mesesV = [...Array(12)].map((_, i) => { const d = new Date(hj.getFullYear(), hj.getMonth()+i, 1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); });
+    const porM = mesesV.map(m => at.filter(d => d.mesVenc === m).sort((a,b) => (a.dias||0) - (b.dias||0)));
+    const totM = porM.map(L => L.length), mxM = Math.max(1, ...totM), pico = totM.indexOf(Math.max(...totM)), selM = selDe('mesVenc').map(String);
+    const rotM = (m, i) => MESES_CTRB[+m.slice(5)-1]+(i === 0 || m.slice(5) === '01' ? '/'+m.slice(2,4) : '');
+    const tipM = (m, L) => `<b>${MESES[+m.slice(5)-1]}/${m.slice(0,4)} · ${L.length} contrato(s) · ${esc(fmtBRL(s(L,'vg')))}</b>`+L.slice(0, 12).map(d => `<br>${esc(d.num)} · ${esc(String(d.forn||'').slice(0,42))} · ${esc(fmtC(d.vg||0))}`).join('')+(L.length > 12 ? `<br>+ ${L.length-12} contrato(s)` : '');
+    const cal = `<section class="card cb-c" style="display:flex;flex-direction:column"><div class="cb-ct" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>Vencimentos dos próximos 12 meses</h3><p class="dica" style="margin:0">contratos ativos pelo mês de fim · cor = UG · passe o mouse para ver os contratos · clique para filtrar</p></div>
+      <div class="cx-lg">${UGS_CTRSDR.map(u => `<span><i style="background:${COR_UG_CTRSDR[u]}"></i>${CURTO_UG_CTRSDR[u]}</span>`).join('')}${totM[pico] ? `<span style="color:#b3261e;font-weight:700">⚠ pico em ${rotM(mesesV[pico], 1)}: ${totM[pico]}</span>` : ''}</div></div>
+      <div class="cx-cal cs-vc">${mesesV.map((m, i) => { const L = porM[i], fundo = i < 1 ? '#fbe9e7' : i < 2 ? '#fdf3e3' : i < 4 ? '#eef4fb' : '#f3f7f4';
+        return `<div class="cx-m ${selM.includes(m) ? 'sel' : ''}" style="background:${fundo}" ${L.length ? `data-campo="mesVenc" data-valor="${m}" role="button" tabindex="0"` : ''} data-tip="${tipM(m, L)}"><em style="${i === pico && L.length ? 'color:#b3261e' : ''}">${L.length || ''}</em>
+          <div class="st">${UGS_CTRSDR.map(u => { const n = L.filter(d => d.ugc === u).length; return n ? `<i style="height:${Math.max(6, Math.round(110*n/mxM))}px;background:${COR_UG_CTRSDR[u]}"></i>` : ''; }).join('')}</div><span>${rotM(m, i)}</span></div>`; }).join('')}</div></section>`;
+    // precisa de ação (substitui os alertas e os riscos: cada linha filtra a lista)
+    const PRI = {renovar:'Alta', vencido:'Alta', fatura:'Alta', empenho:'Média', semresp:'Média'}, CORP = {Alta:'#b3261e', 'Média':'#c7861a'};
+    const acao = `<section class="card cb-c"><h3>Precisa de ação</h3><p class="dica" style="margin:0 0 4px">clique numa linha para ver só esses contratos</p><table class="cx-t">
+      ${['renovar','vencido','fatura','empenho','semresp'].map(k => { const [, tit, sub] = ACOES_CTRSDR.find(a => a[0] === k), L = atBase.filter(d => d.acoes.includes(k)), n = L.length, p = PRI[k];
+        const v = k==='empenho' ? 'falta '+fmtC(s(L,'falta')) : k==='renovar' || k==='vencido' ? fmtC(s(L,'vg'))+' contratados' : k==='fatura' ? s(L,'fatVenc')+' fatura(s)' : '';
+        const tv = k==='empenho' ? fmtBRL(s(L,'falta')) : k==='renovar' || k==='vencido' ? fmtBRL(s(L,'vg')) : '';
+        return `<tr data-ctracao="${k}" role="button" tabindex="0" class="${n ? '' : 'z'} ${acaoSel === k ? 'on' : ''}" title="${esc(tit+(tv ? ' · '+tv : ''))}"><td><b>${tit}</b><small>${sub}${v && n ? ' · '+v : ''}</small></td><td style="text-align:right;font-weight:800;font-size:19px;color:${n ? CORP[p] : '#7a8794'}">${n}</td><td style="text-align:right"><span class="cx-p" style="color:${n ? CORP[p] : '#7a8794'}">${n ? p : '—'}</span></td></tr>`; }).join('')}</table>
+      ${acaoSel ? `<div class="cs-filtro">Mostrando só: <b>${esc(ACOES_CTRSDR.find(a => a[0]===acaoSel)[1])}</b> (${at.length}) <button type="button" class="kpi-bt" data-ctracao="${acaoSel}">✕ ver todos</button></div>` : ''}</section>`;
+    // pago × previsto mês a mês
+    let graf;
+    if(!PM) graf = `<p class="dica">${VIEW_CTRSDR._pm && VIEW_CTRSDR._pm.erro ? 'Não foi possível ler o Tesouro: '+esc(VIEW_CTRSDR._pm.erro) : window.parent === window ? 'Disponível no painel completo.' : 'Lendo o pagamento mês a mês no Tesouro…'}</p>`;
+    else {
+      const R = PM.r, n = R.meses.length, ano = Math.floor(R.meses[0]/100), pm12 = prev/12, mx = Math.max(1, pm12, ...pmMes.map(v => v||0))*1.12, H = 230, L0 = 64, LW = 640, W = LW/n, bw = Math.min(46, W*0.6), y = v => 18 + H*(1 - v/mx);
+      const grade = [0.5, 1].map(f => `<line x1="${L0}" x2="${L0+LW}" y1="${y(mx*f/1.12)}" y2="${y(mx*f/1.12)}" class="cb-gl"/><text x="${L0-8}" y="${y(mx*f/1.12)+4}" text-anchor="end" class="cb-ax">${fmtC(mx*f/1.12)}</text>`).join('');
+      const barras = R.meses.map((m, i) => { const x = L0 + i*W + (W-bw)/2, v = pmMes[i];
+        if(v === null) return `<text x="${x+bw/2}" y="${H+10}" text-anchor="middle" class="cb-sd">s/ dado</text><text x="${x+bw/2}" y="${H+36}" text-anchor="middle" class="cb-ax">${R.rot[i].toUpperCase()}</text>`;
+        const baixo = v < pm12*0.85;
+        return `<g><rect x="${x}" y="${y(v)}" width="${bw}" height="${Math.max(0, H+18-y(v))}" rx="6" style="fill:${baixo ? '#d08a1e' : '#1f6b3a'}"><title>${R.rot[i]}/${ano} · pago ${fmtBRL(v)} · previsto mensal ${fmtBRL(pm12)} (${pct(v, pm12)}%)</title></rect><text x="${x+bw/2}" y="${H+36}" text-anchor="middle" class="cb-ax">${R.rot[i].toUpperCase()}</text></g>`; }).join('');
+      graf = `<svg viewBox="0 0 ${L0+LW+10} ${H+44}" class="cb-gr" style="max-height:none"><line x1="${L0}" x2="${L0+LW}" y1="${H+18}" y2="${H+18}" class="cb-gl"/>${grade}${barras}
+        <line x1="${L0}" x2="${L0+LW}" y1="${y(pm12)}" y2="${y(pm12)}" stroke="#2c6fa8" stroke-width="2.5" stroke-dasharray="7 5"><title>previsto mensal (previsto 2026 ÷ 12): ${fmtBRL(pm12)}</title></line>
+        <rect x="${L0+LW-150}" y="${y(pm12)-26}" width="150" height="20" rx="5" style="fill:#fff;opacity:.92"/><text x="${L0+LW-6}" y="${y(pm12)-11}" text-anchor="end" style="font-size:13px;font-weight:700;fill:#2c6fa8">previsto ${fmtC(pm12)}/mês</text></svg>
+        <div class="cb-leg"><span><i style="background:#1f6b3a"></i>pago no mês (EXE + RAP)</span><span><i style="background:#d08a1e"></i>abaixo de 85% do previsto mensal</span><span><i class="l" style="background:#2c6fa8"></i>previsto 2026 ÷ 12</span><span>passe o mouse para ver o valor</span></div>`;
+    }
+    const despesa = `<section class="card cb-c"><h3>Pago × previsto, mês a mês${PM ? ' · '+Math.floor(PM.r.meses[0]/100) : ''}</h3><p class="dica" style="margin:0 0 6px">Tesouro do painel pelas notas de empenho ligadas a cada contrato${PM && PM.r.ult ? ' · até '+esc(PM.r.ult) : ''}</p>${graf}</section>`;
     // resumo por UG (ignora o filtro de UG para comparar)
     const LU = filtrar(linhasCtrSdr(), null, 'ug').filter(d => !acaoSel || d.acoes.includes(acaoSel)), selU = selDe('ug').map(String);
-    const tabUG = `<table class="cs-t"><thead><tr><th>UG</th><th class="n">Ativos</th><th class="n">Contratado</th><th class="n">Previsto 26</th><th class="n">Empenhado 26</th><th class="n">Pago 26</th><th class="n">Alertas</th></tr></thead><tbody>
-      ${UGS_CTRSDR.map(u => { const L = LU.filter(d => d.ugc===u), A = L.filter(d => d.sit==='Ativo'); if(!L.length) return ''; const nAl = A.filter(d => d.acoes.length).length, p = s(A,'prev'), pg = s(L,'pago');
-        return `<tr data-campo="ug" data-valor="${esc(NOME_UG_CTRSDR[u])}" class="${selU.includes(NOME_UG_CTRSDR[u])?'sel':''}"><td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${COR_UG_CTRSDR[u]};margin-right:6px"></i><b>${u}</b> ${CURTO_UG_CTRSDR[u]}</td><td class="n">${A.length}</td><td class="n">${fmtC(s(A,'vg'))}</td><td class="n">${fmtC(p)}</td><td class="n">${fmtC(s(L,'emp'))}</td><td class="n">${fmtC(pg)}<br><small style="color:#5f6f66">${pct(pg,p)}% do previsto</small></td><td class="n">${nAl ? `<span class="cs-pill" style="background:${nAl > A.length/2 ? '#b3261e' : '#c75a00'}">${nAl}</span>` : '<span class="cs-pill" style="background:#2e8a4f">0</span>'}</td></tr>`; }).join('')}</tbody></table>`;
+    const tabUG = `<section class="card cb-c"><h3>Resumo por UG</h3><p class="dica" style="margin:0 0 4px">contratos ativos · valores 2026 · clique na UG para filtrar</p><div style="overflow-x:auto"><table class="cx-t cs-ug"><tr><th>UG</th><th class="n">Ativos</th><th class="n">Contratado</th><th class="n">Previsto 26</th><th class="n">Pago 26</th><th>% pago</th></tr>
+      ${UGS_CTRSDR.map(u => { const L = LU.filter(d => d.ugc===u), A = L.filter(d => d.sit==='Ativo'); if(!L.length) return ''; const p = s(A,'prev'), pg = s(L,'pago'), c = s(A,'vg');
+        return `<tr data-campo="ug" data-valor="${esc(NOME_UG_CTRSDR[u])}" class="${selU.includes(NOME_UG_CTRSDR[u])?'sel':''}" role="button" tabindex="0"><td style="white-space:nowrap"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${COR_UG_CTRSDR[u]};margin-right:6px"></i><b>${u}</b> ${CURTO_UG_CTRSDR[u]}</td><td class="n">${A.length}</td><td class="n" title="${esc(fmtBRL(c))}">${fmtC(c)}</td><td class="n" title="${esc(fmtBRL(p))}">${fmtC(p)}</td><td class="n" title="${esc(fmtBRL(pg))}"><b>${fmtC(pg)}</b></td><td style="min-width:64px;width:22%" title="${pct(pg,p)}% do previsto"><div class="cs-bar" style="margin:0"><i style="width:${Math.min(100,pct(pg,p||1))}%;background:${COR_UG_CTRSDR[u]}"></i></div><small style="color:#5f6f66">${pct(pg,p)}%</small></td></tr>`; }).join('')}</table></div></section>`;
+    // por categoria (barras, valor contratado)
+    const porCat = agrupar(at, 'cat', ['vg']).sort((a,b) => b[1].vg-a[1].vg), selC = selDe('cat').map(String), mxC = Math.max(1, ...porCat.map(([,v]) => v.vg));
+    const pstT = at.reduce((a,d) => a + (d.postos||0), 0);
+    const blocoCat = `<section class="card cb-c"><h3>Por categoria</h3><p class="dica" style="margin:0 0 6px">valor contratado dos ativos · clique para filtrar</p>${porCat.map(([c,v]) => { const n = at.filter(d => d.cat===c).length;
+      return `<div class="cx-b ${selC.includes(c)?'sel':''}" data-campo="cat" data-valor="${esc(c)}" role="button" tabindex="0" title="${esc(c)} · ${n} contrato(s) · ${esc(fmtBRL(v.vg))}"><span>${esc(c)} <small>${n}</small></span><i><em style="width:${(100*v.vg/mxC).toFixed(1)}%;background:#1f6b3a"></em></i><b>${fmtC(v.vg)}</b></div>`; }).join('') || '<p class="dica">Nenhum contrato ativo no recorte.</p>'}
+      ${pstT ? `<p class="dica" style="text-align:left;margin-top:6px">mão de obra exclusiva: ${nI2(pstT)} postos</p>` : ''}</section>`;
     // fornecedores
     const porForn = agrupar(at, 'forn', ['vg','pago']).sort((a,b) => b[1].vg-a[1].vg), totF = porForn.reduce((a,[,v]) => a + v.vg, 0), selF = selDe('forn').map(String);
-    const top4 = porForn.slice(0,4).reduce((a,[,v]) => a + v.vg, 0), limF = EXPANDIDO.ctrForn ? porForn.length : 8, maxF = porForn.length ? porForn[0][1].vg : 1;
+    const top4 = porForn.slice(0,4).reduce((a,[,v]) => a + v.vg, 0), limF = EXPANDIDO.ctrForn ? porForn.length : 6, maxF = porForn.length ? porForn[0][1].vg : 1;
     const nCtr = f => at.filter(d => d.forn===f).length;
-    const blocoForn = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h3>Maiores fornecedores</h3>${porForn.length > 4 && totF ? `<span class="cs-pill" style="background:#c75a00">os 4 maiores concentram ${pct(top4,totF)}%</span>` : ''}</div><p class="dica">valor global dos contratos ativos · clique para filtrar</p>
-      ${porForn.slice(0,limF).map(([f,v],i) => `<div class="cs-f ${selF.includes(f)?'sel':''}" data-campo="forn" data-valor="${esc(f)}"><span class="r">${i+1}</span><span>${esc(f)} <small style="color:#5f6f66">· ${nCtr(f)} contrato(s)</small></span><span class="v">${fmtC(v.vg)}<small>pago 26 ${fmtC(v.pago)}</small></span><span class="bb"><i style="width:${Math.max(1,100*v.vg/maxF).toFixed(1)}%"></i></span></div>`).join('') || '<p class="dica">Nenhum contrato ativo no recorte.</p>'}
-      ${porForn.length > 8 ? `<button type="button" class="mais" data-expande="ctrForn">${EXPANDIDO.ctrForn ? 'Mostrar só os 8 maiores' : 'Ver os '+porForn.length+' fornecedores'}</button>` : ''}`;
-    // categorias
-    const porCat = agrupar(at, 'cat', ['vg']).sort((a,b) => b[1].vg-a[1].vg), selC = selDe('cat').map(String);
-    const blocoCat = `<div class="cs-cat">${porCat.map(([c,v]) => { const L = at.filter(d => d.cat===c), pst = L.reduce((a,d) => a + (d.postos||0), 0), nMo = L.filter(d => d.postos!==null).length;
-      return `<div class="${selC.includes(c)?'sel':''}" data-campo="cat" data-valor="${esc(c)}"><small>${esc(c)}</small><b>${fmtC(v.vg)}</b><small>${L.length} contrato(s)${nMo ? ` · <b style="display:inline;font-size:12px">${nI2(pst)} postos</b>` : ''}</small></div>`; }).join('')}</div>`;
-    return CSS_CTRSDR + chips() + `
-    <div class="cs-sec">Situação geral</div>${k4}
-    <div class="cs-sec">Precisa de ação · clique para ver a lista</div>${a5}
-    <div class="cs-g2">
-      <div class="cs-card"><h3>Onde estão os contratos</h3><p class="dica">contratos ativos por UF · CEPLAC pelo local de atuação da Base Contratos · clique para filtrar</p>${mapaCtrSdr(at)}</div>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div class="cs-card"><h3>Resumo por UG</h3><p class="dica">contratos ativos · valores 2026 · clique na UG para filtrar</p><div style="overflow-x:auto">${tabUG}</div></div>
-        <div class="cs-card"><h3>Calendário de vencimentos · próximos 12 meses</h3><p class="dica">contratos ativos pelo mês de fim da vigência · clique no mês para filtrar</p>${calendarioCtrSdr(at)}</div>
-      </div>
-    </div>
-    <div class="cs-g2">
-      <div class="cs-card">${blocoForn}</div>
-      <div class="cs-card"><h3>Por categoria</h3><p class="dica">valor global dos contratos ativos · postos nos contratos de mão de obra exclusiva</p>${blocoCat}</div>
-    </div>
-    <div style="margin-top:12px"></div>
+    const blocoForn = `<section class="card cb-c"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h3>Maiores fornecedores</h3>${porForn.length > 4 && totF ? `<span class="cs-pill" style="background:#c75a00">os 4 maiores concentram ${pct(top4,totF)}%</span>` : ''}</div><p class="dica" style="margin:0 0 4px">valor contratado dos ativos · clique para filtrar</p>
+      ${porForn.slice(0,limF).map(([f,v],i) => `<div class="cs-f ${selF.includes(f)?'sel':''}" data-campo="forn" data-valor="${esc(f)}"><span class="r">${i+1}</span><span>${esc(f)} <small style="color:#5f6f66">· ${nCtr(f)} contrato(s)</small></span><span class="v" title="${esc('Contratado '+fmtBRL(v.vg)+' · pago 2026 '+fmtBRL(v.pago))}">${fmtC(v.vg)}<small>pago 26 ${fmtC(v.pago)}</small></span><span class="bb"><i style="width:${Math.max(1,100*v.vg/maxF).toFixed(1)}%;background:#6a3d9a"></i></span></div>`).join('') || '<p class="dica">Nenhum contrato ativo no recorte.</p>'}
+      ${porForn.length > 6 ? `<button type="button" class="mais" data-expande="ctrForn">${EXPANDIDO.ctrForn ? 'Mostrar só os 6 maiores' : 'Ver os '+porForn.length+' fornecedores'}</button>` : ''}</section>`;
+    const mapa = `<section class="card cb-c"><h3>Onde estão os contratos</h3><p class="dica">contratos ativos por UF · CEPLAC pelo local de atuação da Base Contratos · clique para filtrar</p>${mapaCtrSdr(at)}</section>`;
+    return CSS_CTRSDR + CSS_CTRB + chips() + kpis6
+    + `<div class="cx-g" style="grid-template-columns:minmax(0,2.1fr) minmax(0,1fr)">${cal}${acao}</div>`
+    + `<div class="cx-g" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)">${despesa}<div>${tabUG}${blocoCat}</div></div>`
+    + `<div class="cx-g" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)">${mapa}${blocoForn}</div>` + `
+    <div style="margin-top:14px"></div>
     ${tabela('ctrsdr','Contratos · mais novos primeiro', [
       ['id','Contrato','fichaCtrApi'],['ano','Ano','i'],['ug','UG atual'],['uf','UF'],['forn','Fornecedor'],['cat','Categoria'],['sit','Situação'],['ini','Vig. início'],['fim','Vig. fim'],
       ['dias','Dias a vencer','i'],['vg','Valor global','n'],['postos','Postos','i'],['prev','Previsto 2026','n'],['emp','Empenhado 2026','n'],['pago','Pago 2026 (EXE+RAP)','n'],['rapAberto','RAP em aberto','n'],
