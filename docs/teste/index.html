@@ -3013,14 +3013,39 @@ function kpi(o){
   if(o.lista){ const id = 'kp'+(VIEW ? VIEW.id : '')+'|'+String(o.titulo).replace(/<[^>]+>/g,'');
     KPI_P[id] = {tit: String(o.titulo).replace(/<[^>]+>/g,''), lista: o.ord ? o.lista.slice().sort((a,b) => (b[o.ord]||0)-(a[o.ord]||0)) : o.lista, cols: o.cols || KC[o.abre||'inst'](), abre: o.abre||'inst', ord: o.ord};
     at = ` data-kpip="${esc(id)}" title="Clique para ver a lista"`; }
+  const ic = kxIcone(o.titulo, o.destaque);
   return `<div class="card kpi ${o.grande?'grande':''} ${o.destaque?'destaque':''} ${o.lista?'kpi-cl':''} ${o.lista && KPI_ON==='kp'+(VIEW?VIEW.id:'')+'|'+String(o.titulo).replace(/<[^>]+>/g,'')?'kpi-on':''}"${at}>
-    <h3>${o.titulo}</h3>
+    <h3><i class="kx-ic" style="--c:${ic[1]}" aria-hidden="true">${ic[0]}</i>${o.titulo}</h3>
     <div class="valor" data-tip="${esc(o.tip||'')}"${o.cor ? ` style="color:${o.cor}"` : ''}>${o.valor}</div>
     ${o.barra!=null ? `<div class="pp-bar"><i style="width:${(Math.max(0,Math.min(1,o.barra))*100).toFixed(1)}%"></i></div>` : ''}
     ${o.nota ? `<div class="nota">${o.nota}</div>` : ''}
     ${o.sub ? `<div class="sub"><span>${o.sub[0]}</span><strong class="${o.sub[3]||''}" data-tip="${esc(o.sub[2]||'')}">${o.sub[1]}</strong></div>` : ''}
   </div>`;
 }
+// ===== faixa executiva (25/11/2026 · teste): Parceria SDR, Propostas SDR, Execução 420013 e TED Equipe no padrão do EXE e dos Contratos =====
+// ícone do cartão pelo título (só aparece com body[data-exec])
+function kxIcone(t, dest){ const x = normAccent(String(t||'').replace(/<[^>]+>/g,''));
+  if(dest) return ['◼','#1a4d2e'];
+  return /^A (REPASSAR|DESEMBOLSAR|COMPROVAR)|TRAMITA|PENDENTE/.test(x) ? ['⧗','#c7861a'] : /DESCENTRALIZ/.test(x) ? ['→','#2c6fa8'] : /DESEMBOLSADO|REPASSADO/.test(x) ? ['↓','#3e8f86']
+    : /CELEBRAD|COMPROVADO|CONCLU/.test(x) ? ['✓','#1b6b3e'] : /PAGO|EMPENHADO|FINANCEIRO/.test(x) ? ['$','#6b4aa0'] : /VALOR|FIRMADO|REPASSE|INDICADO|TOTAL/.test(x) ? ['R$','#1b6b3e'] : /ETAPA/.test(x) ? ['▦','#2c6fa8'] : ['◼','#1a4d2e']; }
+(function(){ if(document.getElementById('kx-css')) return; const st = document.createElement('style'); st.id = 'kx-css'; st.textContent = `
+.kx-ic{display:none}
+body[data-exec] .pp-k,body[data-exec] .grade:has(>.card.kpi){display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px}
+body[data-exec] .card.kpi,body[data-exec] .card.kpi.destaque{background:#fff !important;color:#14231b !important;border-top:1px solid #dfe8e2 !important;text-align:left !important;justify-content:flex-start !important;border:1px solid #dfe8e2;border-radius:14px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.04);min-height:0;grid-column:auto !important;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:0;margin:0}
+body[data-exec] .card.kpi.kpi-cl:hover{border-color:#9cc7a8}body[data-exec] .card.kpi.kpi-on{border-color:#1b6b3e;box-shadow:0 0 0 3px #d9ecdf}
+body[data-exec] .kpi h3,body[data-exec] .kpi.destaque h3{color:#33453b !important;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#33453b;text-transform:none;letter-spacing:0}
+body[data-exec] .kx-ic{display:inline-flex;flex:0 0 26px;height:26px;border-radius:8px;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:12px;color:var(--c);background:color-mix(in srgb,var(--c) 13%,#fff)}
+body[data-exec] .kpi .valor,body[data-exec] .kpi.destaque .valor{text-align:left !important;align-self:flex-start;position:static !important;font-size:24px !important;font-weight:800;color:#14231b;margin:8px 0 0;line-height:1.15}
+body[data-exec] .kpi .nota,body[data-exec] .kpi.destaque .nota{position:static !important;text-align:left !important;font-size:11.5px;color:#1e7a43;margin-top:5px}
+body[data-exec] .kpi .sub,body[data-exec] .kpi.destaque .sub{margin-top:5px;color:#1e7a43;font-size:11.5px}body[data-exec] .kpi .sub strong,body[data-exec] .kpi.destaque .sub strong{font-size:12.5px;color:#14231b}
+body[data-exec] .kpi .pp-bar{height:7px;margin:9px 0 0;background:#eef2ef}body[data-exec] .kpi .pp-bar i{background:#3e8f86}
+.kx-ac{background:#fff;border:1px solid #dfe8e2;border-radius:14px;padding:6px 6px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.kx-ai{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;padding:8px 12px;border-left:1px solid #edf2ee;border-radius:10px;align-items:center}.kx-ai:first-child{border-left:0}
+.kx-ai[data-campo]{cursor:pointer}.kx-ai[data-campo]:hover{background:#f6f9f7}.kx-ai.on{background:#fff6dc}
+.kx-ai em{font-style:normal;font-weight:800;font-size:26px;grid-row:1/4;line-height:1}.kx-ai b{font-size:13px;line-height:1.25}.kx-ai small{font-size:11.5px;color:#6b7a72;line-height:1.3}
+.kx-ai span{justify-self:start;border:1px solid currentColor;border-radius:20px;padding:1px 9px;font-size:10.5px;font-weight:700;margin-top:2px}.kx-ai.zero{opacity:.5}
+@media(max-width:1100px){.kx-ac{grid-template-columns:repeat(3,minmax(0,1fr))}.kx-ai{border-left:0}}@media(max-width:600px){.kx-ac{grid-template-columns:1fr}}`;
+  document.head.appendChild(st); })();
 // tipo do instrumento pela modalidade: Convênio / Termo de Fomento / Contrato de Repasse
 function tipoInst(d){ const m = normAccent(d && d.mod);
   return /FOMENTO/.test(m) ? ['Termo de Fomento','#2e7d32'] : /REPASSE/.test(m) ? ['Contrato de Repasse','#b8650a'] : /COLABORA/.test(m) ? ['Termo de Colaboração','#6a3d9a'] : /CONVENIO/.test(m) ? ['Convênio','#1f4e79'] : m ? [d.mod,'#666'] : null; }
@@ -5971,6 +5996,28 @@ function navTedAPI(){
   const abas = [['geral','Visão geral'],['vig','Vigentes'],['pc','Prestação de contas'],['disp','Dispensa de TED'],['ok','Aprovados / concluídos']];
   return `<nav class="ted-abas">${abas.map(([k,n]) => `<button type="button" data-tedaba="${k}" class="${TED_ABA===k?'on':''}">${n}</button>`).join('')}</nav>`;
 }
+// faixa executiva nas páginas do robô (25/11/2026 · teste): cartões no padrão do EXE e dos Contratos; no TED, "Acompanhamento" + "Alertas de valor" viram um só "Precisa de ação"
+const TG_EXEC = `<style id="kx-tg">
+.kp{gap:12px}.k{background:#fff !important;border:1px solid #dfe8e2;border-radius:14px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.k>span{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#33453b !important}
+.k>span::before{content:"R$";flex:0 0 26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#1b6b3e;background:#e4f0e8}
+.k.dest>span::before{content:"◼";color:#1a4d2e;background:#e3ebe6}.k.red>span::before{content:"!";color:#b3261e;background:#f7e3e1}.k.amar>span::before{content:"⧗";color:#c7861a;background:#f8eedd}.k.verde>span::before{content:"↓";color:#3e8f86;background:#e2f0ee}
+.k>b{font-size:24px !important;font-weight:800;color:#14231b !important;margin-top:8px}.k.red>b{color:#b3261e !important}.k.amar>b{color:#b3700b !important}
+.k>small{display:block;font-size:11.5px;color:#1e7a43 !important;margin-top:5px}.k.red>small{color:#8b1e16 !important}
+.kx-acao{display:grid !important;grid-template-columns:repeat(auto-fit,minmax(180px,1fr)) !important;gap:0 !important;background:#fff;border:1px solid #dfe8e2;border-radius:14px;padding:6px}
+.kx-acao>.k{border:0;border-left:1px solid #edf2ee;border-radius:10px;box-shadow:none;display:grid;grid-template-columns:auto minmax(0,1fr);gap:1px 10px;align-items:center;padding:8px 12px}
+.kx-acao>.k>span{grid-column:2;grid-row:1;font-size:13px;color:#14231b !important;font-weight:700}.kx-acao>.k>span::before{display:none}
+.kx-acao>.k>b{grid-column:1;grid-row:1/4;font-size:26px !important;margin:0;color:#7a8794 !important}.kx-acao>.k>small{grid-column:2;margin:0;color:#6b7a72 !important}
+.kx-acao>.k.red>b{color:#b3261e !important}.kx-acao>.k.amar>b{color:#c7861a !important}
+.kx-acao>.k.red::after,.kx-acao>.k.amar::after{grid-column:2;justify-self:start;border:1px solid currentColor;border-radius:20px;padding:1px 9px;font-size:10.5px;font-weight:700;margin-top:2px}
+.kx-acao>.k.red::after{content:"Alta";color:#b3261e}.kx-acao>.k.amar::after{content:"Média";color:#c7861a}.kx-acao>.k:not(.red):not(.amar)>b{color:#14231b !important}
+.kx-conf>.k{border-style:dashed;box-shadow:none}.kx-conf>.k>b{font-size:18px !important}.kx-conf>.k>span::before{display:none}
+</style><script>(function(){ function kx(){ const gs=[...document.querySelectorAll('.grp')], ac=gs.find(g=>/^Acompanhamento/.test(g.textContent)); if(!ac||ac.dataset.kx) return;
+  const al=gs.find(g=>/^Alertas de valor/.test(g.textContent)), g1=ac.nextElementSibling; if(!g1) return; ac.dataset.kx=1; ac.textContent='Precisa de ação · em ordem de prioridade · clique para ver a lista'; g1.classList.add('kx-acao');
+  if(al && al.nextElementSibling){ [...al.nextElementSibling.children].forEach(c=>g1.appendChild(c)); al.nextElementSibling.remove(); al.remove(); }
+  const p = c => c.classList.contains('red') ? 0 : c.classList.contains('amar') ? 1 : 2; [...g1.children].sort((a,b)=>p(a)-p(b)).forEach(c=>g1.appendChild(c));
+  const t=gs.find(g=>/^Tesouro Gerencial/.test(g.textContent)); if(t && t.nextElementSibling && t.nextElementSibling.classList.contains('kp')){ t.textContent='Conferência · '+t.textContent; t.nextElementSibling.classList.add('kx-conf'); } }
+  new MutationObserver(kx).observe(document.documentElement,{childList:true,subtree:true}); document.addEventListener('DOMContentLoaded',kx); })();<\/script>`;
 async function montarPaginaTG(aba){
   const alvo = document.getElementById('tgPag'); if(!alvo) return;
   try{
@@ -5979,7 +6026,7 @@ async function montarPaginaTG(aba){
     if(!html){ const r = await fetch(TG_EMP_URL.replace('painel_empenhos.csv', TG_PAGINAS[aba]), {cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); html = await r.text(); IDB2.set(chave, html); }
     if((aba==='ted' ? !(VIEW && (VIEW.id==='tedapi' || TED_ABA==='api')) : aba==='orc' ? !(VIEW && VIEW.id==='orcacao') : aba==='repasse' ? !(VIEW && VIEW.id==='repasse') : PARC_ABA!==aba) || !document.getElementById('tgPag')) return;
     const fr = document.createElement('iframe'); fr.className = 'tg-frame'; fr.title = {obras:'Obras', ted:'TED API', orc:'Orçamento por ação'}[aba] || 'Transferegov';
-    alvo.innerHTML = ''; alvo.appendChild(fr); fr.srcdoc = html;
+    alvo.innerHTML = ''; alvo.appendChild(fr); fr.srcdoc = html.replace(/<\/head>/i, TG_EXEC + '</head>');
     const ajustar = () => { try{ const h = fr.contentDocument && fr.contentDocument.documentElement.scrollHeight; if(h && Math.abs(fr.offsetHeight-h) > 4) fr.style.height = h+'px'; }catch(e){} };
     fr.addEventListener('load', () => { ajustar(); try{ new ResizeObserver(() => requestAnimationFrame(ajustar)).observe(fr.contentDocument.body); }catch(e){ setInterval(ajustar, 800); } });
   }catch(e){ alvo.innerHTML = `<p class="dica" style="padding:20px">Não foi possível abrir a página do Transferegov agora (${esc(e.message)}).</p>`; }
@@ -7250,8 +7297,10 @@ function ppBusca(ph){ const id = VIEW.id;
   return `<div class="pp-busca"><span aria-hidden="true">🔎</span><input type="search" id="ppBusca" data-ppbusca="${id}" placeholder="${esc(ph)}" autocomplete="off" aria-label="${esc(ph)}"><button type="button" class="pp-abrir" data-ppabrirbtn>Abrir ficha</button><div class="pp-sug" id="ppSug" hidden></div></div>`; }
 // cartões "Precisa de ação": [classe r|o|y|p, título, quantidade, detalhe, campo do filtro, valor do filtro]
 function ppAcao(cards){
-  return `<div class="pp-acao">${cards.map(([cl, t, n, sub, campo, valor]) => { const on = campo && selDe(campo).map(String).includes(String(valor));
-    return `<div class="pp-al ${cl} ${n ? '' : 'zero'} ${on ? 'on' : ''}" ${n && campo ? `data-campo="${campo}" data-valor="${esc(valor)}" role="button" tabindex="0" title="${on ? 'Clique para tirar o filtro' : 'Clique para ver só estes'}"` : ''}><p>${t}</p><b>${Number(n).toLocaleString('pt-BR')}</b><small>${sub}</small></div>`; }).join('')}</div>`; }
+  const PRI = cl => /^[ro]$/.test(cl) ? ['Alta','#b3261e'] : ['Média','#c7861a'];
+  const L = cards.map((c, i) => [c, i]).sort((a, b) => ((b[0][2] > 0) - (a[0][2] > 0)) || ((PRI(a[0][0])[0] === 'Alta' ? 0 : 1) - (PRI(b[0][0])[0] === 'Alta' ? 0 : 1)) || a[1] - b[1]).map(x => x[0]);
+  return `<div class="kx-ac">${L.map(([cl, t, n, sub, campo, valor]) => { const on = campo && selDe(campo).map(String).includes(String(valor)), [p, cor] = PRI(cl);
+    return `<div class="kx-ai ${n ? '' : 'zero'} ${on ? 'on' : ''}" ${n && campo ? `data-campo="${campo}" data-valor="${esc(valor)}" role="button" tabindex="0" title="${on ? 'Clique para tirar o filtro' : 'Clique para ver só estes'}"` : ''}><em style="color:${n ? cor : '#9aa6a0'}">${Number(n).toLocaleString('pt-BR')}</em><b>${t}</b><small>${sub}</small><span style="color:${n ? cor : '#9aa6a0'}">${n ? p : 'em dia'}</span></div>`; }).join('')}</div>`; }
 // "Explorar por": ops = [[chave, rótulo, () => html]]
 function ppExplorar(ops){ const id = VIEW.id, at = ops.find(o => o[0] === PP_EXP[id]) || ops[0];
   return `<section class="card pp-ex"><div class="pp-seg" role="tablist">${ops.map(([k, t]) => `<button type="button" role="tab" data-ppexp="${id}|${k}" class="${k === at[0] ? 'on' : ''}" aria-selected="${k === at[0]}">${t}</button>`).join('')}</div><div class="pp-exc">${at[2]()}</div></section>`; }
@@ -8281,6 +8330,7 @@ function render(){
     const tedAPI = VIEW.id==='tedapi' || (TED_API_LIGADO && VIEW.id==='ted' && TED_ABA==='api');
     const orcPag = VIEW.id==='orcacao', repPag = VIEW.id==='repasse';
     document.body.classList.toggle('tg-pag', pagTG || tedAPI || orcPag || repPag);
+    document.body.toggleAttribute('data-exec', ['parc','prop','conv','ted','tedapi'].includes(VIEW.id));
     if(repPag){ document.getElementById('conteudo').innerHTML = VIEW.def.render(); montarPaginaTG('repasse'); return; }
     if(orcPag){ document.getElementById('conteudo').innerHTML = VIEW.def.render(); montarPaginaTG('orc'); return; }
     if(tedAPI){ document.getElementById('conteudo').innerHTML = (VIEW.id==='tedapi' ? '' : navTedAPI()) + '<div id="tgPag"><p class="dica" style="padding:20px">Carregando a página de TED da API do Transferegov…</p></div>'; montarPaginaTG('ted'); return; }
