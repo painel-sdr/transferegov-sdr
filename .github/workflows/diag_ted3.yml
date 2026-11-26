@@ -1,0 +1,23 @@
+name: Diag TED 3
+on:
+  push:
+    branches: [diag-ted3]
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p d && cd d
+          N=1wN4o5tNVG8bNNivLWs6_ExCG8DsgVrScL8ozZ16f9CM
+          for a in "TED VIGENTE" "Dispensa de TED" "Pestração de Contas TED" "Ted Aprovado Concluido"; do f=$(echo "$a" | tr ' ' '_'); curl -sL -w "%{http_code}\n" "https://docs.google.com/spreadsheets/d/$N/gviz/tq?tqx=out:csv&sheet=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$a")" -o nova_$f.csv > nova_$f.code; done
+          B="https://docs.google.com/spreadsheets/d/e/2PACX-1vRyLjeoCobYSRx7o3tiZ7fvj4-FhvKnGiSVxoA8l6yD2CqfJsUidxWN00jLuFpBMrFL6MesSdYuWnrb/pub"
+          for g in 2018973768 1576888866 1791002980; do curl -sL -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0" -H "Origin: https://painel-sdr.github.io" -D h_$g.txt "$B?gid=$g&single=true&output=csv" -o pub_$g.csv; done
+          wc -l *.csv; cat *.code
+      - run: |
+          cd d && git init -q && git checkout -q -b diag-ted3-saida
+          git config user.name robo-transferegov && git config user.email robo-transferegov@users.noreply.github.com
+          git add -A && git commit -q -m diag && git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" diag-ted3-saida
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
