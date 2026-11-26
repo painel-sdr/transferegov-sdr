@@ -964,6 +964,62 @@ def ted(pasta):
                     if re.fullmatch(r'\d{2}/\d{2}/\d{4}', d or '')]
             if anos:
                 o['ano'], o['anoInf'] = anos[0], True
+    # ---- TED antigo que veio de uma fonte só (só no Tesouro / só no controle interno): completa ação e órgão (25/11/2026)
+    # ação: pelas notas de crédito do Tesouro do próprio TED (relatório de NC traz ação e PTRES); órgão: pela UG favorecida ou pelo nome da unidade
+    n_ac = n_or = 0
+    for o in linhas:
+        if o.get('acao') in ('', '(sem ação)'):
+            nts = o.get('ncs') or []
+            if not nts:
+                k_ = ted_tesouro.chave_ted(o.get('n') or '')
+                nts = ncT.get(k_, []) if k_ else []
+                if nts:
+                    o['ncs'], o['ncT'] = nts[:40], len(nts)
+                    if not o.get('nc'):
+                        o['nc'] = round(sum(x[4] for x in nts), 2)
+            pv = collections.Counter()
+            for x in nts:
+                a_ = (x[11] or ac_orc.get(str(x[5] or '').strip(), '') or '').strip().upper()
+                if a_:
+                    pv[a_] += abs(x[4] or 0)
+            if pv:
+                o['acao'] = ' | '.join(a_ for a_, _ in pv.most_common())
+                n_ac += 1
+    org_ug, org_nome = {}, {}
+    for o in linhas:
+        orr = o.get('orr') or ''
+        if orr and not orr.startswith('('):
+            if o.get('ugr'):
+                org_ug.setdefault(str(o['ugr']), orr)
+            if o.get('unr'):
+                org_nome.setdefault(re.sub(r'\W+', ' ', unicodedata.normalize('NFD', o['unr']).encode('ascii', 'ignore').decode().upper()).strip(), orr)
+    ORG_NOME = [(r'UNIVERSIDADE|INSTITUTO FEDERAL|INST ?FED|\bUF[A-Z]{2,4}\b|\bIF[A-Z]{1,4}\b|FUNDACAO UNIVERSIDADE|CENTRO FEDERAL DE EDUCACAO|COLEGIO PEDRO|HOSPITAL DE CLINICAS|EBSERH|CAPES|INEP|FNDE', 'Ministério da Educação'),
+                (r'EMBRAPA|EMPRESA BRASILEIRA DE PESQUISA AGROPECUARIA|CONAB|COMPANHIA NACIONAL DE ABASTECIMENTO|SERVICO FLORESTAL|INMET|CEPLAC|SUPERINTENDENCIA FEDERAL DE AGRICULTURA|\bSFA\b|LABORATORIO FEDERAL', 'Ministério da Agricultura e Pecuária'),
+                (r'CODEVASF|COMPANHIA DE DESENVOLVIMENTO DOS VALES', 'Companhia de Desenvolvimento dos Vales do São Francisco e do Parnaíba'),
+                (r'DNOCS|OBRAS CONTRA AS SECAS', 'Departamento Nacional de Obras Contra as Secas'),
+                (r'FIOCRUZ|FUNDACAO OSWALDO CRUZ', 'Ministério da Saúde'),
+                (r'INPE|INSA|CNPQ|FINEP|CETENE|INSTITUTO NACIONAL DO SEMIARIDO|CENTRO DE TECNOLOGIAS ESTRATEGICAS', 'Ministério da Ciência, Tecnologia e Inovações'),
+                (r'IPHAN|PATRIMONIO HISTORICO', 'Ministério da Cultura'),
+                (r'INCRA|COLONIZACAO E REFORMA AGRARIA', 'Ministério do Desenvolvimento Agrário e Agricultura Familiar'),
+                (r'IBGE|GEOGRAFIA E ESTATISTICA', 'Ministério do Planejamento e Orçamento'),
+                (r'CPRM|PESQUISA DE RECURSOS MINERAIS|SERVICO GEOLOGICO', 'Ministério de Minas e Energia'),
+                (r'MUSEU PARAENSE|EMILIO GOELDI|MUSEU DE ASTRONOMIA|INSTITUTO NACIONAL DE PESQUISAS', 'Ministério da Ciência, Tecnologia e Inovações')]
+    for o in linhas:
+        if not str(o.get('orr') or '(').startswith('('):
+            continue
+        nm = re.sub(r'\W+', ' ', unicodedata.normalize('NFD', str(o.get('unr') or '')).encode('ascii', 'ignore').decode().upper()).strip()
+        ug_ = str(o.get('ugr') or '')
+        por_ug = ('Ministério do Desenvolvimento Agrário e Agricultura Familiar' if ug_ == '373001' else 'Ministério das Relações Exteriores' if ug_.startswith('240')
+                  else 'Ministério da Educação' if re.match(r'15[0-8]\d{3}$', ug_) else 'Ministério da Agricultura e Pecuária' if re.match(r'13\d{4}$', ug_) or re.search(r'\bSDR\b|MAPA', nm) else '')
+        novo = org_ug.get(ug_) or org_nome.get(nm) or next((org for rx, org in ORG_NOME if re.search(rx, nm)), '') or por_ug or \
+               (str(o.get('unr')).strip() if nm.startswith('MINISTERIO D') else '')
+        if novo:
+            o['orr'] = novo
+            n_or += 1
+    MESMO_ORG = {'MINIST. DA CIENCIA, TECNOL., INOV. E COMUNICACOES': 'Ministério da Ciência, Tecnologia e Inovações'}
+    for o in linhas:
+        o['orr'] = MESMO_ORG.get(o.get('orr'), o.get('orr'))
+    print(f'TEDs antigos completados: ação em {n_ac}, órgão em {n_or}', flush=True)
     # ---- departamento (25/11/2026): pela UG da SDR; na 420013, o do controle da equipe e, sem ele, pela ação
     DEP_UG_TED = {'130141': 'CGPI', '130010': 'CEPLAC', '130255': 'PROMAQ', '135098': 'CAIXA ECONÔMICA'}
     DEP_ACAO_TED = {'8593': 'DEPROS', '214Z': 'DIAGRO', '00PN': 'DIAGRO', '215A': 'DECAP', '8622': 'DECAP', '21B6': 'DECAP', '8606': 'DECAP', '20ZY': 'CEPLAC', '2000': 'SDR'}
