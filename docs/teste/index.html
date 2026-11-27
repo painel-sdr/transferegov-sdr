@@ -11168,6 +11168,7 @@ const PORT_GOV = 'https://www.gov.br/agricultura/pt-br/centrais-de-conteudo/publ
 const PORT_PDF = 'https://painel-sdr.github.io/transferegov-sdr/cartilhas/';
 const PORT_DRIVE = 'https://drive.google.com/drive/folders/1uSA_wT4G8u34CrzmJ4rUpqmu_5z8XKpS';
 const PORT_MAPA = [
+  ['Portfólio de ações MAPA · PLOA 2027', 'ações do Ministério no Projeto de Lei Orçamentária 2027', PORT_PDF+'portfolio_mapa_ploa_2027.pdf', '📙', 'portfolio2027'],
   ['Portfólio de ações MAPA 2026', 'todas as ações do Ministério que podem receber emendas', PORT_GOV+'/PLOA2025versofinal.pdf', '📗', 'portfolio'],
   ['Cartilha Capacitação e Eventos', 'exposições, feiras, cursos, dias de campo (IN MAPA nº 25/2023)', PORT_GOV+'/cartilha-capacitacao-e-eventos', '🎤', 'capacitacao'],
   ['Cartilha Insumos', 'aquisição de insumos agropecuários', PORT_GOV+'/cartilhas-insumos', '🌾', 'insumos'],
@@ -11192,7 +11193,7 @@ const PORT_ACOES = [
 function desenharPortfolio(tela){
   const el = document.getElementById('v-extra'), bt = (u, t, cls) => `<a class="pf-bt ${cls||''}" href="${esc(u)}" target="_blank" rel="noopener">${t}</a>`;
   if(tela === 'portmapa'){
-    el.innerHTML = `<div class="vx-top"><div><h1>PORTFÓLIO MAPA 2026</h1><small>cartilhas de emendas parlamentares do Ministério da Agricultura e Pecuária</small></div>${bt(PORT_GOV, 'Abrir no gov.br ↗', 'cl')}</div>
+    el.innerHTML = `<div class="vx-top"><div><h1>PORTFÓLIO MAPA</h1><small>cartilhas de emendas parlamentares do Ministério da Agricultura e Pecuária</small></div>${bt(PORT_GOV, 'Abrir no gov.br ↗', 'cl')}</div>
       <div class="pf-g">${PORT_MAPA.map(([t, d, u, ic, im]) => `<a class="pf-c" href="${esc(u)}" target="_blank" rel="noopener">${im ? `<img src="${PORT_PDF}mapa_${im}.jpg" alt="Capa: ${esc(t)}" class="pf-capa" onerror="this.outerHTML='<span class=pf-ic>${ic}</span>'">` : `<div class="pf-capa pf-sem"><span class="pf-ic">${ic}</span></div>`}<b>${esc(t)}</b><small>${esc(d)}</small><i>abrir ↗</i></a>`).join('')}</div>
       <p class="pf-n">Fonte: gov.br/agricultura · Centrais de conteúdo · Publicações · Cartilhas de emendas parlamentares.</p>`;
   } else {
@@ -16008,7 +16009,7 @@ function preCarregar(){
     ['PARCERIAS', [['parc','🤝','Parceria SDR',[['geral','Visão geral'],['prop','Propostas'],['inst','Instrumentos vigentes'],['pc','Prestação de contas']]],
                    ['prop','📝','Propostas SDR'],['conv','📋','Execução Convênio/TF 420013'],['repasse','🏠','Contrato de Repasse'],['relinst','📄','Relatório do instrumento'],['captacao','💡','Captação de Emendas',[['ind','Emenda Individual']]],['indic','🎯','Indicadores'],['_rel','📊','Relatório de gestão de parcerias'],['cronparc','📅','Calendário de parcerias'],['alertaparc','🔔','Alerta Parcerias']]],
     ['TED', [['tedapi','✉','TED GERAL SDR'],['ted','👥','TED EQUIPE SDR'],['_relted','📊','Relatório de gestão de TED'],['alertated','🔔','Alerta TED']]],
-    ['PORTFÓLIO E CARTILHAS SDR', [['portmapa','📘','Portfólio MAPA 2026'],['acoessdr','🌱','Ações SDR 2026']]],
+    ['PORTFÓLIO E CARTILHAS SDR', [['portmapa','📘','Portfólio MAPA'],['acoessdr','🌱','Ações SDR 2026']]],
     ['AJUDA', [['manualp','📗','Manual do painel'],['apresp','🎞','Apresentação do painel'],['idtru','📘','Manual do IDTRU-DL'],['assist','🤖','Assistente virtual'],['metodo','📚','Metodologia e fontes']]],
   ];
   const st = document.createElement('style');
