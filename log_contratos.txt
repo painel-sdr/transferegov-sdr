@@ -1,0 +1,2 @@
+Contratos.gov.br: falhou (falhou: https://contratos.comprasnet.gov.br/api/contrato/ug/130010 · último erro: URLError: <urlopen error [Errno 104] Connection reset by peer>); mantendo os arquivos anteriores
+PNCP: 5080 contratos do MAPA lidos · 0 achado(s) contrato por contrato · 77 com edital ligado

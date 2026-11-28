@@ -1,0 +1,11 @@
+FALHOU: Traceback (most recent call last):
+  File "/home/runner/work/transferegov-sdr/transferegov-sdr/scripts/contratos_api.py", line 437, in <module>
+    main()
+  File "/home/runner/work/transferegov-sdr/transferegov-sdr/scripts/contratos_api.py", line 337, in main
+    l = get(cam) or []
+        ^^^^^^^^
+  File "/home/runner/work/transferegov-sdr/transferegov-sdr/scripts/contratos_api.py", line 96, in get
+    raise RuntimeError(f'falhou: {url} · último erro: {erro}')
+RuntimeError: falhou: https://contratos.comprasnet.gov.br/api/contrato/ug/130010 · último erro: URLError: <urlopen error [Errno 104] Connection reset by peer>
+
+PNCP: sem erros
